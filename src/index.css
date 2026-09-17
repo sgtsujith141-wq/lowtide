@@ -1,0 +1,322 @@
+@import 'tailwindcss';
+
+/* ------------------------------------------------------------------
+   LOWTIDE — PAPER design system
+   A calm editorial surface: aged paper, ink-green type, one accent.
+   ------------------------------------------------------------------ */
+@theme {
+  --color-paper: #f4f1e8;
+  --color-surface: #fffdf8;
+  --color-ink: #21382c;
+  /* The brief's secondary text is #68766B. Against the #F4F1E8 page that is
+     4.23:1 — just under WCAG AA for body text — so the text tone is two steps
+     deeper (4.68:1) and the stated value is kept for non-text use. */
+  --color-muted: #626f64;
+  --color-muted-soft: #68766b;
+  --color-rule: #d9dfd4;
+  --color-accent: #206849;
+
+  /* Derived, kept strictly inside the paper/ink family */
+  --color-accent-deep: #18523a;
+  --color-accent-wash: #e4ebe2;
+  --color-wash: #eceadf;
+  --color-attention: #9a5b37;
+  --color-attention-wash: #f1e7dc;
+
+  --font-display: 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua',
+    'URW Palladio L', P052, Georgia, 'Times New Roman', serif;
+  --font-sans: ui-sans-serif, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+
+  --shadow-paper: 0 1px 2px rgb(33 56 44 / 0.04), 0 10px 30px -18px rgb(33 56 44 / 0.22);
+  --shadow-lift: 0 2px 4px rgb(33 56 44 / 0.05), 0 18px 44px -24px rgb(33 56 44 / 0.3);
+
+  --ease-paper: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-rule);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    min-height: 100dvh;
+  }
+
+  ::selection {
+    background-color: var(--color-accent-wash);
+    color: var(--color-accent-deep);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    letter-spacing: -0.015em;
+    color: var(--color-ink);
+    text-wrap: balance;
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+
+  textarea {
+    resize: none;
+  }
+
+  ::placeholder {
+    color: color-mix(in srgb, var(--color-muted) 80%, transparent);
+  }
+
+  /* Reduced motion: honour the OS setting everywhere. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* Surfaces ------------------------------------------------------- */
+  .lt-card {
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-rule);
+    border-radius: 6px;
+    box-shadow: var(--shadow-paper);
+  }
+
+  .lt-inset {
+    background-color: var(--color-wash);
+    border: 1px solid var(--color-rule);
+    border-radius: 5px;
+  }
+
+  /* Type ----------------------------------------------------------- */
+  .lt-eyebrow {
+    font-size: 0.6875rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+    font-weight: 500;
+  }
+
+  .lt-display {
+    font-family: var(--font-display);
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 1.12;
+  }
+
+  .lt-prose {
+    font-family: var(--font-display);
+    font-size: 1.0625rem;
+    line-height: 1.55;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  /* Controls ------------------------------------------------------- */
+  .lt-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 5px;
+    border: 1px solid transparent;
+    padding: 0.5rem 0.9rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1.2;
+    cursor: pointer;
+    transition:
+      background-color 180ms var(--ease-paper),
+      border-color 180ms var(--ease-paper),
+      color 180ms var(--ease-paper),
+      box-shadow 180ms var(--ease-paper),
+      transform 180ms var(--ease-paper);
+    text-decoration: none;
+  }
+
+  .lt-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+
+  .lt-btn-primary {
+    background-color: var(--color-accent);
+    color: #fffdf8;
+    box-shadow: 0 1px 2px rgb(33 56 44 / 0.12);
+  }
+
+  .lt-btn-primary:hover:not(:disabled) {
+    background-color: var(--color-accent-deep);
+  }
+
+  .lt-btn-primary:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+
+  .lt-btn-secondary {
+    background-color: var(--color-surface);
+    border-color: var(--color-rule);
+    color: var(--color-ink);
+  }
+
+  .lt-btn-secondary:hover:not(:disabled) {
+    border-color: color-mix(in srgb, var(--color-accent) 42%, var(--color-rule));
+    background-color: var(--color-accent-wash);
+    color: var(--color-accent-deep);
+  }
+
+  .lt-btn-secondary:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+
+  .lt-btn-quiet {
+    background-color: transparent;
+    color: var(--color-muted);
+    padding: 0.35rem 0.5rem;
+  }
+
+  .lt-btn-quiet:hover:not(:disabled) {
+    color: var(--color-accent-deep);
+    background-color: var(--color-accent-wash);
+  }
+
+  .lt-field {
+    width: 100%;
+    background-color: var(--color-surface);
+    border: 1px solid var(--color-rule);
+    border-radius: 5px;
+    padding: 0.55rem 0.7rem;
+    font-size: 0.9375rem;
+    transition:
+      border-color 180ms var(--ease-paper),
+      box-shadow 180ms var(--ease-paper);
+  }
+
+  .lt-field:hover {
+    border-color: color-mix(in srgb, var(--color-accent) 28%, var(--color-rule));
+  }
+
+  .lt-field:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 14%, transparent);
+  }
+
+  .lt-label {
+    display: block;
+    font-size: 0.75rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+    font-weight: 500;
+    margin-bottom: 0.35rem;
+  }
+
+  .lt-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    border-radius: 999px;
+    border: 1px solid var(--color-rule);
+    background-color: var(--color-surface);
+    padding: 0.1rem 0.55rem;
+    font-size: 0.6875rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-muted);
+    white-space: nowrap;
+  }
+
+  .lt-link {
+    color: var(--color-accent-deep);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-color: color-mix(in srgb, var(--color-accent) 35%, transparent);
+    transition: text-decoration-color 180ms var(--ease-paper);
+  }
+
+  .lt-link:hover {
+    text-decoration-color: var(--color-accent);
+  }
+
+  .lt-skip {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: 100;
+  }
+
+  .lt-skip:focus {
+    left: 0.75rem;
+    top: 0.75rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-accent);
+    border-radius: 5px;
+    padding: 0.5rem 0.75rem;
+  }
+}
+
+@layer utilities {
+  .lt-rise {
+    animation: lt-rise 420ms var(--ease-paper) both;
+  }
+
+  .lt-fade {
+    animation: lt-fade 500ms var(--ease-paper) both;
+  }
+
+  @keyframes lt-rise {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  @keyframes lt-fade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
