@@ -108,6 +108,16 @@ try {
   check('4. empty and whitespace-only input create nothing', (await page.locator('article').count()) === beforeEmpty)
   await shot('01-home')
 
+  // The skip link must reach the content without hijacking the hash route.
+  await page.goto(BASE, { waitUntil: 'networkidle' })
+  await page.locator('a.skip').focus()
+  await page.keyboard.press('Enter')
+  await page.waitForTimeout(300)
+  const skipLanded = await page.evaluate(() => document.activeElement?.id)
+  check('skip link moves focus to the content and does not hijack the route',
+    skipLanded === 'main' && (await page.getByRole('heading', { name: 'Come on in.' }).isVisible()),
+    `focus landed on "${skipLanded}"`)
+
   /* ---------------------------------------------------------------- */
   step('6. A failed write keeps the draft')
   await page.evaluate(() => {

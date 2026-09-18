@@ -59,7 +59,18 @@ export function Shell({ children }: { children: ReactNode }) {
 
   return (
     <div className="relative z-1 flex min-h-[100dvh] flex-col md:flex-row">
-      <a className="skip" href="#main">
+      {/* The app routes on the hash, so a plain href="#main" would navigate.
+          Move focus to the main landmark instead and leave the route alone. */}
+      <a
+        className="skip"
+        href="#main"
+        onClick={(event) => {
+          event.preventDefault()
+          const main = document.getElementById('main')
+          main?.focus()
+          main?.scrollIntoView({ block: 'start' })
+        }}
+      >
         Skip to content
       </a>
 
@@ -171,7 +182,8 @@ export function Shell({ children }: { children: ReactNode }) {
 
         <main
           id="main"
-          className="mx-auto w-full max-w-[1040px] flex-1 px-4 pt-5 pb-24 sm:px-6 sm:pt-7 md:pb-10"
+          tabIndex={-1}
+          className="mx-auto w-full max-w-[1040px] flex-1 px-4 pt-5 pb-24 outline-none sm:px-6 sm:pt-7 md:pb-10"
         >
           {children}
         </main>
