@@ -5,8 +5,9 @@ import { href } from '../lib/router.ts'
 import type { Thing } from '../lib/types.ts'
 
 /**
- * The quiet screen after a day is closed. It renders outside the app shell:
- * no navigation, no counts, nothing asking for attention.
+ * The state after the ritual. It renders outside the workspace frame — no rail,
+ * no counts, nothing asking for attention. The wording only claims what is on
+ * disk: this screen is reached by reading the hand-off back out of storage.
  */
 export function Closed() {
   const store = useStore()
@@ -14,9 +15,9 @@ export function Closed() {
 
   if (!handoff) {
     return (
-      <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-6 px-6 text-center">
-        <p className="lt-display text-2xl">No day has been closed yet.</p>
-        <a className="lt-btn lt-btn-secondary" href={href('/close')}>
+      <div className="relative z-1 flex min-h-[100dvh] flex-col items-center justify-center gap-5 px-6 text-center">
+        <p className="display text-xl">No day has been closed yet.</p>
+        <a className="btn btn-soft" href={href('/ritual')}>
           Close the day
         </a>
       </div>
@@ -28,36 +29,35 @@ export function Closed() {
     .filter((t): t is Thing => t != null && t.deletedAt == null)
 
   return (
-    <div className="flex min-h-[100dvh] flex-col px-5 py-10 sm:px-8">
+    <div className="relative z-1 flex min-h-[100dvh] flex-col px-5 py-8 sm:px-8">
       <a
         href={href('/')}
-        className="lt-display self-start text-[0.8rem] tracking-[0.34em] text-muted transition-colors hover:text-accent"
+        className="display self-start text-[0.75rem] tracking-[0.3em] text-muted transition-colors hover:text-forest"
       >
         LOWTIDE
       </a>
 
-      <div className="lt-fade mx-auto flex w-full max-w-xl flex-1 flex-col justify-center py-12 text-center">
-        <p className="lt-eyebrow mb-5">{formatDayLong(handoff.closedAt)}</p>
-        <h1 className="lt-display text-[2.6rem] leading-[1.06] sm:text-[3.4rem]">
-          The day is down.
-        </h1>
-        <p className="mt-5 text-sm text-muted">
-          Saved on this device at {formatStamp(handoff.closedAt)}.
+      <div className="fade mx-auto flex w-full max-w-lg flex-1 flex-col justify-center py-10 text-center">
+        <p className="eyebrow mb-4">{formatDayLong(handoff.closedAt)}</p>
+        <h1 className="display text-[2.2rem] leading-[1.08] sm:text-[2.8rem]">Your day is saved.</h1>
+        <p className="aside-hand mt-3 text-[1.0625rem]">Go enjoy the rest of it.</p>
+        <p className="mt-5 text-[0.75rem] text-muted">
+          Written to this device at {formatStamp(handoff.closedAt)}.
         </p>
 
         {handoff.note ? (
-          <p className="lt-prose mx-auto mt-10 max-w-md border-t border-rule pt-10 text-left text-muted">
+          <p className="written mx-auto mt-9 max-w-sm border-t border-line pt-9 text-left text-muted">
             {handoff.note}
           </p>
         ) : null}
 
         {picked.length > 0 ? (
-          <div className="mx-auto mt-10 w-full max-w-md text-left">
-            <p className="lt-eyebrow mb-3 text-center">Waiting for you next time</p>
-            <ul className="grid gap-2">
+          <div className="mx-auto mt-9 w-full max-w-sm text-left">
+            <p className="eyebrow mb-2 text-center">Waiting for you tomorrow</p>
+            <ul className="grid gap-1.5">
               {picked.map((thing) => (
-                <li key={thing.id} className="lt-card px-4 py-3">
-                  <p className="lt-prose text-[0.9375rem]">{thing.text}</p>
+                <li key={thing.id} className="paper px-3 py-2">
+                  <p className="written text-[0.9375rem]">{thing.text}</p>
                 </li>
               ))}
             </ul>
@@ -65,21 +65,21 @@ export function Closed() {
         ) : null}
 
         {handoff.leftUnclassified > 0 ? (
-          <p className="mt-10 text-sm text-muted">
-            {handoff.leftUnclassified} thing{handoff.leftUnclassified === 1 ? '' : 's'} left
-            unfiled. They will be here.
+          <p className="mt-9 text-[0.8125rem] text-muted">
+            {handoff.leftUnclassified} thing{handoff.leftUnclassified === 1 ? '' : 's'} left unfiled.
+            They will keep.
           </p>
         ) : null}
       </div>
 
-      <div className="mx-auto flex w-full max-w-xl flex-wrap items-center justify-center gap-4 border-t border-rule pt-6 text-xs text-muted">
-        <a className="lt-link" href={href('/return')}>
+      <div className="mx-auto flex w-full max-w-lg flex-wrap items-center justify-center gap-4 border-t border-line pt-5 text-[0.75rem] text-muted">
+        <a className="link" href={href('/return')}>
           See the hand-off
         </a>
-        <a className="lt-link" href={href('/')}>
-          Home
+        <a className="link" href={href('/')}>
+          Back to the notebook
         </a>
-        <span>You can close this tab now.</span>
+        <span>You can close this tab.</span>
       </div>
     </div>
   )

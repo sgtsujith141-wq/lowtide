@@ -3,20 +3,23 @@ import { useStore } from '../lib/store-context.ts'
 import { useToast } from '../lib/toast-context.ts'
 import { capsulesFor, latestCapsule, thingsForProject } from '../lib/model.ts'
 import { formatStamp, relativeDay } from '../lib/dates.ts'
+import { nowMs, useNow } from '../lib/clock.ts'
 import { href, navigate } from '../lib/router.ts'
-import { Dialog, EmptyNote, Field, PageHeader, Quiet, SectionTitle, Tag } from '../components/ui.tsx'
+import { Dialog, Empty, Field, Panel, Quiet, SectionHead } from '../components/ui.tsx'
 import { CapsuleForm } from '../components/CapsuleForm.tsx'
-import { ThingItem } from '../components/ThingItem.tsx'
+import { ThoughtRow } from '../components/ThoughtRow.tsx'
+import { Icon } from '../components/Icon.tsx'
 import type { Capsule } from '../lib/types.ts'
-import { nowMs } from '../lib/clock.ts'
 
 export function ProjectDetail({ projectId }: { projectId: string }) {
   const store = useStore()
   const toast = useToast()
+  const now = useNow()
   const [editing, setEditing] = useState(false)
   const [savedAt, setSavedAt] = useState<number | null>(null)
-  const [renaming, setRenaming] = useState(false)
+  const [detailsOpen, setDetailsOpen] = useState(false)
   const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
 
   const project = store.projects.find((p) => p.id === projectId)
   const history = useMemo(() => capsulesFor(store.capsules, projectId), [store.capsules, projectId])
@@ -25,10 +28,10 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
 
   if (!project || project.deletedAt != null) {
     return (
-      <div className="py-16 text-center">
-        <h1 className="lt-display mb-3 text-3xl">That project is not here</h1>
-        <p className="mb-6 text-sm text-muted">It may have been deleted on this device.</p>
-        <a className="lt-btn lt-btn-secondary" href={href('/projects')}>
+      <div className="py-14 text-center">
+        <h1 className="display mb-2 text-2xl">That project is not here</h1>
+        <Quiet className="mb-5">It may have been deleted on this device.</Quiet>
+        <a className="btn btn-soft" href={href('/projects')}>
           All projects
         </a>
       </div>
@@ -36,104 +39,98 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
   }
 
   return (
-    <div>
-      <p className="mb-4">
-        <a className="lt-link text-xs" href={href('/projects')}>
+    <div className="mx-auto max-w-3xl">
+      <p className="mb-3">
+        <a className="link text-[0.75rem]" href={href('/projects')}>
           ← Projects
         </a>
       </p>
 
-      <PageHeader
-        eyebrow={capsule ? `Place saved ${formatStamp(capsule.savedAt)}` : 'No place saved yet'}
-        title={project.name}
-        actions={
-          <>
-            <button
-              type="button"
-              className="lt-btn lt-btn-secondary"
-              onClick={() => {
-                setName(project.name)
-                setRenaming(true)
-              }}
-            >
-              Rename
-            </button>
-            <button
-              type="button"
-              className="lt-btn lt-btn-secondary"
-              onClick={() =>
-                void store
-                  .putProject({
-                    ...project,
-                    archivedAt: project.archivedAt ? null : nowMs(),
-                    updatedAt: nowMs(),
-                  })
-                  .catch(() =>
-                    toast.show('That could not be changed — nothing has moved.', { tone: 'problem' }),
-                  )
-              }
-            >
-              {project.archivedAt ? 'Unarchive' : 'Archive'}
-            </button>
-            <button
-              type="button"
-              className="lt-btn lt-btn-primary"
-              onClick={() => setEditing((v) => !v)}
-            >
-              {editing ? 'Close' : capsule ? 'Update my place' : 'Save my place'}
-            </button>
-          </>
-        }
-      />
+      <header className="rise mb-5 flex flex-wrap items-end justify-between gap-x-6 gap-y-3">
+        <div className="min-w-0">
+          <h1 className="display text-[1.75rem]">{project.name}</h1>
+          {project.description ? (
+            <p className="mt-1 text-[0.875rem] leading-relaxed text-muted">{project.description}</p>
+          ) : null}
+        </div>
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() => {
+              setName(project.name)
+              setDescription(project.description)
+              setDetailsOpen(true)
+            }}
+          >
+            Edit details
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={() =>
+              void store
+                .putProject({
+                  ...project,
+                  archivedAt: project.archivedAt ? null : nowMs(),
+                  updatedAt: nowMs(),
+                })
+                .catch(() => toast.show('That could not be changed.', { tone: 'problem' }))
+            }
+          >
+            {project.archivedAt ? 'Unarchive' : 'Archive'}
+          </button>
+          <button type="button" className="btn btn-solid" onClick={() => setEditing((v) => !v)}>
+            <Icon name="plus" className="size-4" />
+            {editing ? 'Close' : capsule ? 'Save my place' : 'Save my place'}
+          </button>
+        </div>
+      </header>
 
-      {/* Resume ------------------------------------------------------ */}
+      {/* Where you left off ------------------------------------------ */}
       {capsule ? (
-        <section className="lt-card lt-rise p-5 sm:p-7" aria-labelledby="resume-heading">
-          <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <h2 id="resume-heading" className="lt-eyebrow">
-              Where you left it
-            </h2>
+        <Panel className="rise !p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="display text-[1.25rem]">Here’s where you left off.</h2>
             <p className="text-[0.7rem] text-muted">
-              {formatStamp(capsule.savedAt)} · {relativeDay(capsule.savedAt)}
+              saved {formatStamp(capsule.savedAt)} · {relativeDay(capsule.savedAt, now)}
             </p>
           </div>
 
           {capsule.nextAction ? (
-            <div className="mt-5 border-l-2 border-accent pl-4 sm:pl-5">
-              <p className="lt-eyebrow mb-1.5">Start here</p>
-              <p className="lt-prose text-[1.15rem] leading-snug sm:text-[1.35rem]">
-                {capsule.nextAction}
-              </p>
+            <div className="mt-4 border-l-2 border-forest pl-4">
+              <p className="eyebrow mb-1">Start here</p>
+              <p className="written text-[1.15rem] leading-snug">{capsule.nextAction}</p>
             </div>
           ) : (
-            <Quiet className="mt-4">
-              No next action was written down last time. Adding one takes a sentence and saves the
-              worst part of coming back.
+            <Quiet className="mt-3">
+              No next action was written last time. One sentence here saves the worst part of coming
+              back.
             </Quiet>
           )}
 
-          <dl className="mt-6 grid gap-x-8 gap-y-5 sm:grid-cols-2">
-            <Entry term="Status" value={capsule.status} />
+          <dl className="mt-5 grid gap-x-7 gap-y-4 sm:grid-cols-2">
+            <Entry term="Where it stands" value={capsule.status} />
             <Entry term="Last finished" value={capsule.lastCompleted} />
-            <Entry term="In the way" value={capsule.blocker} tone="attention" />
+            <Entry term="In the way" value={capsule.blocker} tone="brown" />
             <Entry term="Last decision" value={capsule.lastDecision} />
           </dl>
 
           {capsule.notes ? (
-            <div className="mt-6">
-              <p className="lt-eyebrow mb-1.5">Notes</p>
-              <p className="lt-prose text-[0.9375rem] text-muted">{capsule.notes}</p>
+            <div className="mt-5">
+              <p className="eyebrow mb-1">Notes</p>
+              <p className="written text-[0.9375rem] text-muted">{capsule.notes}</p>
             </div>
           ) : null}
 
           {capsule.links.length > 0 ? (
-            <div className="mt-6">
-              <p className="lt-eyebrow mb-2">Links</p>
-              <ul className="flex flex-wrap gap-2">
+            <div className="mt-5">
+              <p className="eyebrow mb-1.5">Links</p>
+              <ul className="flex flex-wrap gap-1.5">
                 {capsule.links.map((link) => (
                   <li key={link.id}>
                     <a
-                      className="lt-tag hover:border-accent hover:text-accent-deep"
+                      className="chip hover:border-forest hover:text-forest-deep"
                       href={link.url}
                       target="_blank"
                       rel="noreferrer noopener"
@@ -146,35 +143,33 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
             </div>
           ) : null}
 
-          <div className="mt-7 flex flex-wrap items-center gap-2 border-t border-rule pt-5">
-            <button type="button" className="lt-btn lt-btn-primary" onClick={() => setEditing(true)}>
-              Update my place
+          <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-line pt-4">
+            <button type="button" className="btn btn-soft" onClick={() => setEditing(true)}>
+              Update where I am
             </button>
-            <Quiet className="text-xs">
+            <Quiet className="text-[0.75rem]">
               Do the work first. Come back here before you stop, while you still remember.
             </Quiet>
           </div>
-        </section>
+        </Panel>
       ) : (
-        <EmptyNote>
+        <Empty>
           Nothing saved here yet. “Save my place” writes down where this stands so you do not have
           to reconstruct it next time.
-        </EmptyNote>
+        </Empty>
       )}
 
       {savedAt ? (
-        <p className="lt-fade mt-4 text-sm text-accent-deep" role="status">
+        <p className="fade mt-3 text-[0.8125rem] text-forest-deep" role="status">
           Your place is saved — {formatStamp(savedAt)}.
         </p>
       ) : null}
 
-      {/* Save my place ---------------------------------------------- */}
+      {/* Save my place ------------------------------------------------ */}
       {editing ? (
-        <section className="lt-card lt-rise mt-6 p-5 sm:p-7" aria-labelledby="capsule-form-heading">
-          <h2 id="capsule-form-heading" className="lt-display mb-1 text-2xl">
-            Save my place
-          </h2>
-          <Quiet className="mb-6">
+        <Panel className="rise mt-4 !p-5">
+          <h2 className="display mb-1 text-[1.25rem]">Save my place</h2>
+          <Quiet className="mb-4">
             Write it for the person who comes back cold. Nothing here is required.
           </Quiet>
           <CapsuleForm
@@ -185,42 +180,33 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
               setEditing(false)
             }}
           />
-        </section>
+        </Panel>
       ) : null}
 
-      {/* Linked things ---------------------------------------------- */}
-      <section className="mt-12">
-        <SectionTitle count={things.length}>Things filed to this project</SectionTitle>
+      {/* Things ------------------------------------------------------- */}
+      <section className="mt-8">
+        <SectionHead count={things.length}>Filed to this project</SectionHead>
         {things.length === 0 ? (
           <Quiet>
-            Nothing is filed here yet. In{' '}
-            <a className="lt-link" href={href('/things')}>
-              My Things
-            </a>
-            , open any item’s details and set “Part of”.
+            Nothing filed here yet. On any thought, use its ⋯ menu and “Add to a project”.
           </Quiet>
         ) : (
-          <div className="lt-card px-4 sm:px-5">
+          <Panel className="!py-1">
             {things.map((thing) => (
-              <ThingItem
-                key={thing.id}
-                thing={thing}
-                onSave={(next) => store.putThing(next)}
-                meta={thing.status === 'done' ? <Tag>Done</Tag> : null}
-              />
+              <ThoughtRow key={thing.id} thing={thing} />
             ))}
-          </div>
+          </Panel>
         )}
       </section>
 
-      {/* History ----------------------------------------------------- */}
+      {/* History ------------------------------------------------------ */}
       {history.length > 1 ? (
-        <section className="mt-12">
-          <SectionTitle count={history.length}>History</SectionTitle>
-          <Quiet className="mb-4">
+        <section className="mt-8">
+          <SectionHead count={history.length}>Earlier places</SectionHead>
+          <Quiet className="mb-2.5">
             Every save is kept. Nothing you wrote before has been overwritten.
           </Quiet>
-          <ol className="grid gap-3">
+          <ol className="grid gap-2">
             {history.slice(1).map((entry) => (
               <HistoryEntry key={entry.id} capsule={entry} />
             ))}
@@ -229,26 +215,29 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
       ) : null}
 
       <Dialog
-        open={renaming}
-        onClose={() => setRenaming(false)}
-        title="Rename project"
+        open={detailsOpen}
+        onClose={() => setDetailsOpen(false)}
+        title="Project details"
         footer={
           <>
-            <button type="button" className="lt-btn lt-btn-secondary" onClick={() => setRenaming(false)}>
+            <button type="button" className="btn btn-soft" onClick={() => setDetailsOpen(false)}>
               Cancel
             </button>
             <button
               type="button"
-              className="lt-btn lt-btn-primary"
+              className="btn btn-solid"
               disabled={!name.trim()}
               onClick={() => {
                 void store
-                  .putProject({ ...project, name: name.trim(), updatedAt: nowMs() })
-                  .then(() => setRenaming(false))
+                  .putProject({
+                    ...project,
+                    name: name.trim(),
+                    description: description.trim(),
+                    updatedAt: nowMs(),
+                  })
+                  .then(() => setDetailsOpen(false))
                   .catch(() =>
-                    toast.show('That could not be saved — the old name is unchanged.', {
-                      tone: 'problem',
-                    }),
+                    toast.show('That could not be saved — nothing has changed.', { tone: 'problem' }),
                   )
               }}
             >
@@ -257,20 +246,31 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
           </>
         }
       >
-        <Field label="Project name" htmlFor="rename-field">
-          <input
-            id="rename-field"
-            className="lt-field"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-          />
-        </Field>
+        <div className="grid gap-3">
+          <Field label="Name" htmlFor="rename-field">
+            <input
+              id="rename-field"
+              className="field"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </Field>
+          <Field label="What it is" htmlFor="redescribe-field">
+            <input
+              id="redescribe-field"
+              className="field"
+              placeholder="Optional"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
+          </Field>
+        </div>
       </Dialog>
 
-      <div className="mt-16 border-t border-rule pt-6">
+      <div className="mt-12 border-t border-line pt-5">
         <button
           type="button"
-          className="lt-btn lt-btn-quiet text-xs"
+          className="btn btn-ghost"
           onClick={() => {
             void store
               .softDeleteProject(project.id)
@@ -285,9 +285,9 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
         >
           Delete this project
         </button>
-        <p className="mt-1.5 text-xs text-muted">
-          Its saved capsules stay in your data and come back if you undo.
-        </p>
+        <Quiet className="mt-1 text-[0.7rem]">
+          Its saved places stay in your data and come back if you undo.
+        </Quiet>
       </div>
     </div>
   )
@@ -296,19 +296,17 @@ export function ProjectDetail({ projectId }: { projectId: string }) {
 function Entry({
   term,
   value,
-  tone = 'calm',
+  tone = 'ink',
 }: {
   term: string
   value: string
-  tone?: 'calm' | 'attention'
+  tone?: 'ink' | 'brown'
 }) {
   if (!value) return null
   return (
     <div>
-      <dt className="lt-eyebrow mb-1.5">{term}</dt>
-      <dd className={`lt-prose text-[0.9375rem] ${tone === 'attention' ? 'text-attention' : ''}`}>
-        {value}
-      </dd>
+      <dt className="eyebrow mb-1">{term}</dt>
+      <dd className={`written text-[0.9375rem] ${tone === 'brown' ? 'text-brown' : ''}`}>{value}</dd>
     </div>
   )
 }
@@ -316,19 +314,19 @@ function Entry({
 function HistoryEntry({ capsule }: { capsule: Capsule }) {
   const [open, setOpen] = useState(false)
   return (
-    <li className="lt-card p-4">
+    <li className="paper p-3">
       <button
         type="button"
         className="flex w-full items-baseline justify-between gap-4 text-left"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        <span className="text-sm text-ink">{formatStamp(capsule.savedAt)}</span>
-        <span className="text-xs text-muted">{open ? 'Hide' : 'Show'}</span>
+        <span className="text-[0.8125rem]">{formatStamp(capsule.savedAt)}</span>
+        <span className="text-[0.7rem] text-muted">{open ? 'hide' : 'show'}</span>
       </button>
       {open ? (
-        <dl className="mt-4 grid gap-x-8 gap-y-4 border-t border-rule pt-4 sm:grid-cols-2">
-          <Entry term="Status" value={capsule.status} />
+        <dl className="mt-3 grid gap-x-7 gap-y-3 border-t border-line pt-3 sm:grid-cols-2">
+          <Entry term="Where it stood" value={capsule.status} />
           <Entry term="Last finished" value={capsule.lastCompleted} />
           <Entry term="In the way" value={capsule.blocker} />
           <Entry term="Last decision" value={capsule.lastDecision} />

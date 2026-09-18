@@ -2,18 +2,21 @@ import { useState } from 'react'
 import { useStore } from '../lib/store-context.ts'
 import { useToast } from '../lib/toast-context.ts'
 import { latestCapsule, thingsForProject } from '../lib/model.ts'
-import { formatStamp, relativeDay } from '../lib/dates.ts'
+import { relativeDay } from '../lib/dates.ts'
+import { useNow } from '../lib/clock.ts'
 import { href, navigate } from '../lib/router.ts'
-import { EmptyNote, PageHeader, Quiet, SectionTitle, Tag } from '../components/ui.tsx'
+import { Empty, Field, PageHead, Panel, Quiet, SectionHead, Tag } from '../components/ui.tsx'
 import type { Project } from '../lib/types.ts'
 
 export function Projects() {
   const store = useStore()
   const toast = useToast()
+  const now = useNow()
   const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
   const [busy, setBusy] = useState(false)
 
-  const live = store.projects
+  const open = store.projects
     .filter((p) => p.deletedAt == null && p.archivedAt == null)
     .sort((a, b) => b.updatedAt - a.updatedAt)
   const archived = store.projects
@@ -25,11 +28,12 @@ export function Projects() {
     if (!name.trim() || busy) return
     setBusy(true)
     try {
-      const project = await store.createProject(name)
+      const project = await store.createProject(name, description)
       setName('')
+      setDescription('')
       navigate(`/projects/${project.id}`)
     } catch {
-      toast.show('That project could not be saved — the name is still in the field.', {
+      toast.show('That project could not be saved — what you typed is still here.', {
         tone: 'problem',
       })
     } finally {
@@ -39,102 +43,110 @@ export function Projects() {
 
   return (
     <div>
-      <PageHeader
+      <PageHead
         eyebrow="Projects"
         title="The black box."
-        lede="One capsule per project, holding the context you would otherwise have to rebuild: where it stands, what stopped you, and the exact next move."
+        lede="One box per project, holding what you would otherwise have to rebuild from memory: where it stands, what stopped you, and the exact next move."
       />
 
-      <form onSubmit={create} className="lt-card mb-10 flex flex-col gap-3 p-4 sm:flex-row sm:items-end sm:p-5">
-        <div className="flex-1">
-          <label className="lt-label" htmlFor="project-name">
-            Start a project
-          </label>
+      <form onSubmit={create} className="paper mb-6 grid gap-3 p-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+        <Field label="Start a project" htmlFor="project-name">
           <input
             id="project-name"
-            className="lt-field"
+            className="field"
             placeholder="Harrow deck, kitchen rewire, Q3 hiring…"
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
-        </div>
-        <button type="submit" className="lt-btn lt-btn-primary" disabled={!name.trim() || busy}>
+        </Field>
+        <Field label="What is it, in a line" htmlFor="project-description">
+          <input
+            id="project-description"
+            className="field"
+            placeholder="Optional"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </Field>
+        <button type="submit" className="btn btn-solid h-[34px]" disabled={!name.trim() || busy}>
           Create
         </button>
       </form>
 
-      {live.length === 0 ? (
-        <EmptyNote>No projects yet. A project earns its place when it needs a memory.</EmptyNote>
+      {open.length === 0 ? (
+        <Empty>No projects yet. A project earns a box when it needs a memory.</Empty>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {live.map((project) => (
-            <ProjectCard key={project.id} project={project} />
+        <div className="grid gap-3 sm:grid-cols-2">
+          {open.map((project) => (
+            <ProjectCard key={project.id} project={project} now={now} />
           ))}
         </div>
       )}
 
       {archived.length > 0 ? (
-        <section className="mt-12">
-          <SectionTitle count={archived.length}>Archived</SectionTitle>
-          <div className="grid gap-3">
+        <section className="mt-8">
+          <SectionHead count={archived.length}>Archived</SectionHead>
+          <Panel className="!py-1">
             {archived.map((project) => (
               <div
                 key={project.id}
-                className="flex flex-wrap items-center justify-between gap-3 border-b border-rule pb-3"
+                className="flex flex-wrap items-center justify-between gap-3 border-b border-line-soft py-2.5 last:border-b-0"
               >
-                <a className="lt-link lt-display text-lg" href={href(`/projects/${project.id}`)}>
+                <a className="link display text-[1.05rem]" href={href(`/projects/${project.id}`)}>
                   {project.name}
                 </a>
                 <Quiet>
-                  {project.archivedAt ? `Archived ${relativeDay(project.archivedAt)}` : 'Archived'}
+                  {project.archivedAt ? `archived ${relativeDay(project.archivedAt, now)}` : 'archived'}
                 </Quiet>
               </div>
             ))}
-          </div>
+          </Panel>
         </section>
       ) : null}
     </div>
   )
 }
 
-function ProjectCard({ project }: { project: Project }) {
+function ProjectCard({ project, now }: { project: Project; now: number }) {
   const store = useStore()
   const capsule = latestCapsule(store.capsules, project.id)
   const openThings = thingsForProject(store.things, project.id).filter((t) => t.status === 'open')
 
   return (
-    <article className="lt-card flex flex-col p-5 transition-shadow hover:shadow-[var(--shadow-lift)]">
-      <h2 className="lt-display text-xl">
-        <a className="hover:text-accent-deep" href={href(`/projects/${project.id}`)}>
+    <article className="paper flex flex-col p-4 transition-shadow hover:shadow-[var(--shadow-lift)]">
+      <h2 className="display text-[1.15rem]">
+        <a className="hover:text-forest-deep" href={href(`/projects/${project.id}`)}>
           {project.name}
         </a>
       </h2>
+      {project.description ? (
+        <p className="mt-1 text-[0.8125rem] leading-snug text-muted">{project.description}</p>
+      ) : null}
 
       {capsule ? (
         <>
-          {capsule.status ? <p className="mt-2 text-sm leading-relaxed text-muted">{capsule.status}</p> : null}
           {capsule.nextAction ? (
-            <div className="lt-inset mt-4 px-3 py-2.5">
-              <p className="lt-eyebrow mb-1">Next</p>
-              <p className="lt-prose text-[0.9375rem]">{capsule.nextAction}</p>
+            <div className="paper-2 mt-3 px-3 py-2">
+              <p className="eyebrow mb-0.5">Next</p>
+              <p className="written text-[0.9375rem]">{capsule.nextAction}</p>
             </div>
+          ) : capsule.status ? (
+            <Quiet className="mt-2">{capsule.status}</Quiet>
           ) : null}
-          <p className="mt-4 text-[0.7rem] text-muted">Place saved {formatStamp(capsule.savedAt)}</p>
+          <p className="mt-2.5 text-[0.7rem] text-muted">
+            place saved {relativeDay(capsule.savedAt, now)}
+          </p>
         </>
       ) : (
-        <p className="mt-3 text-sm text-muted">
-          No context saved yet. Open it and save your place before you stop.
-        </p>
+        <Quiet className="mt-2">
+          No place saved yet. Open it and write down where you are before you stop.
+        </Quiet>
       )}
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        {capsule?.blocker ? <Tag tone="attention">Blocked</Tag> : null}
-        {openThings.length > 0 ? (
-          <Tag>
-            {openThings.length} open thing{openThings.length === 1 ? '' : 's'}
-          </Tag>
-        ) : null}
-        <a className="lt-btn lt-btn-secondary ml-auto text-xs" href={href(`/projects/${project.id}`)}>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {capsule?.blocker ? <Tag tone="sand">blocked</Tag> : null}
+        {openThings.length > 0 ? <Tag>{openThings.length} open</Tag> : null}
+        <a className="btn btn-soft ml-auto" href={href(`/projects/${project.id}`)}>
           Open
         </a>
       </div>

@@ -94,7 +94,7 @@ export function CapsuleForm({
   }
 
   return (
-    <form onSubmit={save} className="grid gap-5">
+    <form onSubmit={save} className="grid gap-4">
       {PROMPTS.map((prompt) => (
         <Field
           key={prompt.key}
@@ -108,18 +108,18 @@ export function CapsuleForm({
             onChange={set(prompt.key)}
             minRows={prompt.rows ?? 2}
             placeholder={prompt.placeholder}
-            className="lt-prose"
+            className="written"
           />
         </Field>
       ))}
 
       <fieldset>
-        <legend className="lt-label">Links</legend>
+        <legend className="label">Links</legend>
         <div className="grid gap-2">
           {draft.links.map((link, index) => (
             <div key={link.id} className="flex flex-wrap items-center gap-2">
               <input
-                className="lt-field w-full sm:w-44"
+                className="field w-full sm:w-44"
                 placeholder="Label"
                 aria-label={`Link ${index + 1} label`}
                 value={link.label}
@@ -131,7 +131,7 @@ export function CapsuleForm({
                 }
               />
               <input
-                className="lt-field min-w-0 flex-1"
+                className="field min-w-0 flex-1"
                 placeholder="https:// or a path on this machine"
                 aria-label={`Link ${index + 1} address`}
                 value={link.url}
@@ -144,7 +144,7 @@ export function CapsuleForm({
               />
               <button
                 type="button"
-                className="lt-btn lt-btn-quiet text-xs"
+                className="btn btn-ghost text-xs"
                 onClick={() =>
                   setDraft((d) => ({ ...d, links: d.links.filter((l) => l.id !== link.id) }))
                 }
@@ -156,7 +156,7 @@ export function CapsuleForm({
           <div>
             <button
               type="button"
-              className="lt-btn lt-btn-secondary text-xs"
+              className="btn btn-soft text-xs"
               onClick={() =>
                 setDraft((d) => ({
                   ...d,
@@ -170,8 +170,8 @@ export function CapsuleForm({
         </div>
       </fieldset>
 
-      <div className="flex flex-wrap items-center gap-3 border-t border-rule pt-4">
-        <button type="submit" className="lt-btn lt-btn-primary" disabled={isCapsuleEmpty(draft) || saving}>
+      <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
+        <button type="submit" className="btn btn-solid" disabled={isCapsuleEmpty(draft) || saving}>
           {saving ? 'Saving…' : submitLabel}
         </button>
         <p className="text-xs text-muted">

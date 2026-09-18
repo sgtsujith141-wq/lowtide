@@ -11,10 +11,10 @@ import {
 } from '../lib/model.ts'
 import { kindLabel } from '../lib/taxonomy.ts'
 import { formatStamp, relativeDay, startOfDay } from '../lib/dates.ts'
-import { href } from '../lib/router.ts'
-import { EmptyNote, PageHeader, Panel, Quiet, SectionTitle, Tag } from '../components/ui.tsx'
-import type { Thing } from '../lib/types.ts'
 import { nowMs, useNow } from '../lib/clock.ts'
+import { href } from '../lib/router.ts'
+import { Empty, PageHead, Panel, Quiet, SectionHead, Tag } from '../components/ui.tsx'
+import type { Thing } from '../lib/types.ts'
 
 export function ReturnView() {
   const store = useStore()
@@ -37,70 +37,56 @@ export function ReturnView() {
     .map((id) => store.things.find((t) => t.id === id))
     .filter((t): t is Thing => t != null && t.deletedAt == null)
 
-  async function markDone(thing: Thing) {
-    try {
-      await store.putThing({
-        ...thing,
-        status: 'done',
-        completedAt: nowMs(),
-        updatedAt: nowMs(),
-      })
-    } catch {
-      toast.show('That could not be saved — it is still open.', { tone: 'problem' })
-    }
-  }
+  const totalOpen = live(store.things).filter((t) => t.status === 'open').length
 
-  async function clearTicket(thing: Thing) {
+  async function patch(thing: Thing, changes: Partial<Thing>) {
     try {
-      await store.putThing({ ...thing, returnedAt: nowMs(), updatedAt: nowMs() })
+      await store.putThing({ ...thing, ...changes, updatedAt: nowMs() })
     } catch {
       toast.show('That could not be saved.', { tone: 'problem' })
     }
   }
 
-  const totalOpen = live(store.things).filter((t) => t.status === 'open').length
-
   return (
-    <div>
-      <PageHeader
+    <div className="mx-auto max-w-3xl">
+      <PageHead
         eyebrow="Return"
-        title="Here is where you stopped."
-        lede="Only what you chose, what is close, and where your projects were left. Everything else is still filed and waiting."
+        title="Here’s where you stopped."
+        lede="Only what you chose, what is close, and where your projects were left. Everything else is filed and waiting."
         actions={
-          <a className="lt-btn lt-btn-secondary" href={href('/things')}>
+          <a className="btn btn-soft" href={href('/things')}>
             See everything ({totalOpen})
           </a>
         }
       />
 
-      {/* Hand-off ---------------------------------------------------- */}
-      <Panel className="lt-rise">
+      <Panel className="rise">
         {handoff ? (
           <>
-            <div className="flex flex-wrap items-baseline justify-between gap-3">
-              <h2 className="lt-eyebrow">Your last hand-off</h2>
-              <p className="text-xs text-muted">
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="eyebrow">Your last hand-off</h2>
+              <p className="text-[0.7rem] text-muted">
                 {formatStamp(handoff.closedAt)} · {relativeDay(handoff.closedAt, now)}
               </p>
             </div>
             {handoff.note ? (
-              <p className="lt-prose mt-4 border-l-2 border-accent pl-4 sm:pl-5">{handoff.note}</p>
+              <p className="written mt-3 border-l-2 border-forest pl-4">{handoff.note}</p>
             ) : (
-              <Quiet className="mt-3">You closed the day without leaving a note.</Quiet>
+              <Quiet className="mt-2">You closed the day without leaving a note.</Quiet>
             )}
             {handoff.leftUnclassified > 0 ? (
-              <Quiet className="mt-4 text-xs">
-                {handoff.leftUnclassified} thing{handoff.leftUnclassified === 1 ? '' : 's'} were
-                left unfiled at the time.
+              <Quiet className="mt-3 text-[0.7rem]">
+                {handoff.leftUnclassified} thing{handoff.leftUnclassified === 1 ? '' : 's'} were left
+                unfiled at the time.
               </Quiet>
             ) : null}
           </>
         ) : (
           <>
-            <h2 className="lt-eyebrow">No hand-off yet</h2>
-            <Quiet className="mt-3">
-              When you close a day, what you chose and what you wrote will appear here.{' '}
-              <a className="lt-link" href={href('/close')}>
+            <h2 className="eyebrow">No hand-off yet</h2>
+            <Quiet className="mt-2">
+              When you close a day, what you chose and what you wrote will be here.{' '}
+              <a className="link" href={href('/ritual')}>
                 Close the day
               </a>
               .
@@ -109,22 +95,24 @@ export function ReturnView() {
         )}
       </Panel>
 
-      {/* Chosen next actions ---------------------------------------- */}
       {chosen.length > 0 ? (
-        <section className="mt-10">
-          <SectionTitle count={chosen.length}>What you chose</SectionTitle>
-          <ul className="grid gap-3">
+        <section className="mt-6">
+          <SectionHead count={chosen.length}>What you chose</SectionHead>
+          <Panel className="!py-1">
             {chosen.map((thing) => (
-              <li key={thing.id} className="lt-card flex flex-wrap items-start gap-3 p-4 sm:p-5">
+              <div
+                key={thing.id}
+                className="flex flex-wrap items-start gap-3 border-b border-line-soft py-2.5 last:border-b-0"
+              >
                 <div className="min-w-0 flex-1">
-                  <p className={`lt-prose ${thing.status === 'done' ? 'text-muted line-through' : ''}`}>
+                  <p className={`written ${thing.status === 'done' ? 'text-muted line-through' : ''}`}>
                     {thing.text}
                   </p>
-                  <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <Tag tone="accent">{kindLabel(thing.kind)}</Tag>
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                    <Tag tone="green">{kindLabel(thing.kind)}</Tag>
                     {thing.dueAt != null ? (
-                      <Tag tone={thing.dueAt < startOfDay(now) ? 'attention' : 'calm'}>
-                        Due {relativeDay(thing.dueAt, now)}
+                      <Tag tone={thing.dueAt < startOfDay(now) ? 'sand' : 'plain'}>
+                        due {relativeDay(thing.dueAt, now)}
                       </Tag>
                     ) : null}
                   </div>
@@ -132,121 +120,118 @@ export function ReturnView() {
                 {thing.status === 'open' ? (
                   <button
                     type="button"
-                    className="lt-btn lt-btn-secondary text-xs"
-                    onClick={() => void markDone(thing)}
+                    className="btn btn-soft"
+                    onClick={() => void patch(thing, { status: 'done', completedAt: nowMs() })}
                   >
                     Done
                   </button>
                 ) : (
-                  <Tag>Done</Tag>
+                  <Tag>done</Tag>
                 )}
-              </li>
+              </div>
             ))}
-          </ul>
+          </Panel>
         </section>
       ) : null}
 
-      {/* Return tickets --------------------------------------------- */}
       {tickets.length > 0 ? (
-        <section className="mt-10">
-          <SectionTitle count={tickets.length}>Back today</SectionTitle>
-          <Quiet className="mb-4">
-            You parked {tickets.length === 1 ? 'this' : 'these'} until now. LOWTIDE has no
-            background notifications — this is the moment it can tell you.
+        <section className="mt-6">
+          <SectionHead count={tickets.length}>Back today</SectionHead>
+          <Quiet className="mb-2">
+            You put {tickets.length === 1 ? 'this' : 'these'} aside until now. LOWTIDE has no
+            background notifications — opening it is how they come back.
           </Quiet>
-          <ul className="grid gap-3">
+          <Panel className="!py-1">
             {tickets.map((thing) => (
-              <li key={thing.id} className="lt-card flex flex-wrap items-start gap-3 p-4 sm:p-5">
+              <div
+                key={thing.id}
+                className="flex flex-wrap items-start gap-3 border-b border-line-soft py-2.5 last:border-b-0"
+              >
                 <div className="min-w-0 flex-1">
-                  <p className="lt-prose">{thing.text}</p>
-                  <p className="mt-1.5 text-xs text-muted">
-                    Parked until {thing.returnAt ? relativeDay(thing.returnAt) : ''}
+                  <p className="written">{thing.text}</p>
+                  <p className="mt-0.5 text-[0.7rem] text-muted">
+                    parked until {thing.returnAt ? relativeDay(thing.returnAt, now) : ''}
                   </p>
                 </div>
                 <button
                   type="button"
-                  className="lt-btn lt-btn-secondary text-xs"
-                  onClick={() => void clearTicket(thing)}
+                  className="btn btn-soft"
+                  onClick={() => void patch(thing, { returnedAt: nowMs() })}
                 >
                   Seen it
                 </button>
-              </li>
+              </div>
             ))}
-          </ul>
+          </Panel>
         </section>
       ) : null}
 
-      {/* Commitments ------------------------------------------------- */}
-      <section className="mt-10">
-        <SectionTitle count={soon.length}>Coming up</SectionTitle>
+      <section className="mt-6">
+        <SectionHead count={soon.length}>Coming up</SectionHead>
         {soon.length === 0 ? (
-          <EmptyNote>Nothing is due in the next week.</EmptyNote>
+          <Empty>Nothing is due in the next week.</Empty>
         ) : (
-          <ul className="grid gap-2">
+          <Panel className="!py-1">
             {soon.map((thing) => {
               const past = thing.dueAt != null && thing.dueAt < startOfDay(now)
               return (
-                <li
+                <div
                   key={thing.id}
-                  className="flex flex-wrap items-baseline justify-between gap-3 border-b border-rule py-3 last:border-b-0"
+                  className="flex flex-wrap items-baseline justify-between gap-3 border-b border-line-soft py-2.5 last:border-b-0"
                 >
-                  <p className="lt-prose min-w-0 flex-1 text-[0.9375rem]">{thing.text}</p>
-                  <Tag tone={past ? 'attention' : 'calm'}>
-                    {past ? 'Was due' : 'Due'} {thing.dueAt ? relativeDay(thing.dueAt) : ''}
+                  <p className="written min-w-0 flex-1 text-[0.9375rem]">{thing.text}</p>
+                  <Tag tone={past ? 'sand' : 'plain'}>
+                    {past ? 'was due' : 'due'} {thing.dueAt ? relativeDay(thing.dueAt, now) : ''}
                   </Tag>
-                </li>
+                </div>
               )
             })}
-          </ul>
+          </Panel>
         )}
         {late.length > 0 ? (
-          <Quiet className="mt-3 text-xs">
-            {late.length} of these {late.length === 1 ? 'is' : 'are'} already past. Nothing is
-            hidden from you here.
+          <Quiet className="mt-2 text-[0.7rem]">
+            {late.length} of these {late.length === 1 ? 'is' : 'are'} already past. Nothing is hidden
+            here.
           </Quiet>
         ) : null}
       </section>
 
-      {/* Project context --------------------------------------------- */}
-      <section className="mt-10">
-        <SectionTitle
+      <section className="mt-6">
+        <SectionHead
           action={
-            <a className="lt-link text-xs" href={href('/projects')}>
+            <a className="link text-[0.75rem]" href={href('/projects')}>
               All projects →
             </a>
           }
         >
           Where projects were left
-        </SectionTitle>
+        </SectionHead>
         {projects.length === 0 ? (
-          <EmptyNote>No project has a saved place yet.</EmptyNote>
+          <Empty>No project has a saved place yet.</Empty>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             {projects.map(({ project, capsule }) => (
-              <article key={project.id} className="lt-card p-5">
-                <h3 className="lt-display text-lg">
-                  <a className="hover:text-accent-deep" href={href(`/projects/${project.id}`)}>
+              <article key={project.id} className="paper p-4">
+                <h3 className="display text-[1.05rem]">
+                  <a className="hover:text-forest-deep" href={href(`/projects/${project.id}`)}>
                     {project.name}
                   </a>
                 </h3>
                 {capsule?.nextAction ? (
-                  <div className="lt-inset mt-3 px-3 py-2.5">
-                    <p className="lt-eyebrow mb-1">Start here</p>
-                    <p className="lt-prose text-[0.9375rem]">{capsule.nextAction}</p>
+                  <div className="paper-2 mt-2 px-3 py-2">
+                    <p className="eyebrow mb-0.5">Start here</p>
+                    <p className="written text-[0.9375rem]">{capsule.nextAction}</p>
                   </div>
                 ) : capsule?.status ? (
-                  <p className="mt-3 text-sm text-muted">{capsule.status}</p>
+                  <Quiet className="mt-2">{capsule.status}</Quiet>
                 ) : null}
                 {capsule?.blocker ? (
-                  <p className="mt-3 text-sm text-attention">In the way: {capsule.blocker}</p>
+                  <p className="mt-2 text-[0.8125rem] text-brown">In the way: {capsule.blocker}</p>
                 ) : null}
-                <p className="mt-4 text-[0.7rem] text-muted">
-                  Saved {capsule ? formatStamp(capsule.savedAt) : ''}
+                <p className="mt-2.5 text-[0.7rem] text-muted">
+                  saved {capsule ? relativeDay(capsule.savedAt, now) : ''}
                 </p>
-                <a
-                  className="lt-btn lt-btn-secondary mt-4 text-xs"
-                  href={href(`/projects/${project.id}`)}
-                >
+                <a className="btn btn-soft mt-3" href={href(`/projects/${project.id}`)}>
                   Pick it up
                 </a>
               </article>
@@ -256,19 +241,19 @@ export function ReturnView() {
       </section>
 
       {parked.length > 0 ? (
-        <section className="mt-10">
-          <SectionTitle count={parked.length}>Parked for later</SectionTitle>
-          <ul className="grid gap-2">
+        <section className="mt-6">
+          <SectionHead count={parked.length}>Put aside for later</SectionHead>
+          <Panel className="!py-1">
             {parked.slice(0, 6).map((thing) => (
-              <li
+              <div
                 key={thing.id}
-                className="flex flex-wrap items-baseline justify-between gap-3 border-b border-rule py-2.5 last:border-b-0"
+                className="flex flex-wrap items-baseline justify-between gap-3 border-b border-line-soft py-2 last:border-b-0"
               >
-                <p className="min-w-0 flex-1 text-sm text-muted">{thing.text}</p>
-                <Tag>Back {thing.returnAt ? relativeDay(thing.returnAt) : ''}</Tag>
-              </li>
+                <p className="min-w-0 flex-1 text-[0.8125rem] text-muted">{thing.text}</p>
+                <Tag>back {thing.returnAt ? relativeDay(thing.returnAt, now) : ''}</Tag>
+              </div>
             ))}
-          </ul>
+          </Panel>
         </section>
       ) : null}
     </div>

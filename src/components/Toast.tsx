@@ -54,10 +54,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map((toast) => (
           <div
             key={toast.id}
-            className={`lt-rise pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-md border px-4 py-3 shadow-[var(--shadow-lift)] ${
+            className={`rise pointer-events-auto flex w-full max-w-md items-start gap-3 rounded-lg border px-4 py-3 shadow-[var(--shadow-lift)] ${
               toast.tone === 'problem'
-                ? 'border-[color-mix(in_srgb,var(--color-attention)_45%,var(--color-rule))] bg-attention-wash text-ink'
-                : 'border-rule bg-surface text-ink'
+                ? 'border-[color-mix(in_srgb,var(--color-brown)_40%,var(--color-line))] bg-sand text-ink'
+                : 'border-line bg-paper text-ink'
             }`}
             role={toast.tone === 'problem' ? 'alert' : 'status'}
           >
@@ -65,7 +65,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             {toast.action ? (
               <button
                 type="button"
-                className="lt-btn lt-btn-secondary -my-1 shrink-0 px-2.5 py-1 text-xs"
+                className="btn btn-soft -my-1 shrink-0"
                 onClick={() => {
                   void toast.action?.run()
                   dismiss(toast.id)
@@ -76,7 +76,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             ) : null}
             <button
               type="button"
-              className="lt-btn lt-btn-quiet -my-1 -mr-2 shrink-0 px-1.5 py-1 text-xs"
+              className="btn btn-ghost -my-1 -mr-2 shrink-0"
               onClick={() => dismiss(toast.id)}
               aria-label="Dismiss message"
             >

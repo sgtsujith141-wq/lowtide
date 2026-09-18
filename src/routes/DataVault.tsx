@@ -4,7 +4,7 @@ import { useToast } from '../lib/toast-context.ts'
 import { buildExport, exportFilename, previewImport, type ImportPreview } from '../lib/transfer.ts'
 import { deleted } from '../lib/model.ts'
 import { formatStamp } from '../lib/dates.ts'
-import { Dialog, EmptyNote, PageHeader, Panel, Quiet, SectionTitle } from '../components/ui.tsx'
+import { Dialog, Empty, PageHead, Panel, Quiet, SectionHead } from '../components/ui.tsx'
 
 export function DataVault() {
   const store = useStore()
@@ -101,7 +101,7 @@ export function DataVault() {
 
   return (
     <div>
-      <PageHeader
+      <PageHead
         eyebrow="Data"
         title="Your data, in your hands."
         lede="LOWTIDE keeps everything in this browser on this device. No account, no server, nothing sent anywhere."
@@ -109,12 +109,12 @@ export function DataVault() {
 
       <div className="grid gap-6 md:grid-cols-2">
         <Panel>
-          <SectionTitle>Export</SectionTitle>
+          <SectionHead>Export</SectionHead>
           <Quiet className="mb-4">
             A plain JSON file with every thing, project, capsule and hand-off. Keep it somewhere you
             trust.
           </Quiet>
-          <button type="button" className="lt-btn lt-btn-primary" onClick={exportJson}>
+          <button type="button" className="btn btn-solid" onClick={exportJson}>
             Download a backup
           </button>
           <dl className="mt-5 grid gap-1.5 text-xs text-muted">
@@ -144,13 +144,13 @@ export function DataVault() {
         </Panel>
 
         <Panel>
-          <SectionTitle>Import</SectionTitle>
+          <SectionHead>Import</SectionHead>
           <Quiet className="mb-4">
             Nothing is written until you have seen exactly what will be added. An import never
             replaces or deletes what is already here.
           </Quiet>
 
-          <label className="lt-label" htmlFor="import-file">
+          <label className="label" htmlFor="import-file">
             Choose a backup file
           </label>
           <input
@@ -158,26 +158,26 @@ export function DataVault() {
             ref={fileInput}
             type="file"
             accept="application/json,.json"
-            className="lt-field mb-4 file:mr-3 file:rounded file:border-0 file:bg-accent-wash file:px-3 file:py-1 file:text-xs file:text-accent-deep"
+            className="field mb-4 file:mr-3 file:rounded file:border-0 file:bg-sage file:px-3 file:py-1 file:text-xs file:text-forest-deep"
             onChange={(e) => {
               const file = e.target.files?.[0]
               if (file) void onFile(file)
             }}
           />
 
-          <label className="lt-label" htmlFor="import-paste">
+          <label className="label" htmlFor="import-paste">
             Or paste JSON
           </label>
           <textarea
             id="import-paste"
-            className="lt-field min-h-24 font-mono text-xs"
+            className="field min-h-24 font-mono text-xs"
             placeholder='{"app":"lowtide", …} or an older lowtide.v1 backup'
             value={pasted}
             onChange={(e) => setPasted(e.target.value)}
           />
           <button
             type="button"
-            className="lt-btn lt-btn-secondary mt-3"
+            className="btn btn-soft mt-3"
             disabled={!pasted.trim()}
             onClick={() => readText(pasted)}
           >
@@ -188,7 +188,7 @@ export function DataVault() {
 
       {preview ? (
         <Panel className="mt-6">
-          <SectionTitle>What would be added</SectionTitle>
+          <SectionHead>What would be added</SectionHead>
           <dl className="grid gap-2 text-sm sm:grid-cols-2">
             <Row term="Format recognised">
               {preview.format === 'lowtide-v2'
@@ -210,8 +210,8 @@ export function DataVault() {
           </dl>
 
           {preview.problems.length > 0 ? (
-            <div className="lt-inset mt-5 p-4">
-              <p className="lt-eyebrow mb-2">What could not be read</p>
+            <div className="paper-2 mt-5 p-4">
+              <p className="eyebrow mb-2">What could not be read</p>
               <ul className="grid gap-1 text-xs text-muted">
                 {preview.problems.slice(0, 12).map((problem, i) => (
                   <li key={i}>{problem}</li>
@@ -226,13 +226,13 @@ export function DataVault() {
           <div className="mt-5 flex flex-wrap items-center gap-2">
             <button
               type="button"
-              className="lt-btn lt-btn-primary"
+              className="btn btn-solid"
               disabled={!preview.ok || importing}
               onClick={() => void applyImport()}
             >
               {importing ? 'Adding…' : 'Add this to my data'}
             </button>
-            <button type="button" className="lt-btn lt-btn-quiet" onClick={() => setPreview(null)}>
+            <button type="button" className="btn btn-ghost" onClick={() => setPreview(null)}>
               Cancel
             </button>
             {!preview.ok ? (
@@ -245,7 +245,7 @@ export function DataVault() {
       ) : null}
 
       <Panel className="mt-6">
-        <SectionTitle>Coming from the older prototype</SectionTitle>
+        <SectionHead>Coming from the older prototype</SectionHead>
         <Quiet>
           An earlier LOWTIDE prototype kept its data under the browser key{' '}
           <code className="font-mono text-xs">lowtide.v1</code>. A page served from{' '}
@@ -264,15 +264,15 @@ export function DataVault() {
       </Panel>
 
       <section className="mt-10">
-        <SectionTitle count={bin.length}>Deleted</SectionTitle>
+        <SectionHead count={bin.length}>Deleted</SectionHead>
         {bin.length === 0 ? (
-          <EmptyNote>Nothing deleted. Deleted things wait here until you remove them.</EmptyNote>
+          <Empty>Nothing deleted. Deleted things wait here until you remove them.</Empty>
         ) : (
           <ul className="grid gap-2">
             {bin.map((thing) => (
               <li
                 key={thing.id}
-                className="flex flex-wrap items-center gap-3 border-b border-rule py-3 last:border-b-0"
+                className="flex flex-wrap items-center gap-3 border-b border-line py-3 last:border-b-0"
               >
                 <p className="min-w-0 flex-1 text-sm text-muted line-through">{thing.text}</p>
                 <span className="text-xs text-muted">
@@ -280,14 +280,14 @@ export function DataVault() {
                 </span>
                 <button
                   type="button"
-                  className="lt-btn lt-btn-secondary text-xs"
+                  className="btn btn-soft text-xs"
                   onClick={() => void store.restoreThing(thing.id)}
                 >
                   Restore
                 </button>
                 <button
                   type="button"
-                  className="lt-btn lt-btn-quiet text-xs"
+                  className="btn btn-ghost text-xs"
                   onClick={() => void store.purgeThing(thing.id)}
                 >
                   Remove for good
@@ -299,7 +299,7 @@ export function DataVault() {
       </section>
 
       <Panel className="mt-10">
-        <SectionTitle>This device</SectionTitle>
+        <SectionHead>This device</SectionHead>
         <Quiet>
           Browsers can clear site data on their own — private windows, “clear browsing data”, and
           storage pressure all do it. Asking to keep the data makes that much less likely, and the
@@ -308,7 +308,7 @@ export function DataVault() {
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <button
             type="button"
-            className="lt-btn lt-btn-secondary"
+            className="btn btn-soft"
             onClick={() => {
               void navigator.storage
                 ?.persist?.()
@@ -337,10 +337,10 @@ export function DataVault() {
         </div>
       </Panel>
 
-      <div className="mt-12 border-t border-rule pt-6">
+      <div className="mt-12 border-t border-line pt-6">
         <button
           type="button"
-          className="lt-btn lt-btn-quiet text-xs text-attention hover:bg-attention-wash hover:text-attention"
+          className="btn btn-ghost text-xs text-brown hover:bg-sand hover:text-brown"
           onClick={() => setConfirmWipe(true)}
         >
           Delete everything on this device
@@ -356,14 +356,14 @@ export function DataVault() {
           <>
             <button
               type="button"
-              className="lt-btn lt-btn-secondary"
+              className="btn btn-soft"
               onClick={() => setConfirmWipe(false)}
             >
               Keep my data
             </button>
             <button
               type="button"
-              className="lt-btn lt-btn-primary"
+              className="btn btn-solid"
               onClick={() => {
                 void store
                   .clearEverything()
@@ -391,7 +391,7 @@ export function DataVault() {
 
 function Row({ term, children }: { term: string; children: React.ReactNode }) {
   return (
-    <div className="flex justify-between gap-4 border-b border-rule py-1.5">
+    <div className="flex justify-between gap-4 border-b border-line py-1.5">
       <dt className="text-muted">{term}</dt>
       <dd className="tabular-nums">{children}</dd>
     </div>

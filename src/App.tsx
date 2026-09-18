@@ -1,13 +1,12 @@
 import { Shell } from './components/Shell.tsx'
-import { href, match, usePath } from './lib/router.ts'
+import { href, match, navigate, usePath } from './lib/router.ts'
 import { useStore } from './lib/store-context.ts'
-import { Landing } from './routes/Landing.tsx'
-import { Dump } from './routes/Dump.tsx'
+import { Home } from './routes/Home.tsx'
 import { Things } from './routes/Things.tsx'
 import { Projects } from './routes/Projects.tsx'
 import { ProjectDetail } from './routes/ProjectDetail.tsx'
 import { ReturnView } from './routes/ReturnView.tsx'
-import { Closure } from './routes/Closure.tsx'
+import { Ritual } from './routes/Ritual.tsx'
 import { Closed } from './routes/Closed.tsx'
 import { DataVault } from './routes/DataVault.tsx'
 
@@ -17,24 +16,23 @@ export default function App() {
 
   if (!store.ready) {
     return (
-      <div className="flex min-h-[100dvh] items-center justify-center px-6">
-        <p className="lt-fade lt-display text-sm tracking-[0.34em] text-muted">LOWTIDE</p>
+      <div className="relative z-1 flex min-h-[100dvh] items-center justify-center px-6">
+        <p className="fade display text-[0.8rem] tracking-[0.3em] text-muted">LOWTIDE</p>
       </div>
     )
   }
 
   if (store.loadError) {
     return (
-      <div className="flex min-h-[100dvh] items-center justify-center px-6">
-        <div className="lt-card max-w-lg p-6" role="alert">
-          <h1 className="lt-display mb-3 text-2xl">LOWTIDE cannot reach its storage</h1>
-          <p className="mb-2 text-sm leading-relaxed text-muted">{store.loadError}</p>
-          <p className="mb-5 text-sm leading-relaxed text-muted">
-            Nothing that was saved before has been lost — this browser simply will not open the
-            local database right now. Anything you write while this message is showing cannot be
-            kept.
+      <div className="relative z-1 flex min-h-[100dvh] items-center justify-center px-6">
+        <div className="paper max-w-md p-5" role="alert">
+          <h1 className="display mb-2 text-xl">LOWTIDE cannot reach its storage</h1>
+          <p className="mb-2 text-[0.8125rem] leading-relaxed text-muted">{store.loadError}</p>
+          <p className="mb-4 text-[0.8125rem] leading-relaxed text-muted">
+            Nothing saved before has been lost — this browser will not open the local database right
+            now. Anything written while this message shows cannot be kept.
           </p>
-          <button type="button" className="lt-btn lt-btn-primary" onClick={() => void store.reload()}>
+          <button type="button" className="btn btn-solid" onClick={() => void store.reload()}>
             Try again
           </button>
         </div>
@@ -42,30 +40,39 @@ export default function App() {
     )
   }
 
-  // The closing screen is deliberately outside the shell: no nav, no counts.
+  // The closing state stands outside the workspace frame.
   if (path === '/closed') return <Closed />
 
   return <Shell>{renderRoute(path)}</Shell>
 }
 
 function renderRoute(path: string) {
-  if (path === '/') return <Landing />
-  if (path === '/dump') return <Dump />
+  if (path === '/') return <Home />
   if (path === '/things') return <Things />
   if (path === '/projects') return <Projects />
   if (path === '/return') return <ReturnView />
-  if (path === '/close') return <Closure />
+  if (path === '/ritual') return <Ritual />
   if (path === '/data') return <DataVault />
+
+  // Paths from the first milestone still work rather than 404-ing.
+  if (path === '/dump') {
+    navigate('/')
+    return <Home />
+  }
+  if (path === '/close') {
+    navigate('/ritual')
+    return <Ritual />
+  }
 
   const project = match('/projects/:id', path)
   if (project) return <ProjectDetail projectId={project.id} />
 
   return (
-    <div className="py-16 text-center">
-      <h1 className="lt-display mb-3 text-3xl">Nothing lives here</h1>
-      <p className="mb-6 text-sm text-muted">That address doesn’t match a page in LOWTIDE.</p>
-      <a className="lt-btn lt-btn-secondary" href={href('/')}>
-        Back to the start
+    <div className="py-14 text-center">
+      <h1 className="display mb-2 text-2xl">Nothing lives here</h1>
+      <p className="mb-5 text-[0.8125rem] text-muted">That address is not a page in LOWTIDE.</p>
+      <a className="btn btn-soft" href={href('/')}>
+        Back to the notebook
       </a>
     </div>
   )
