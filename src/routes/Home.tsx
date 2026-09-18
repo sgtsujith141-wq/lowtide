@@ -40,6 +40,12 @@ export function Home() {
   const queue = unrouted(store.things)
   const openCount = live(store.things).filter((t) => t.status === 'open').length
 
+  // The companion column earns its place only when it has something contextual
+  // to say. On a quiet day it would otherwise be one short card standing above a
+  // tall empty column — exactly the hollow feeling this workspace exists to
+  // avoid — so the evening entry point moves inline and the desk takes the room.
+  const hasCompanion = handoff != null || tickets.length > 0 || soon.length > 0
+
   // The page you are writing on now: today's captures, newest first, plus
   // anything captured in this sitting even if the clock has rolled over.
   const page = useMemo(() => {
@@ -88,9 +94,13 @@ export function Home() {
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_248px] lg:gap-7">
+    <div
+      className={
+        hasCompanion ? 'grid gap-6 lg:grid-cols-[minmax(0,1fr)_248px] lg:gap-7' : 'grid gap-6'
+      }
+    >
       {/* ---------------- the desk ---------------- */}
-      <div className="min-w-0">
+      <div className={hasCompanion ? 'min-w-0' : 'mx-auto w-full min-w-0 max-w-[764px]'}>
         <header className="rise mb-4">
           <p className="eyebrow mb-1.5">{formatDayLong(now)}</p>
           <h1 className="display text-[1.75rem] sm:text-[2rem]">Come on in.</h1>
@@ -187,9 +197,26 @@ export function Home() {
             </Panel>
           </section>
         ) : null}
+        {/* Tonight, inline — the column is not there to hold it -- */}
+        {!hasCompanion ? (
+          <Panel className="mt-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3">
+            <div className="min-w-0 flex-1 basis-64">
+              <SectionHead>Tonight</SectionHead>
+              <Quiet>
+                When you are done for the day, close it properly. It takes a minute and leaves you
+                somewhere to come back to.
+              </Quiet>
+            </div>
+            <a className="btn btn-solid shrink-0" href={href('/ritual')}>
+              <Icon name="moon" className="size-4" />
+              Close the day
+            </a>
+          </Panel>
+        ) : null}
       </div>
 
       {/* ---------------- companion ---------------- */}
+      {hasCompanion ? (
       <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-6 lg:self-start">
         {/* Gentle return */}
         {handoff ? (
@@ -266,6 +293,7 @@ export function Home() {
           </Panel>
         ) : null}
       </aside>
+      ) : null}
     </div>
   )
 }
