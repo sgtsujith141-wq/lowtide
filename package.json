@@ -10,7 +10,9 @@
     "typecheck": "tsc -b --force",
     "lint": "oxlint",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "test:e2e": "node e2e/acceptance.mjs",
+    "test:all": "npm run typecheck && npm run lint && npm test && npm run build"
   },
   "dependencies": {
     "idb": "^8.0.3",
@@ -32,5 +34,5 @@
     "vite-plugin-pwa": "^1.3.0",
     "vitest": "^5.0.1"
   },
-  "description": "LOWTIDE — put the day down. A local-first, offline-capable app for unloading mental clutter and keeping your place in unfinished work."
+  "description": "LOWTIDE \u2014 put the day down. A local-first, offline-capable app for unloading mental clutter and keeping your place in unfinished work."
 }
