@@ -73,10 +73,11 @@ export function classifyThing(thing: Thing, patch: ClassifyPatch, now = Date.now
   }
 }
 
-export function makeProject(name: string, now = Date.now()): Project {
+export function makeProject(name: string, description = '', now = Date.now()): Project {
   return {
     id: newId('p'),
     name: name.trim(),
+    description: description.trim(),
     createdAt: now,
     updatedAt: now,
     archivedAt: null,

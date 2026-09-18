@@ -53,6 +53,8 @@ export interface Thing {
 export interface Project {
   id: string
   name: string
+  /** A line or two about what this project actually is. Added in schema v2. */
+  description: string
   createdAt: number
   updatedAt: number
   archivedAt: number | null

@@ -22,7 +22,7 @@ export interface StoreValue {
   restoreThing(id: string): Promise<void>
   purgeThing(id: string): Promise<void>
 
-  createProject(name: string): Promise<Project>
+  createProject(name: string, description?: string): Promise<Project>
   putProject(project: Project): Promise<void>
   softDeleteProject(id: string): Promise<void>
   restoreProject(id: string): Promise<void>

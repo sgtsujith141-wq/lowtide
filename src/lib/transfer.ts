@@ -148,6 +148,7 @@ function coerceProject(raw: unknown, problems: string[], index: number): Project
   return {
     id: str(r.id) || newId('p'),
     name,
+    description: str(r.description ?? r.summary),
     createdAt,
     updatedAt: num(r.updatedAt, createdAt),
     archivedAt: numOrNull(r.archivedAt),

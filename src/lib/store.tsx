@@ -119,8 +119,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
         }))
       },
 
-      async createProject(name) {
-        const project = makeProject(name)
+      async createProject(name, description = '') {
+        const project = makeProject(name, description)
         await commit({ projects: [project] }, (s) => ({
           ...s,
           projects: upsert(s.projects, [project]),

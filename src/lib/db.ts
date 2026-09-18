@@ -2,7 +2,7 @@ import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
 import type { Capsule, Handoff, Op, OpEntity, Project, Snapshot, Thing } from './types.ts'
 
 export const DB_NAME = 'lowtide'
-export const DB_VERSION = 1
+export const DB_VERSION = 2
 
 interface LowtideSchema extends DBSchema {
   things: { key: string; value: Thing; indexes: { byCreated: number } }
@@ -52,7 +52,7 @@ export function getDb(): Promise<IDBPDatabase<LowtideSchema>> {
       )
     }
     dbPromise = openDB<LowtideSchema>(DB_NAME, DB_VERSION, {
-      upgrade(db) {
+      upgrade(db, oldVersion, _newVersion, tx) {
         if (!db.objectStoreNames.contains('things')) {
           const things = db.createObjectStore('things', { keyPath: 'id' })
           things.createIndex('byCreated', 'createdAt')
@@ -75,6 +75,23 @@ export function getDb(): Promise<IDBPDatabase<LowtideSchema>> {
         }
         if (!db.objectStoreNames.contains('oplog')) {
           db.createObjectStore('oplog', { keyPath: 'seq', autoIncrement: true })
+        }
+
+        /* ---- migrations -------------------------------------------------
+           Migrations only ever ADD. No store is dropped and no record is
+           deleted, so a database written by an older build keeps everything
+           it had. Records are also read defensively (see `hydrate` below),
+           which means a missed field can never crash a load. */
+        if (oldVersion > 0 && oldVersion < 2) {
+          // v2 gave projects a description.
+          const projects = tx.objectStore('projects')
+          void projects.getAll().then((rows) => {
+            for (const row of rows) {
+              if (typeof (row as Project).description !== 'string') {
+                void projects.put({ ...row, description: '' })
+              }
+            }
+          })
         }
       },
       blocked() {
@@ -178,6 +195,15 @@ export async function write(batch: WriteBatch): Promise<void> {
   }
 }
 
+/**
+ * Fills in fields added by later schema versions. A record written by an older
+ * build is upgraded in memory on read, so the app never depends on a migration
+ * having completed and never shows `undefined` in place of a value.
+ */
+function hydrateProject(row: Project): Project {
+  return typeof row.description === 'string' ? row : { ...row, description: '' }
+}
+
 export async function readSnapshot(): Promise<Snapshot> {
   const db = await getDb()
   try {
@@ -187,7 +213,7 @@ export async function readSnapshot(): Promise<Snapshot> {
       db.getAll('capsules'),
       db.getAll('handoffs'),
     ])
-    return { things, projects, capsules, handoffs }
+    return { things, projects: projects.map(hydrateProject), capsules, handoffs }
   } catch (error) {
     throw new StorageError(describeStorageFailure(error), error)
   }
