@@ -1,7 +1,8 @@
 import { toTimestamp } from '../../lib/time';
 import type { Hackathon } from '../../types/domain';
 import { hackathonSchema } from '../schema';
-import { InvalidInputError, RecordNotFoundError } from './errors';
+import { checkHackathonDates } from '../rules';
+import { RecordNotFoundError } from './errors';
 import { omitUndefined, resolveDeps, watchQuery, type RepositoryDeps } from './shared';
 import type { HackathonChanges, HackathonRepository } from './types';
 
@@ -23,14 +24,7 @@ function optionalText(value: string | null | undefined): string | undefined {
 /** Parses and applies the V3 date-range rules. */
 function validate(record: Record<string, unknown>): Hackathon {
   const hackathon = hackathonSchema.parse(omitUndefined(record));
-  if (hackathon.eventEnd !== undefined) {
-    if (hackathon.eventStart === undefined) {
-      throw new InvalidInputError('An end date needs a start date');
-    }
-    if (hackathon.eventEnd < hackathon.eventStart) {
-      throw new InvalidInputError('The event can’t end before it starts');
-    }
-  }
+  checkHackathonDates(hackathon);
   return hackathon;
 }
 

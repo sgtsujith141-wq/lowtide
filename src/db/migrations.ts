@@ -60,3 +60,28 @@ export function migrateHackathonToV3(record: Record<string, unknown>): Record<st
   }
   return next;
 }
+
+/** Persisted stores, in the order backups list them. */
+export const STORE_NAMES = [
+  'tasks',
+  'inbox',
+  'habits',
+  'habitEntries',
+  'hackathons',
+  'protectedTime',
+] as const;
+export type StoreName = (typeof STORE_NAMES)[number];
+
+export type RawSnapshot = Record<StoreName, Record<string, unknown>[]>;
+
+/**
+ * Upgrades a snapshot's records from database schema `from` to the current
+ * one, in memory, with the very same functions the database upgrade steps
+ * use. V1 → V2 changed no record data (only added an index); V2 → V3 runs
+ * `migrateHackathonToV3` on every hackathon. Returns new arrays.
+ */
+export function migrateSnapshot(snapshot: RawSnapshot, from: number): RawSnapshot {
+  const next = { ...snapshot };
+  if (from < 3) next.hackathons = snapshot.hackathons.map(migrateHackathonToV3);
+  return next;
+}

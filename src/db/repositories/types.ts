@@ -251,10 +251,76 @@ export interface HackathonRepository {
   watchAll: Watch<Hackathon[]>;
 }
 
+/** The six persisted collections, as stored. */
+export interface BackupData {
+  tasks: Task[];
+  inbox: InboxItem[];
+  habits: Habit[];
+  habitEntries: HabitEntry[];
+  hackathons: Hackathon[];
+  protectedTime: ProtectedTime[];
+}
+
+export type BackupCounts = Record<keyof BackupData, number>;
+
+/**
+ * A LOWTIDE backup file (ADR-031). `formatVersion` versions this envelope;
+ * `schemaVersion` records the database schema the data was written under.
+ * They change independently.
+ */
+export interface BackupDocument {
+  format: 'lowtide-backup';
+  formatVersion: number;
+  schemaVersion: number;
+  exportedAt: Timestamp;
+  data: BackupData;
+}
+
+declare const validatedBackup: unique symbol;
+
+/**
+ * A backup that has been parsed, migrated to the current schema and fully
+ * validated. Only `inspect` produces one, so `restore` can't be handed raw data.
+ */
+export interface ValidatedBackup {
+  readonly [validatedBackup]: true;
+  readonly exportedAt: Timestamp;
+  readonly sourceSchemaVersion: number;
+  readonly data: BackupData;
+  readonly counts: BackupCounts;
+}
+
+export type BackupProblem =
+  'not-json' | 'not-lowtide' | 'newer-format' | 'newer-schema' | 'invalid-data';
+
+export type BackupInspection =
+  | { ok: true; backup: ValidatedBackup }
+  /** `issues` are developer-facing details; the UI shows calm text per `problem`. */
+  | { ok: false; problem: BackupProblem; issues: string[] };
+
+/**
+ * Local backup and restore (ADR-031–033). Replace, never merge. Nothing here
+ * touches the network.
+ */
+export interface BackupRepository {
+  /** Every store, read in one read-only transaction, sorted deterministically. */
+  exportBackup(): Promise<BackupDocument>;
+  /** Record counts per store, live. */
+  watchCounts: Watch<BackupCounts>;
+  /** Parses, migrates and validates a backup file's text without touching the database. */
+  inspect(text: string): BackupInspection;
+  /**
+   * Replaces all LOWTIDE data with the backup in one read-write transaction
+   * over every store. If anything fails, nothing changes.
+   */
+  restore(backup: ValidatedBackup): Promise<void>;
+}
+
 export interface Repositories {
   tasks: TaskRepository;
   inbox: InboxRepository;
   protectedTime: ProtectedTimeRepository;
   habits: HabitRepository;
   hackathons: HackathonRepository;
+  backup: BackupRepository;
 }

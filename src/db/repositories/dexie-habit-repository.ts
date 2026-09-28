@@ -1,37 +1,10 @@
 import { toTimestamp } from '../../lib/time';
-import type { Habit, HabitUnit } from '../../types/domain';
+import type { Habit } from '../../types/domain';
+import { checkEntryValue, checkHabitTarget } from '../rules';
 import { habitEntrySchema, habitSchema } from '../schema';
-import { InvalidInputError, RecordNotFoundError, RecordStateError } from './errors';
+import { RecordNotFoundError, RecordStateError } from './errors';
 import { omitUndefined, resolveDeps, watchQuery, type RepositoryDeps } from './shared';
 import type { HabitRepository } from './types';
-
-/** Longest loggable day, in minutes. Anything above is a typo, not a day. */
-export const MAX_MINUTES = 24 * 60;
-
-function checkTarget(unit: HabitUnit, target: number | undefined) {
-  if (target === undefined) return;
-  if (unit === 'check') throw new InvalidInputError('A done-or-not habit has no target');
-  if (!Number.isFinite(target) || target <= 0) {
-    throw new InvalidInputError('A target must be a positive number');
-  }
-  if (unit === 'count' && !Number.isInteger(target)) {
-    throw new InvalidInputError('A count target must be a whole number');
-  }
-  if (unit === 'minutes' && target > MAX_MINUTES) {
-    throw new InvalidInputError(`A minutes target can't exceed ${MAX_MINUTES}`);
-  }
-}
-
-/** Unit rules for a recorded entry (ADR-023). Zero is not an entry: clear instead. */
-export function checkEntryValue(unit: HabitUnit, value: number) {
-  const ok =
-    unit === 'check'
-      ? value === 1
-      : unit === 'count'
-        ? Number.isInteger(value) && value > 0
-        : Number.isFinite(value) && value > 0 && value <= MAX_MINUTES;
-  if (!ok) throw new InvalidInputError(`Not a valid ${unit} value: ${value}`);
-}
 
 export function createDexieHabitRepository(deps: RepositoryDeps): HabitRepository {
   const { db, clock, newId } = resolveDeps(deps);
@@ -52,7 +25,7 @@ export function createDexieHabitRepository(deps: RepositoryDeps): HabitRepositor
 
   return {
     async create(input) {
-      checkTarget(input.unit, input.target);
+      checkHabitTarget(input.unit, input.target);
       const habit = habitSchema.parse(
         omitUndefined({
           id: newId(),
@@ -75,7 +48,7 @@ export function createDexieHabitRepository(deps: RepositoryDeps): HabitRepositor
         if (changes.name !== undefined) next.name = changes.name.trim();
         if (changes.category !== undefined) next.category = changes.category;
         if (changes.target !== undefined) {
-          checkTarget(existing.unit, changes.target ?? undefined);
+          checkHabitTarget(existing.unit, changes.target ?? undefined);
           next.target = changes.target ?? undefined;
         }
         const habit = habitSchema.parse(omitUndefined(next));
