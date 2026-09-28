@@ -61,3 +61,18 @@ describe('persisted-record schemas', () => {
     }
   });
 });
+
+describe('Task.plannedFor (schema V2)', () => {
+  it('is optional', () => {
+    expect(taskSchema.parse(validTask)).not.toHaveProperty('plannedFor');
+  });
+
+  it('accepts a real local date and nothing else', () => {
+    expect(taskSchema.parse({ ...validTask, plannedFor: '2028-02-29' }).plannedFor).toBe(
+      '2028-02-29',
+    );
+    for (const bad of ['2027-02-29', '2026-09-28T12:00:00.000Z', '28/09/2026', '', null]) {
+      expect(() => taskSchema.parse({ ...validTask, plannedFor: bad })).toThrow();
+    }
+  });
+});

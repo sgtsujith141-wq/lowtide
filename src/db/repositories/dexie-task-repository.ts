@@ -107,5 +107,26 @@ export function createDexieTaskRepository(deps: RepositoryDeps): TaskRepository 
     drop(id) {
       return modify(id, OPEN, (task) => ({ ...task, status: 'dropped' }));
     },
+
+    planFor(id, date) {
+      return modify(id, OPEN, (task) => ({ ...task, plannedFor: date }));
+    },
+
+    removeFromPlan(id) {
+      return modify(id, 'any', (task) => omitUndefined({ ...task, plannedFor: undefined }));
+    },
+
+    watchForDay(day) {
+      return watchQuery(async () => {
+        const [planned, due] = await Promise.all([
+          db.tasks.where('plannedFor').equals(day).toArray(),
+          // Deadlines are stored as UTC noon of their date (ADR-016), so
+          // "on or before day" is "UTC date part <= day".
+          db.tasks.where('dueAt').belowOrEqual(`${day}T23:59:59.999Z`).toArray(),
+        ]);
+        const byId = new Map([...planned, ...due].map((task) => [task.id, task]));
+        return [...byId.values()].filter((task) => OPEN.includes(task.status));
+      });
+    },
   };
 }

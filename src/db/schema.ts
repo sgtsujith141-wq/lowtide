@@ -38,6 +38,7 @@ export const taskSchema = z.object({
   priority: z.enum(TASK_PRIORITIES),
   dueAt: z.exactOptional(timestamp),
   project: z.exactOptional(text),
+  plannedFor: z.exactOptional(localDate),
   createdAt: timestamp,
   completedAt: z.exactOptional(timestamp),
   updatedAt: timestamp,
@@ -106,7 +107,7 @@ export const DATABASE_NAME = 'lowtide';
  * Current schema version. Bump it (never edit a shipped version) when the
  * store layout or record shape changes; see docs/DATA-MODEL.md#migrations.
  */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 /**
  * Dexie store definitions for version 1. First entry is the primary key;
@@ -121,4 +122,14 @@ export const STORES_V1 = {
   habitEntries: 'id, habitId, date, &[habitId+date]',
   hackathons: 'id, status, registrationDeadline, eventStart',
   protectedTime: 'id, date',
+} as const;
+
+/**
+ * Version 2 (PHASE 002): index `tasks.plannedFor` so Today can query a day's
+ * plan directly. Only changed stores are listed; the rest carry over from V1.
+ * Record shape change: optional `Task.plannedFor`. No data rewrite is needed:
+ * V1 tasks are valid V2 tasks with `plannedFor` absent.
+ */
+export const STORES_V2 = {
+  tasks: 'id, status, dueAt, createdAt, plannedFor',
 } as const;

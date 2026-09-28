@@ -1,4 +1,13 @@
-import type { Id, InboxItem, Task, TaskPriority, Timestamp } from '../../types/domain';
+import type {
+  Id,
+  InboxItem,
+  LocalDate,
+  ProtectedTime,
+  ProtectedTimeKind,
+  Task,
+  TaskPriority,
+  Timestamp,
+} from '../../types/domain';
 
 /**
  * Repository contracts. UI and feature code depend on these interfaces only,
@@ -12,7 +21,8 @@ import type { Id, InboxItem, Task, TaskPriority, Timestamp } from '../../types/d
  * - Lookups (`get`) resolve to `undefined` when the record doesn't exist;
  *   absence is a normal answer, not an error.
  * - Operations that need an existing record (`update`, `complete`, `reopen`,
- *   `drop`, `convertToTask`, `markProcessed`) reject with `RecordNotFoundError`.
+ *   `drop`, `planFor`, `removeFromPlan`, `convertToTask`, `markProcessed`, and
+ *   protected-time `update`/`remove`) reject with `RecordNotFoundError`.
  * - Operations not allowed in the record's current state (e.g. completing a
  *   dropped task, converting an already-processed inbox item) reject with
  *   `RecordStateError`.
@@ -70,6 +80,19 @@ export interface TaskRepository {
   reopen(id: Id): Promise<Task>;
   /** Open task → `dropped`. Kept, not deleted, so it can be reopened. */
   drop(id: Id): Promise<Task>;
+  /**
+   * Puts an open task in the plan for local day `date` (sets `plannedFor`).
+   * Never touches `dueAt`. Closed tasks reject with `RecordStateError`.
+   */
+  planFor(id: Id, date: LocalDate): Promise<Task>;
+  /** Clears `plannedFor`. Never touches `dueAt`. Any status. */
+  removeFromPlan(id: Id): Promise<Task>;
+  /**
+   * Open tasks relevant to local day `day`: planned for that day, or with a
+   * deadline on or before it (overdue included). Unordered and possibly
+   * overlapping in meaning; composing sections is the caller's job.
+   */
+  watchForDay(day: LocalDate): Watch<Task[]>;
 }
 
 export interface InboxRepository {
@@ -95,7 +118,36 @@ export interface InboxRepository {
   markProcessed(id: Id): Promise<InboxItem>;
 }
 
+export interface NewProtectedTime {
+  title: string;
+  date: LocalDate;
+  kind: ProtectedTimeKind;
+  notes?: string;
+}
+
+/** Omitted keys are left alone; `null` or blank `notes` removes the note. */
+export interface ProtectedTimeChanges {
+  title?: string;
+  date?: LocalDate;
+  kind?: ProtectedTimeKind;
+  notes?: string | null;
+}
+
+/**
+ * Time kept for people and rest. Deliberately no status, completion or
+ * history of any kind: an entry is a plan, not a commitment to measure (ADR-021).
+ */
+export interface ProtectedTimeRepository {
+  create(input: NewProtectedTime): Promise<ProtectedTime>;
+  update(id: Id, changes: ProtectedTimeChanges): Promise<ProtectedTime>;
+  /** Deletes the entry. */
+  remove(id: Id): Promise<void>;
+  /** Entries on local day `date`, ordered by title. */
+  watchForDate(date: LocalDate): Watch<ProtectedTime[]>;
+}
+
 export interface Repositories {
   tasks: TaskRepository;
   inbox: InboxRepository;
+  protectedTime: ProtectedTimeRepository;
 }

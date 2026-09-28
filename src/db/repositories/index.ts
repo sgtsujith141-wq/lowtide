@@ -1,12 +1,16 @@
 import type { LowtideDatabase } from '../database';
 import { createDexieInboxRepository } from './dexie-inbox-repository';
+import { createDexieProtectedTimeRepository } from './dexie-protected-time-repository';
 import { createDexieTaskRepository } from './dexie-task-repository';
 import type { RepositoryDeps } from './shared';
 import type { Repositories } from './types';
 
 export type {
   InboxRepository,
+  NewProtectedTime,
   NewTask,
+  ProtectedTimeChanges,
+  ProtectedTimeRepository,
   Repositories,
   TaskChanges,
   TaskRepository,
@@ -23,5 +27,6 @@ export function createDexieRepositories(
   return {
     tasks: createDexieTaskRepository({ db, ...deps }),
     inbox: createDexieInboxRepository({ db, ...deps }),
+    protectedTime: createDexieProtectedTimeRepository({ db, ...deps }),
   };
 }

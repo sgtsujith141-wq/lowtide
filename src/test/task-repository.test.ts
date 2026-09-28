@@ -195,3 +195,96 @@ describe('TaskRepository subscriptions', () => {
     expect(open.values.length).toBe(seen);
   });
 });
+
+describe('TaskRepository planning (plannedFor)', () => {
+  it('plans and unplans without touching the deadline', async () => {
+    const tasks = createDexieTaskRepository({ db: newDb() });
+    const dueAt = '2026-10-02T12:00:00.000Z';
+    const task = await tasks.create({ title: 'Essay', dueAt });
+
+    const planned = await tasks.planFor(task.id, '2026-09-29');
+    expect(planned).toMatchObject({ plannedFor: '2026-09-29', dueAt });
+
+    const unplanned = await tasks.removeFromPlan(task.id);
+    expect(unplanned).not.toHaveProperty('plannedFor');
+    expect(unplanned.dueAt).toBe(dueAt);
+  });
+
+  it('keeps plannedFor when the deadline is edited or cleared', async () => {
+    const tasks = createDexieTaskRepository({ db: newDb() });
+    const task = await tasks.create({ title: 'x' });
+    await tasks.planFor(task.id, '2026-09-29');
+    expect((await tasks.update(task.id, { dueAt: '2026-11-01T12:00:00.000Z' })).plannedFor).toBe(
+      '2026-09-29',
+    );
+    expect((await tasks.update(task.id, { dueAt: null })).plannedFor).toBe('2026-09-29');
+  });
+
+  it('rejects an invalid date, closed tasks and missing tasks', async () => {
+    const tasks = createDexieTaskRepository({ db: newDb() });
+    const task = await tasks.create({ title: 'x' });
+    await expect(tasks.planFor(task.id, '2026-02-30')).rejects.toThrow();
+    await tasks.complete(task.id);
+    await expect(tasks.planFor(task.id, '2026-09-29')).rejects.toBeInstanceOf(RecordStateError);
+    await expect(tasks.planFor(crypto.randomUUID(), '2026-09-29')).rejects.toBeInstanceOf(
+      RecordNotFoundError,
+    );
+    await expect(tasks.removeFromPlan(crypto.randomUUID())).rejects.toBeInstanceOf(
+      RecordNotFoundError,
+    );
+  });
+
+  it('keeps plannedFor through complete and reopen, without inventing one', async () => {
+    const tasks = createDexieTaskRepository({ db: newDb() });
+    const planned = await tasks.create({ title: 'planned' });
+    await tasks.planFor(planned.id, '2026-09-28');
+    expect((await tasks.complete(planned.id)).plannedFor).toBe('2026-09-28');
+    expect((await tasks.reopen(planned.id)).plannedFor).toBe('2026-09-28');
+
+    const unplanned = await tasks.create({ title: 'never planned' });
+    await tasks.drop(unplanned.id);
+    expect(await tasks.reopen(unplanned.id)).not.toHaveProperty('plannedFor');
+  });
+
+  it('watchForDay returns open tasks planned that day or due on/before it, once each', async () => {
+    const tasks = createDexieTaskRepository({ db: newDb() });
+    const day = '2026-09-28';
+    const overdue = await tasks.create({ title: 'overdue', dueAt: '2026-09-20T12:00:00.000Z' });
+    const dueToday = await tasks.create({ title: 'due today', dueAt: `${day}T12:00:00.000Z` });
+    const both = await tasks.create({ title: 'both', dueAt: `${day}T12:00:00.000Z` });
+    await tasks.planFor(both.id, day);
+    const planned = await tasks.create({ title: 'planned', dueAt: '2026-10-09T12:00:00.000Z' });
+    await tasks.planFor(planned.id, day);
+    await tasks.create({ title: 'due later', dueAt: '2026-09-29T12:00:00.000Z' });
+    const otherDay = await tasks.create({ title: 'planned tomorrow' });
+    await tasks.planFor(otherDay.id, '2026-09-29');
+    await tasks.create({ title: 'nothing' });
+    const done = await tasks.create({ title: 'done', dueAt: `${day}T12:00:00.000Z` });
+    await tasks.complete(done.id);
+
+    const live = recordWatch(tasks.watchForDay(day));
+    const list = await live.until((l) => l.length > 0);
+    expect(list.map((t) => t.title).sort()).toEqual(
+      [overdue, dueToday, both, planned].map((t) => t.title).sort(),
+    );
+    live.stop();
+  });
+
+  it('watchForDay reacts to planning, unplanning and completing', async () => {
+    const tasks = createDexieTaskRepository({ db: newDb() });
+    const day = '2026-09-28';
+    const task = await tasks.create({ title: 'watch me' });
+    const live = recordWatch(tasks.watchForDay(day));
+    await live.until((l) => l.length === 0);
+
+    await tasks.planFor(task.id, day);
+    await live.until((l) => l.length === 1);
+    await tasks.removeFromPlan(task.id);
+    await live.until((l) => l.length === 0);
+    await tasks.planFor(task.id, day);
+    await live.until((l) => l.length === 1);
+    await tasks.complete(task.id);
+    await live.until((l) => l.length === 0);
+    live.stop();
+  });
+});

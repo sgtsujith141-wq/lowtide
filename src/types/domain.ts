@@ -32,6 +32,12 @@ export interface Task {
   dueAt?: Timestamp;
   /** Free-text project label. There is no Project entity yet. */
   project?: string;
+  /**
+   * The local day the user chose to work on this ("in my plan for that day").
+   * Independent of `dueAt`: planning never changes the deadline and vice versa.
+   * Kept after completion as a record of intent (ADR-019).
+   */
+  plannedFor?: LocalDate;
   createdAt: Timestamp;
   /** Set when status becomes `done`; cleared if the task is reopened. */
   completedAt?: Timestamp;

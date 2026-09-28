@@ -1,6 +1,6 @@
 import { Dexie, type EntityTable } from 'dexie';
 import type { Habit, HabitEntry, Hackathon, InboxItem, ProtectedTime, Task } from '../types/domain';
-import { DATABASE_NAME, STORES_V1 } from './schema';
+import { DATABASE_NAME, STORES_V1, STORES_V2 } from './schema';
 
 /**
  * The LOWTIDE IndexedDB database.
@@ -20,6 +20,8 @@ export class LowtideDatabase extends Dexie {
     super(name);
     // Version history. Append new versions below; never edit a shipped one.
     this.version(1).stores(STORES_V1);
+    // V2: + tasks.plannedFor index. No upgrade(): existing tasks stay valid as-is.
+    this.version(2).stores(STORES_V2);
   }
 }
 
