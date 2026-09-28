@@ -123,16 +123,20 @@ describe('Brain dump capture', () => {
   });
 
   it('puts a failed thought back ahead of anything typed since', async () => {
+    // The save fails only when the test says so, after the typing is done:
+    // a fixed delay raced the typing under load (found in PHASE 005).
+    let failSave!: () => void;
     const capture = vi.fn();
     const { user } = await setup((repos) => {
-      capture.mockImplementationOnce(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 40));
-        throw new Error('disk full');
-      });
+      capture.mockImplementationOnce(
+        () => new Promise((_, reject) => (failSave = () => reject(new Error('disk full')))),
+      );
       return { ...repos, inbox: { ...repos.inbox, capture } };
     });
 
     await user.type(composer(), 'lost?{Enter}still typing');
+    expect(composer()).toHaveValue('still typing');
+    failSave();
     await screen.findByRole('alert');
     expect(composer()).toHaveValue('lost?\nstill typing');
   });
