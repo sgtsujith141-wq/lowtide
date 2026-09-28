@@ -127,6 +127,7 @@ describe('Tasks page', () => {
     await user.click(screen.getByText('Finished · 1'));
     const finished = screen.getByText('Laundry').closest('li')!;
     expect(within(finished).getByText(/Done/)).toBeInTheDocument();
+    expect(finished).toHaveTextContent(/^Laundry Done/);
     expect(await repositories.tasks.listOpen()).toEqual([]);
 
     await user.click(within(finished).getByRole('button', { name: 'Reopen: Laundry' }));

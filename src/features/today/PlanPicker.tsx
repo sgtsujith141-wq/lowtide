@@ -135,7 +135,8 @@ function Candidates({
               <span className="min-w-0 flex-1 text-sm">
                 <span className="break-words">{task.title}</span>
                 {task.dueAt && (
-                  <span className="ml-2 text-xs whitespace-nowrap text-ink-muted">
+                  <span className="ml-1 text-xs whitespace-nowrap text-ink-muted">
+                    {' '}
                     {describeDeadline(task.dueAt, today).text}
                   </span>
                 )}

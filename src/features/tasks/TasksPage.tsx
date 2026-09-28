@@ -137,7 +137,8 @@ export function TasksPage() {
                   >
                     {task.title}
                   </span>
-                  <span className="ml-2 text-xs whitespace-nowrap text-ink-muted">
+                  <span className="ml-1 text-xs whitespace-nowrap text-ink-muted">
+                    {' '}
                     {task.status === 'done' ? 'Done' : 'Dropped'}{' '}
                     <time dateTime={task.updatedAt} title={formatFull(task.updatedAt)}>
                       {formatWhen(task.completedAt ?? task.updatedAt, now)}
