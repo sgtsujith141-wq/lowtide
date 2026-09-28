@@ -13,6 +13,6 @@ export async function renderApp(path: string, repositories: Repositories) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
   const user = userEvent.setup();
   const result = render(<App repositories={repositories} router={router} />);
-  await screen.findByRole('heading', { level: 1 }, { timeout: 3000 });
+  await screen.findByRole('heading', { level: 1 }, { timeout: 5000 });
   return { user, router, ...result };
 }

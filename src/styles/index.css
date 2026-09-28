@@ -41,6 +41,13 @@
   --lt-danger: #a4473b;
 
   --lt-focus: #3f7f7a;
+
+  /* Activity squares (Rhythm): a quiet sea-glass ramp, level 0 = nothing recorded */
+  --lt-activity-0: #e4ddd0;
+  --lt-activity-1: #b5d2c9;
+  --lt-activity-2: #7fb2a7;
+  --lt-activity-3: #4b8b82;
+  --lt-activity-4: #285c57;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -61,6 +68,11 @@
     --lt-warn: #d6a15a;
     --lt-danger: #d98474;
     --lt-focus: #7bb8b0;
+    --lt-activity-0: #2c2925;
+    --lt-activity-1: #27403b;
+    --lt-activity-2: #2f6258;
+    --lt-activity-3: #4f9489;
+    --lt-activity-4: #93cfc4;
   }
 }
 
@@ -81,6 +93,11 @@
   --lt-warn: #d6a15a;
   --lt-danger: #d98474;
   --lt-focus: #7bb8b0;
+  --lt-activity-0: #2c2925;
+  --lt-activity-1: #27403b;
+  --lt-activity-2: #2f6258;
+  --lt-activity-3: #4f9489;
+  --lt-activity-4: #93cfc4;
 }
 
 /* Expose tokens to Tailwind as utilities (bg-paper, text-ink-muted, …). */
@@ -97,6 +114,11 @@
   --color-accent-ink: var(--lt-accent-ink);
   --color-accent-soft: var(--lt-accent-soft);
   --color-on-accent: var(--lt-on-accent);
+  --color-activity-0: var(--lt-activity-0);
+  --color-activity-1: var(--lt-activity-1);
+  --color-activity-2: var(--lt-activity-2);
+  --color-activity-3: var(--lt-activity-3);
+  --color-activity-4: var(--lt-activity-4);
   --color-warn: var(--lt-warn);
   --color-danger: var(--lt-danger);
 

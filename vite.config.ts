@@ -8,5 +8,8 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     restoreMocks: true,
+    // Cold starts (first lazy-screen import, first ESLint run) can exceed the 5 s
+    // default on a slow or just-woken disk. Real hangs still fail.
+    testTimeout: 15_000,
   },
 });

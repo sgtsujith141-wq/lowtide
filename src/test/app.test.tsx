@@ -16,7 +16,7 @@ describe('App shell', () => {
       within(nav)
         .getAllByRole('link')
         .map((l) => l.textContent),
-    ).toEqual(['Today', 'Inbox', 'Tasks']);
+    ).toEqual(['Today', 'Inbox', 'Tasks', 'Rhythm']);
     expect(screen.getByRole('heading', { level: 1, name: 'Today' })).toBeInTheDocument();
     expect(screen.getByRole('textbox', { name: 'What’s taking up space?' })).toHaveFocus();
     expect(document.title).toBe('Today · LOWTIDE');
@@ -60,6 +60,7 @@ describe('route-level code splitting', () => {
     ['/', 'Today'],
     ['/inbox', 'Inbox'],
     ['/tasks', 'Tasks'],
+    ['/rhythm', 'Rhythm'],
   ])('loads the lazy screen at %s', async (path, heading) => {
     await renderApp(path, createDexieRepositories(newDb()));
     expect(screen.getByRole('heading', { level: 1, name: heading })).toBeInTheDocument();

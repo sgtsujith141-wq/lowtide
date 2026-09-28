@@ -1,10 +1,11 @@
-import { Inbox, ListTodo, Sun, Waves, type LucideIcon } from 'lucide-react';
+import { AudioWaveform, Inbox, ListTodo, Sun, Waves, type LucideIcon } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router';
 
 const NAV: { to: string; label: string; icon: LucideIcon }[] = [
   { to: '/', label: 'Today', icon: Sun },
   { to: '/inbox', label: 'Inbox', icon: Inbox },
   { to: '/tasks', label: 'Tasks', icon: ListTodo },
+  { to: '/rhythm', label: 'Rhythm', icon: AudioWaveform },
 ];
 
 /**
@@ -47,7 +48,7 @@ export function Shell() {
                     }`
                   }
                 >
-                  <Icon aria-hidden className="size-4 shrink-0" />
+                  <Icon aria-hidden className="size-4 shrink-0 max-[419px]:hidden" />
                   {label}
                 </NavLink>
               </li>
