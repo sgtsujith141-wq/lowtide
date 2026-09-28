@@ -1,5 +1,7 @@
-import { afterEach } from 'vitest';
+import { cleanup } from '@testing-library/react';
+import { afterEach, vi } from 'vitest';
 import { openDatabase, type LowtideDatabase } from '../db/database';
+import type { Watch } from '../db/repositories';
 import type { Clock } from '../lib/time';
 
 /**
@@ -9,6 +11,8 @@ import type { Clock } from '../lib/time';
 export function setupTestDatabase(): () => LowtideDatabase {
   let db: LowtideDatabase | undefined;
   afterEach(async () => {
+    // Unmount first so no live subscription outlives its database.
+    cleanup();
     if (db) await db.delete();
     db = undefined;
   });
@@ -25,5 +29,28 @@ export function steppingClock(start = '2026-09-28T09:00:00.000Z'): Clock {
     const now = new Date(t);
     t += 60_000;
     return now;
+  };
+}
+
+/** Subscribes to a `Watch` and records every emission, for reactivity tests. */
+export function recordWatch<T>(watch: Watch<T>) {
+  const values: T[] = [];
+  const errors: unknown[] = [];
+  const stop = watch(
+    (value) => values.push(value),
+    (error) => errors.push(error),
+  );
+  return {
+    values,
+    errors,
+    stop,
+    /** Latest emission once it satisfies `predicate`. */
+    async until(predicate: (value: T) => boolean): Promise<T> {
+      return vi.waitFor(() => {
+        const latest = values.at(-1);
+        if (latest === undefined || !predicate(latest)) throw new Error('not yet');
+        return latest;
+      });
+    },
   };
 }

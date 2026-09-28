@@ -24,3 +24,23 @@ export function fromLocalDate(value: LocalDate): Date {
   }
   return parsed;
 }
+
+/*
+ * Date-only deadlines (ADR-016). The UI works in calendar days; `Task.dueAt`
+ * is a timestamp. A chosen day D is stored as the fixed instant `D T12:00Z`
+ * (UTC noon) and read back from its UTC date part, so the day is encoded
+ * independently of any time zone: it never shifts when the device's zone or
+ * DST changes. Never derive the day with `new Date(dueAt)` in local time.
+ * Deadline status (overdue/today/…) compares that day with today's local day.
+ */
+
+/** Stored `dueAt` for a deadline on calendar day `value`. */
+export function deadlineFromLocalDate(value: LocalDate): Timestamp {
+  fromLocalDate(value); // validates
+  return `${value}T12:00:00.000Z`;
+}
+
+/** Calendar day of a stored `dueAt`. */
+export function localDateOfDeadline(dueAt: Timestamp): LocalDate {
+  return dueAt.slice(0, 10);
+}

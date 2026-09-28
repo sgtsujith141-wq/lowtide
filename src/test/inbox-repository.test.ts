@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createDexieRepositories, RecordStateError, RecordNotFoundError } from '../db/repositories';
-import { steppingClock, setupTestDatabase } from './helpers';
+import { recordWatch, setupTestDatabase, steppingClock } from './helpers';
 
 const newDb = setupTestDatabase();
 
@@ -72,5 +72,53 @@ describe('InboxRepository (Dexie)', () => {
     const c = await inbox.capture('c');
     await inbox.convertToTask(b.id);
     expect((await inbox.listUnprocessed()).map((i) => i.id)).toEqual([a.id, c.id]);
+  });
+});
+
+describe('InboxRepository processing without a task', () => {
+  it('marks an item processed, keeps it, and creates no task', async () => {
+    const db = newDb();
+    const { inbox } = createDexieRepositories(db, { clock: steppingClock() });
+    const item = await inbox.capture('just needed to write it down');
+
+    const processed = await inbox.markProcessed(item.id);
+
+    expect(processed).toEqual({ ...item, processedAt: '2026-09-28T09:01:00.000Z' });
+    expect(await db.inbox.get(item.id)).toEqual(processed);
+    expect(await inbox.listUnprocessed()).toEqual([]);
+    expect(await db.tasks.count()).toBe(0);
+  });
+
+  it('refuses to process an item twice or a missing one', async () => {
+    const { inbox } = createDexieRepositories(newDb());
+    const item = await inbox.capture('once');
+    await inbox.markProcessed(item.id);
+    await expect(inbox.markProcessed(item.id)).rejects.toBeInstanceOf(RecordStateError);
+    await expect(inbox.convertToTask(item.id)).rejects.toBeInstanceOf(RecordStateError);
+    await expect(inbox.markProcessed(crypto.randomUUID())).rejects.toBeInstanceOf(
+      RecordNotFoundError,
+    );
+  });
+});
+
+describe('InboxRepository subscriptions', () => {
+  it('emits unprocessed items on capture, conversion and processing', async () => {
+    const { inbox, tasks } = createDexieRepositories(newDb(), { clock: steppingClock() });
+    const live = recordWatch(inbox.watchUnprocessed);
+    const openTasks = recordWatch(tasks.watchOpen);
+    await live.until((items) => items.length === 0);
+
+    const a = await inbox.capture('first');
+    const b = await inbox.capture('second');
+    await live.until((items) => items.map((i) => i.id).join() === [a.id, b.id].join());
+
+    await inbox.convertToTask(a.id);
+    await live.until((items) => items.length === 1 && items[0]?.id === b.id);
+    await openTasks.until((list) => list.length === 1 && list[0]?.title === 'first');
+
+    await inbox.markProcessed(b.id);
+    await live.until((items) => items.length === 0);
+    live.stop();
+    openTasks.stop();
   });
 });

@@ -1,8 +1,8 @@
 import { toTimestamp } from '../../lib/time';
 import { inboxItemSchema } from '../schema';
 import { buildTask } from './dexie-task-repository';
-import { RecordStateError, RecordNotFoundError } from './errors';
-import { resolveDeps, type RepositoryDeps } from './shared';
+import { RecordNotFoundError, RecordStateError } from './errors';
+import { resolveDeps, watchQuery, type RepositoryDeps } from './shared';
 import type { InboxRepository } from './types';
 
 function splitContent(content: string): { title: string; notes?: string } {
@@ -15,6 +15,14 @@ export function createDexieInboxRepository(deps: RepositoryDeps): InboxRepositor
   const { db, clock, newId } = resolveDeps(deps);
 
   const unprocessed = () => db.inbox.orderBy('createdAt').filter((item) => !item.processedAt);
+  const listUnprocessed = () => unprocessed().toArray();
+
+  async function getUnprocessed(id: string) {
+    const item = await db.inbox.get(id);
+    if (!item) throw new RecordNotFoundError('InboxItem', id);
+    if (item.processedAt) throw new RecordStateError(`InboxItem ${id} is already processed`);
+    return item;
+  }
 
   return {
     async capture(content) {
@@ -27,9 +35,8 @@ export function createDexieInboxRepository(deps: RepositoryDeps): InboxRepositor
       return item;
     },
 
-    listUnprocessed() {
-      return unprocessed().toArray();
-    },
+    listUnprocessed,
+    watchUnprocessed: watchQuery(listUnprocessed),
 
     countUnprocessed() {
       return unprocessed().count();
@@ -37,10 +44,7 @@ export function createDexieInboxRepository(deps: RepositoryDeps): InboxRepositor
 
     convertToTask(id) {
       return db.transaction('rw', db.inbox, db.tasks, async () => {
-        const item = await db.inbox.get(id);
-        if (!item) throw new RecordNotFoundError('InboxItem', id);
-        if (item.processedAt) throw new RecordStateError(`InboxItem ${id} is already processed`);
-
+        const item = await getUnprocessed(id);
         const now = clock();
         const task = buildTask(splitContent(item.content), newId(), now);
         await db.tasks.add(task);
@@ -52,6 +56,17 @@ export function createDexieInboxRepository(deps: RepositoryDeps): InboxRepositor
           }),
         );
         return task;
+      });
+    },
+
+    markProcessed(id) {
+      return db.transaction('rw', db.inbox, async () => {
+        const item = inboxItemSchema.parse({
+          ...(await getUnprocessed(id)),
+          processedAt: toTimestamp(clock()),
+        });
+        await db.inbox.put(item);
+        return item;
       });
     },
   };

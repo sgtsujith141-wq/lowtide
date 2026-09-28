@@ -4,7 +4,15 @@ import { createDexieTaskRepository } from './dexie-task-repository';
 import type { RepositoryDeps } from './shared';
 import type { Repositories } from './types';
 
-export type { InboxRepository, NewTask, Repositories, TaskRepository } from './types';
+export type {
+  InboxRepository,
+  NewTask,
+  Repositories,
+  TaskChanges,
+  TaskRepository,
+  Unsubscribe,
+  Watch,
+} from './types';
 export { RecordStateError, RecordNotFoundError } from './errors';
 
 /** Local IndexedDB-backed implementation of every repository. */

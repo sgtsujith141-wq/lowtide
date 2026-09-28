@@ -1,7 +1,9 @@
+import { liveQuery } from 'dexie';
 import { newId } from '../../lib/ids';
 import { systemClock, type Clock } from '../../lib/time';
 import type { Id } from '../../types/domain';
 import type { LowtideDatabase } from '../database';
+import type { Watch } from './types';
 
 export interface RepositoryDeps {
   db: LowtideDatabase;
@@ -19,4 +21,19 @@ export function resolveDeps(deps: RepositoryDeps): Required<RepositoryDeps> {
  */
 export function omitUndefined<T extends object>(value: T): T {
   return Object.fromEntries(Object.entries(value).filter(([, v]) => v !== undefined)) as T;
+}
+
+/**
+ * Adapts a Dexie live query to the storage-agnostic `Watch` contract. Dexie
+ * re-runs `query` whenever a write (in this tab or another) touches the data
+ * it read, so every repository write is observed without manual refreshes.
+ */
+export function watchQuery<T>(query: () => Promise<T>): Watch<T> {
+  return (onChange, onError) => {
+    const subscription = liveQuery(query).subscribe({
+      next: onChange,
+      error: (error: unknown) => onError?.(error),
+    });
+    return () => subscription.unsubscribe();
+  };
 }
