@@ -1,0 +1,139 @@
+@import 'tailwindcss';
+
+/*
+ * LOWTIDE design tokens — "warm paper at low tide".
+ *
+ * Components use semantic tokens only (bg-paper, text-ink, border-line,
+ * text-accent …), never raw colors. Theme = the values below.
+ *
+ * Theme selection:
+ *   - default follows the OS (prefers-color-scheme)
+ *   - <html data-theme="light|dark"> forces one (for a future switcher)
+ */
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces: warm paper, never pure white */
+  --lt-paper: #f4efe6;
+  --lt-paper-raised: #faf7f1;
+  --lt-paper-sunken: #ebe4d8;
+
+  /* Text: warm charcoal, never pure black */
+  --lt-ink: #2b2825;
+  --lt-ink-muted: #6b645b;
+  --lt-ink-faint: #9a9185;
+
+  /* Lines */
+  --lt-line: #ddd4c6;
+  --lt-line-strong: #c4b8a6;
+
+  /* Accent: restrained sea glass */
+  --lt-accent: #3f7f7a;
+  --lt-accent-ink: #2f6a65;
+  --lt-accent-soft: #dbe9e5;
+
+  /* Status (muted on purpose; nothing shouts) */
+  --lt-warn: #a8712a;
+  --lt-danger: #a4473b;
+
+  --lt-focus: #3f7f7a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --lt-paper: #1f1d1a;
+    --lt-paper-raised: #292622;
+    --lt-paper-sunken: #181614;
+    --lt-ink: #ece5d8;
+    --lt-ink-muted: #b0a797;
+    --lt-ink-faint: #7f776b;
+    --lt-line: #38342e;
+    --lt-line-strong: #4b463e;
+    --lt-accent: #7bb8b0;
+    --lt-accent-ink: #98cbc4;
+    --lt-accent-soft: #24332f;
+    --lt-warn: #d6a15a;
+    --lt-danger: #d98474;
+    --lt-focus: #7bb8b0;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --lt-paper: #1f1d1a;
+  --lt-paper-raised: #292622;
+  --lt-paper-sunken: #181614;
+  --lt-ink: #ece5d8;
+  --lt-ink-muted: #b0a797;
+  --lt-ink-faint: #7f776b;
+  --lt-line: #38342e;
+  --lt-line-strong: #4b463e;
+  --lt-accent: #7bb8b0;
+  --lt-accent-ink: #98cbc4;
+  --lt-accent-soft: #24332f;
+  --lt-warn: #d6a15a;
+  --lt-danger: #d98474;
+  --lt-focus: #7bb8b0;
+}
+
+/* Expose tokens to Tailwind as utilities (bg-paper, text-ink-muted, …). */
+@theme inline {
+  --color-paper: var(--lt-paper);
+  --color-paper-raised: var(--lt-paper-raised);
+  --color-paper-sunken: var(--lt-paper-sunken);
+  --color-ink: var(--lt-ink);
+  --color-ink-muted: var(--lt-ink-muted);
+  --color-ink-faint: var(--lt-ink-faint);
+  --color-line: var(--lt-line);
+  --color-line-strong: var(--lt-line-strong);
+  --color-accent: var(--lt-accent);
+  --color-accent-ink: var(--lt-accent-ink);
+  --color-accent-soft: var(--lt-accent-soft);
+  --color-warn: var(--lt-warn);
+  --color-danger: var(--lt-danger);
+
+  /* System fonts only: no web-font network requests. */
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+  --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+
+  /* Motion: short and gentle. */
+  --ease-tide: cubic-bezier(0.3, 0, 0.2, 1);
+  --default-transition-duration: 140ms;
+}
+
+@layer base {
+  html {
+    background: var(--lt-paper);
+    color: var(--lt-ink);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: var(--lt-accent-soft);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--lt-focus);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0ms !important;
+      animation-duration: 0ms !important;
+    }
+  }
+}

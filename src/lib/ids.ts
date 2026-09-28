@@ -1,9 +1,12 @@
-/** Collision-resistant, sortable-enough ids that work offline and in tests. */
-export function newId(prefix = 'x'): string {
-  const time = Date.now().toString(36)
-  const rand =
-    typeof crypto !== 'undefined' && 'randomUUID' in crypto
-      ? crypto.randomUUID().replace(/-/g, '').slice(0, 10)
-      : Math.random().toString(36).slice(2, 12)
-  return `${prefix}_${time}${rand}`
+import type { Id } from '../types/domain';
+
+/**
+ * New record id: a random UUID v4.
+ *
+ * Random (not sequential) ids let records be created offline on any device
+ * and merged later without collisions. `crypto.randomUUID` needs a secure
+ * context (https or localhost), which is where LOWTIDE runs.
+ */
+export function newId(): Id {
+  return crypto.randomUUID();
 }

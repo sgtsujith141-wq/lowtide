@@ -1,8 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="LOWTIDE">
-  <rect width="64" height="64" rx="10" fill="#F4F1E8"/>
-  <rect x="14" y="19" width="36" height="4" rx="2" fill="#21382C"/>
-  <rect x="14" y="28" width="22" height="4" rx="2" fill="#21382C"/>
-  <rect x="10" y="40" width="44" height="2.5" rx="1.25" fill="#206849"/>
-  <rect x="10" y="47" width="44" height="1.5" rx="0.75" fill="#D9DFD4"/>
-  <rect x="10" y="52" width="44" height="1.5" rx="0.75" fill="#D9DFD4"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="7" fill="#f4efe6"/>
+  <path d="M5 19c3.5 0 3.5-3 7-3s3.5 3 7 3 3.5-3 7-3" fill="none" stroke="#3f7f7a" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M5 24h22" stroke="#b9ad99" stroke-width="2" stroke-linecap="round"/>
 </svg>
