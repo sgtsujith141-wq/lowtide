@@ -1,5 +1,5 @@
 import { AudioWaveform, Inbox, ListTodo, Sun, Trophy, Waves, type LucideIcon } from 'lucide-react';
-import { NavLink, Outlet } from 'react-router';
+import { Link, NavLink, Outlet } from 'react-router';
 
 const NAV: { to: string; label: string; icon: LucideIcon }[] = [
   { to: '/', label: 'Today', icon: Sun },
@@ -58,7 +58,10 @@ export function Shell() {
           </ul>
         </nav>
         <p className="mt-auto hidden px-2 text-xs leading-snug text-ink-muted md:block">
-          Everything here stays on this device.
+          Everything here stays on this device.{' '}
+          <Link to="/data" className="text-accent-ink underline underline-offset-2">
+            Data &amp; backup
+          </Link>
         </p>
       </header>
 
@@ -71,6 +74,14 @@ export function Shell() {
           <Outlet />
         </div>
       </main>
+
+      {/* Phones: backup lives here rather than as a sixth tab. */}
+      <footer className="border-t border-line px-4 py-4 text-xs text-ink-muted md:hidden">
+        Everything here stays on this device.{' '}
+        <Link to="/data" className="text-accent-ink underline underline-offset-2">
+          Data &amp; backup
+        </Link>
+      </footer>
     </div>
   );
 }
