@@ -5,6 +5,34 @@ app's `package.json` version.
 
 ## [Unreleased]
 
+### Added (PHASE 003)
+
+- **Rhythm** (`/rhythm`, fourth nav item, lazy chunk):
+  - six-month contribution-style activity grid, overall or per habit (archived habits
+    included);
+  - today's quick logging (one tap for done-or-not; a number for count or minutes);
+  - create, edit, archive and restore rhythms.
+- `HabitRepository`: `create`, `update`, `archive`, `restore`, `watchAll`, `setEntry`
+  (upsert), `clearEntry`, `watchEntries(start, end)` (ADR-023).
+- `InvalidInputError` for values or targets that don't fit a habit's unit.
+- Display-only activity levels (ADR-024), the overall banded-sum aggregation
+  (ADR-025), and an accessible grid with roving tabindex (ADR-026).
+- `src/lib/calendar.ts`: `LocalDate` arithmetic that can't skip or repeat days.
+- `--lt-activity-0…4` tokens (light and dark).
+
+### Fixed (PHASE 003)
+
+- Screen readers heard run-together words where two spans were separated only by CSS
+  margin: Finished task rows ("LaundryDone"), plan-picker deadlines, and rhythm rows.
+  Found in Chromium's accessibility tree.
+
+### Changed (PHASE 003)
+
+- Nav icons hide below 420 px so the four labels fit at 320 px.
+- Vitest `testTimeout` raised to 15 s (cold-start slowness on this machine; see
+  PHASE-003).
+- No schema change: `SCHEMA_VERSION` stays 2.
+
 ### Added (PHASE 002)
 
 - **Today** page at `/` (first nav item): date, reused brain-dump composer, inbox

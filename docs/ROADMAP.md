@@ -8,22 +8,27 @@ PHASE 001 is provisional and will be revised as the app is used.
 | 000   | Foundation: toolchain, tokens, routing, Dexie DB, repository boundary, types, tests, docs                                           | Done (see PHASE-000.md) |
 | 001   | App shell + brain dump capture + inbox processing + tasks + reactive data                                                           | Done (see PHASE-001.md) |
 | 002   | Today view: what's due/open today, protected time for today, quick capture                                                          | Done (see PHASE-002.md) |
-| 003   | Habits + daily logging + GitHub-style activity squares                                                                              | Next                    |
-| 004   | Hackathons tracker (registration / PPT / build / next action / deadlines)                                                           | Planned                 |
+| 003   | Rhythm: habits, daily logging, contribution-style activity squares                                                                  | Done (see PHASE-003.md) |
+| 004   | Hackathons tracker (registration / PPT / build / next action / deadlines)                                                           | Next                    |
 | 005   | Protected time planning; coding/learning and fitness consistency views on habits                                                    | Planned                 |
 | 006   | Export / import (validated JSON backup), persistent-storage request                                                                 | Planned                 |
 | later | Money/business experiments; theme switcher; committed E2E suite; offline PWA; optional sync (only with a documented security model) | Unscheduled             |
 
-## PHASE 003 starting point
+## PHASE 004 starting point
 
-1. `HabitRepository` + `HabitEntryRepository` following ADR-015 (watches, not
-   reloads). Enforce one entry per habit per local day; the unique `[habitId+date]`
-   index already exists in V1, so no schema bump is needed for that.
-2. `src/features/habits/`: a compact habits list with a one-tap log for today. Today may
-   gain a small "Habits" line only if it stays calm.
-3. Activity squares: a plain grid of `LocalDate`s coloured by logged value. No streak
-   counters, no "missed" shaming, and never for relationships (ADR-013, ADR-021).
-4. Carry-overs worth taking early:
-   - undo for Clear, Drop and protected-time Remove;
+1. `HackathonRepository` over the existing `hackathons` store (V1 already has `status`,
+   `registrationDeadline` and `eventStart` indexes), following ADR-015 watches.
+   Decide first whether its deadlines are date-only (reuse ADR-016's UTC-noon
+   convention) or real instants (registration closes at a time).
+2. `src/features/hackathons/` as a lazy route: a compact list by status with the next
+   action visible, and registration/PPT/build status editing.
+3. Surface hackathon deadlines on Today's Needs attention only if they fit ADR-020's
+   one-place-per-item rule.
+4. **Consider pulling export/backup (006) forward.** With tasks, protected time and
+   habit history now stored only in one browser profile, losing that profile loses
+   everything (SECURITY.md).
+5. Carry-overs:
+   - a small undo for Clear, Drop, protected-time Remove and clearing a habit day;
    - global keyboard shortcuts;
-   - a committed browser E2E suite.
+   - a committed browser E2E suite;
+   - an optional compact "Rhythm today" line on Today.

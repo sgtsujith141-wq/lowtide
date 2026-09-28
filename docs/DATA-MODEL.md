@@ -161,6 +161,27 @@ is visible and defended, not measured. See DECISIONS.md ADR-013.
 
 The unique compound index guarantees **at most one entry per habit per day** (tested).
 
+**Habit semantics (PHASE 003, ADR-023).** No schema change: V2 stays current.
+
+- **Stored value rules** (the storage schema still only says `value ≥ 0`; these are
+  enforced by the repository):
+  - `check`: 1;
+  - `count`: a positive whole number;
+  - `minutes`: greater than 0 and up to 1440.
+- **No entry = no recorded activity.** Clearing deletes the row; zeros are never
+  stored.
+- **Upsert.** Logging the same habit on the same day updates the existing row (same
+  `id` and `createdAt`, new `value`, `note` and `updatedAt`).
+- **Targets:** optional, and only for `count` and `minutes`. A habit's `unit` never
+  changes after creation.
+- **Archiving** sets `archived: true`. Entries are kept and still count in the grid's
+  history. Habits are never deleted.
+- **Querying.** `date` is a `LocalDate` and decides the day, never the timestamps.
+  Range reads use the `date` index (`between(start, end)`), which is one query for the
+  whole grid. `archived` isn't indexed; active habits are filtered in memory (a
+  handful of records).
+- **Grid levels** (0–4) are computed for display and never stored (ADR-024, ADR-025).
+
 ### Hackathon — store `hackathons`, indexes `status, registrationDeadline, eventStart`
 
 | Field                                         | Type                                                     |

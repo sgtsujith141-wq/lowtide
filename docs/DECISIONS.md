@@ -241,3 +241,89 @@ React Router, Zod, Dexie). Splitting that further wouldn't reduce first-load wor
 it wasn't pursued.
 **Consequences.** Tests render through `renderApp`, which awaits the lazy screen. The
 very first paint waits for one small local chunk (`HydrateFallback` renders nothing).
+
+## ADR-023 — Habit entries: one per habit per local day, upserted, cleared by deletion
+
+**Context.** Rhythm logs habits by day. The V1 schema already has a unique
+`[habitId+date]` index on `habitEntries`, and `HabitEntry.date` is a `LocalDate`.
+**Decision.**
+
+- **Upsert.** `setEntry(habitId, date, value, note?)` looks up the day's entry through
+  the compound index. It then either creates one or updates `value`, `note` and
+  `updatedAt`, keeping the same `id` and `createdAt`. The unique index is the final
+  integrity guard.
+- **No entry means no recorded activity.** `clearEntry` deletes the row rather than
+  storing a zero. A zero would be an entry that means nothing.
+- **Unit rules** (enforced in the repository, as `InvalidInputError`):
+  - `check`: value is exactly 1.
+  - `count`: a positive whole number.
+  - `minutes`: positive, up to 1440 (a whole day; more is a typo).
+  - Targets: optional, and only for `count` and `minutes`. They must be positive, a
+    whole number for `count`, and at most 1440 for `minutes`.
+- **The unit can't be edited.** It defines what every existing entry means. Name,
+  category and target can change.
+- **Archived habits** can't be logged (`RecordStateError`) and keep every entry.
+  There is no delete.
+- **Only explicit actions create entries**: a tap, Enter, or leaving an amount field
+  after typing. Nothing is inferred from visits, tasks or anything else.
+
+**Consequences.** No schema change (`SCHEMA_VERSION` stays 2). An entry's day is its
+`LocalDate`; its timestamps never decide which day it belongs to.
+
+## ADR-024 — Per-habit activity level (0–4), for display only
+
+**Decision.** The level is computed at render time and never stored:
+
+- no entry → 0;
+- a logged `check` habit → 4;
+- `count` or `minutes` **with a target**, by share of the target:
+  - under 25% → 1;
+  - 25% to under 50% → 2;
+  - 50% to under 100% → 3;
+  - 100% or more → 4;
+- `count` or `minutes` **without a target** → 2 ("recorded"). Without a target there's
+  nothing to be partial of, so the square doesn't pretend to know how full the day was.
+
+**Why.** The level is transparent, deterministic and unit-tested. The same 5 levels
+map to 5 colour tokens, and every square also carries a text label.
+
+## ADR-025 — Overall grid: banded sum of per-habit levels, no denominator
+
+**Decision.** For each day, add up the levels of every habit with an entry that day,
+archived habits included, then band the sum:
+
+| Sum        | Overall level |
+| ---------- | ------------- |
+| 0          | 0             |
+| 1–3        | 1             |
+| 4–7        | 2             |
+| 8–11       | 3             |
+| 12 or more | 4             |
+
+So one fully done habit reads "moderate", two "strong", and three or more "high".
+**Why not a percentage of active habits.** A denominator would make history change
+when you add or archive a habit, and would turn quiet days into visible shortfalls.
+With a plain sum, past squares never change meaning. Each habit contributes at most
+4, so one extreme entry can't max out a day.
+**What never enters.** Only habit entries: never tasks, inbox activity, protected time
+(ADR-013, ADR-021), money or app usage. `buildGrid` takes habits and habit entries
+only, and ignores entries whose `habitId` isn't a known habit (tested).
+
+## ADR-026 — Activity grid: ARIA grid, roving tabindex, text for every square
+
+**Decision.** The grid is `role="grid"`:
+
+- **Structure:** 7 rows (Monday to Sunday) and one column per week. It covers 26
+  weeks (about six months) ending today. Future days in the current week aren't drawn.
+- **Keyboard:** it's a single Tab stop, using a roving `tabindex` that starts on today.
+  - ↑ and ↓ move by one day, ← and → by one week;
+  - Home jumps to the first day, End to today;
+  - moves past the ends are ignored.
+- **Text for every square:** each cell's `aria-label` reads like "Monday 28 September
+  2026: Coding 45 of 60 min, Gym done (moderate activity across 2 habits)". A visible
+  line under the grid shows the focused or hovered day, so information never depends
+  on colour or on hovering. Today's cell has `aria-current="date"` and a ring.
+- **Sizing:** squares are 11 px on phones and 15 px from `sm` up (`--cell`). On narrow
+  screens the grid scrolls horizontally inside its own box and starts scrolled to the
+  most recent weeks; the page itself never overflows.
+- **No chart library.** It's plain React and CSS.

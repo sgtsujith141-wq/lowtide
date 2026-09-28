@@ -29,6 +29,12 @@ protected. It does not claim more than is true.
   protection for them. Removing an entry deletes it from IndexedDB. The browser may
   keep deleted bytes on disk until it compacts its storage, so this is not secure
   erasure.
+- **Habit history is revealing.** Rhythm entries record which days you went to the gym,
+  took a supplement, studied, coded or worked on money projects, with amounts and
+  update times (`createdAt`/`updatedAt` are real timestamps). Together they sketch a
+  daily routine and a health picture. They're stored unencrypted in IndexedDB like
+  everything else. Archiving hides a habit from logging but keeps all its entries;
+  there's no delete for habits yet.
 - **Durability is not guaranteed.** Browsers may evict IndexedDB under storage pressure
   (persistent-storage permission is not requested yet), and clearing site data or using
   private/incognito mode deletes it. Until export exists, there is no backup.

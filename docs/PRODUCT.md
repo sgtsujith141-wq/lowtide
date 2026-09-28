@@ -25,7 +25,7 @@ like a well-kept paper notebook than a SaaS dashboard.
 | Money / business experiments | Lightweight tracking of experiments (modelled in a later phase).                   |
 | Protected time               | Time reserved for relationship, family, friends, rest — visible so it is defended. |
 
-## What works today (PHASE 002)
+## What works today (PHASE 003)
 
 - **Today** (`/`, first in the nav) answers "what about today?" at a glance:
   - the date, and a box to dump a thought (Enter saves). A quiet link says how many
@@ -43,6 +43,21 @@ like a well-kept paper notebook than a SaaS dashboard.
 - **Tasks**: add by title; notes, priority, deadline and project are optional behind
   "Details". Rows are one or two lines and show "In today's plan" / "Planned for Fri"
   when relevant. Complete, drop, edit inline, reopen from "Finished".
+- **Rhythm** (`/rhythm`) answers "where have I been showing up?":
+  - **Six months of squares**, all rhythms together or one at a time. A square gets
+    deeper the more you did that day, and every square says in words what was
+    recorded.
+  - **Today** logging: one tap for done-or-not habits (Gym, Creatine), or a number
+    for counts and minutes (DSA 3, Coding 45 min). Typing a new number replaces the
+    day's amount; the × clears it.
+  - **Your rhythms**: name, broad category (coding, learning, fitness, health, money,
+    personal), how to record it, and an optional daily target. The name carries the
+    specifics ("LeetCode / DSA", "Money Lab").
+  - **Archive** instead of delete: an archived rhythm leaves daily logging but keeps
+    its squares and can be restored.
+  - **Deliberately absent:** streak counts, "missed day" colours, scores, levels,
+    badges, reminders and schedules. Rest days are just quiet squares. Relationships
+    and protected time never appear here.
 - Copy stays calm and plain; empty states are quiet ("Nothing pressing today."), not
   celebrations or warnings.
 

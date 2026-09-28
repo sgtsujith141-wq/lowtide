@@ -53,9 +53,9 @@ Domain types (`src/types/domain.ts`) are plain TypeScript and are shared by ever
 This is what allows a later sync/cloud layer: a new implementation of the same
 interfaces can be swapped in at the composition root without touching components.
 
-Repositories: `TaskRepository`, `InboxRepository` and `ProtectedTimeRepository`
-(added in PHASE 002). Habits and hackathons have types, schemas and stores but no
-repository yet.
+Repositories: `TaskRepository`, `InboxRepository`, `ProtectedTimeRepository`
+(PHASE 002) and `HabitRepository` (PHASE 003). Hackathons have types, schemas and a
+store but no repository yet.
 
 ### Reactive data (ADR-015)
 
@@ -66,7 +66,8 @@ type Watch<T> = (onChange: (value: T) => void, onError?: (error: unknown) => voi
 ```
 
 - `tasks.watchOpen`, `tasks.watchClosed`, `tasks.watchForDay(day)`,
-  `inbox.watchUnprocessed`, `protectedTime.watchForDate(date)`.
+  `inbox.watchUnprocessed`, `protectedTime.watchForDate(date)`, `habits.watchAll`,
+  `habits.watchEntries(start, end)`.
 - Parameterised watches (`watchForDay`, `watchForDate`) return a new `Watch` per call;
   components memoise them on their argument (`useMemo(() => tasks.watchForDay(today),
 [tasks, today])`), so the subscription changes exactly when the day does.
@@ -95,6 +96,25 @@ open tasks the picker can offer (anything not already on Today). `useToday()` gi
 today's local date and re-renders just after local midnight, which re-keys both the
 task and protected-time watches.
 
+### Rhythm (ADR-023 to ADR-026)
+
+`RhythmPage` (`/rhythm`) uses two subscriptions: `habits.watchAll` (every habit,
+archived included) and `habits.watchEntries(start, today)` for the grid's 26 weeks. The
+entries arrive in one indexed range query on `habitEntries.date` and are grouped in
+memory, never one query per square. The same data feeds today's logging rows.
+Everything else is pure and unit-tested:
+
+- `src/lib/calendar.ts`: `LocalDate` arithmetic on UTC date fields (addDays,
+  daysBetween, weekdayIndex, startOfWeek, eachDay), immune to time zones and DST;
+- `src/features/rhythm/intensity.ts`: per-habit levels, the overall banded sum, value
+  formatting;
+- `src/features/rhythm/grid.ts`: `gridRange`, `buildGrid(today, habits, entries, view)`
+  and month labels.
+
+`ActivityGrid` renders the result as an ARIA grid with a roving tabindex (ADR-026).
+Activity colours come from `--lt-activity-0…4` tokens via `LEVEL_CLASS`, the only place
+levels meet colour.
+
 ### Injected clock and ids
 
 Repositories accept optional `clock` and `newId` dependencies (defaults:
@@ -110,7 +130,11 @@ Missing records follow one rule (documented on the interfaces in
   normal answer.
 - **Operations that need an existing record** (`update`, `complete`, `reopen`, `drop`,
   `planFor`, `removeFromPlan`, `convertToTask`, `markProcessed`, protected-time
-  `update`/`remove`) reject with `RecordNotFoundError`.
+  `update`/`remove`, habit `update`/`archive`/`restore`/`setEntry`/`clearEntry`)
+  reject with `RecordNotFoundError`.
+- **Input that is well-formed but wrong for its context** (a habit value that doesn't
+  fit its unit, a target on a done-or-not habit) rejects with `InvalidInputError`.
+  Logging an archived habit rejects with `RecordStateError`.
 - **Operations not allowed in the record's current state** reject with
   `RecordStateError`. Task transitions: `complete`, `drop` and `planFor` need an open
   task (`todo` or `doing`); `reopen` needs `done` or `dropped`. Inbox: `convertToTask` and
@@ -126,7 +150,8 @@ Missing records follow one rule (documented on the interfaces in
 - `src/app/App.tsx` receives `repositories` and a `router` as props (so tests can use
   a memory router and a throwaway database) and provides the repository context.
 - `src/app/routes.tsx` is the route table: `Shell` is the layout route, with children
-  `/` (Today), `/inbox`, `/tasks`, and a catch-all "Nothing here".
+  `/` (Today), `/inbox`, `/tasks`, `/rhythm`, and a catch-all "Nothing here". Below
+  420 px the nav hides its icons so all four labels fit, down to 320 px.
 - **Route-level code splitting (ADR-022).** Each screen is a React Router `lazy` route,
   so its code (and display-only libraries like date-fns `format`) is a separate chunk.
   The entry keeps React, the router, the shell and the data layer. `prefetchScreens()`
@@ -161,6 +186,9 @@ Missing records follow one rule (documented on the interfaces in
 - Contrast: every text token meets 4.5:1 on every paper surface in both themes,
   except `ink-faint`, which is for decoration only (PHASE 001 darkened light-mode
   `warn` to `#8a5a1c` for this). Primary buttons use `accent-ink` with `on-accent`.
+- Activity squares: `--lt-activity-0…4` form a muted sea-glass ramp, not GitHub green.
+  Each step is at least 1.19:1 against the previous one in light and 1.30:1 in dark,
+  rising steadily. Squares carry text labels, so colour is never the only signal.
 - Shared control styles live in `src/components/ui/styles.ts` (`fieldClass`,
   `labelClass`).
 
