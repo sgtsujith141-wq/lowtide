@@ -10,8 +10,8 @@ protected. It does not claim more than is true.
   name `lowtide`. There is no server copy.
 - LOWTIDE makes **no network requests** carrying user data. At runtime it loads only its
   own static files; no analytics, telemetry, fonts CDN, or third-party scripts. (Checked
-  in PHASE 000 and again in PHASE 001, through the full capture → convert → complete
-  workflow, by recording every request in a headless browser: none left localhost.)
+  in PHASE 000, 001 and 002 (full capture, plan, protected-time and complete
+  workflows), by recording every request in a headless browser: none left localhost.)
 - Data is scoped to the site origin. Anything else running on the **same origin** (e.g.
   another app served from the same host and port during development) can read it.
 
@@ -23,6 +23,12 @@ protected. It does not claim more than is true.
 - Anyone with access to the unlocked device and browser profile, or to browser
   devtools, can read and modify all LOWTIDE data.
 - Browser extensions with broad page permissions can read page content.
+- **Protected time can be sensitive.** Entries like "Dinner together", "Call home" or
+  notes about someone are stored exactly like tasks: unencrypted in IndexedDB, readable
+  by anyone with the unlocked device and browser profile. LOWTIDE adds no extra
+  protection for them. Removing an entry deletes it from IndexedDB. The browser may
+  keep deleted bytes on disk until it compacts its storage, so this is not secure
+  erasure.
 - **Durability is not guaranteed.** Browsers may evict IndexedDB under storage pressure
   (persistent-storage permission is not requested yet), and clearing site data or using
   private/incognito mode deletes it. Until export exists, there is no backup.

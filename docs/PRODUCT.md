@@ -25,19 +25,26 @@ like a well-kept paper notebook than a SaaS dashboard.
 | Money / business experiments | Lightweight tracking of experiments (modelled in a later phase).                   |
 | Protected time               | Time reserved for relationship, family, friends, rest — visible so it is defended. |
 
-## What works today (PHASE 001)
+## What works today (PHASE 002)
 
-- **Home** leads with one question, "What's taking up space?", and a box that's focused
-  when the app opens. Enter saves (Shift+Enter for a new line); nothing to choose. The
-  last few waiting thoughts are listed underneath.
+- **Today** (`/`, first in the nav) answers "what about today?" at a glance:
+  - the date, and a box to dump a thought (Enter saves). A quiet link says how many
+    thoughts are waiting in the inbox, only when there are some;
+  - **Needs attention**: tasks due today or overdue, in words ("Due today", "Was due
+    26 Sep");
+  - **My plan**: tasks you chose to work on today. "Add from Tasks" takes one click to
+    open and one click to add. "Take out of today's plan" never deletes or drops
+    anything, and a deadline keeps a task under Needs attention regardless;
+  - **Protected time**: dinner together, call home, do nothing for an hour. Add, edit,
+    remove. Never ticked off, counted or scored.
 - **Inbox** lists thoughts oldest first. Each can become a task (the first line becomes
   the title, the rest the notes) or be cleared if it needs nothing more. Cleared items
   are kept, not deleted.
 - **Tasks**: add by title; notes, priority, deadline and project are optional behind
-  "Details". Rows are one or two lines. Deadlines read in words ("Due today", "Was due
-  yesterday"). Complete, drop, edit inline, reopen from "Finished".
-- Copy stays calm and plain; empty states are quiet ("Your inbox is clear."), not
-  celebrations.
+  "Details". Rows are one or two lines and show "In today's plan" / "Planned for Fri"
+  when relevant. Complete, drop, edit inline, reopen from "Finished".
+- Copy stays calm and plain; empty states are quiet ("Nothing pressing today."), not
+  celebrations or warnings.
 
 ## Principles
 

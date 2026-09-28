@@ -176,3 +176,68 @@ write down to reproduce the race.
 `dropped`; completed and dropped tasks stay listed under "Finished" and can be reopened.
 **Why.** Honest history, recoverable mistakes (there is no undo yet), and future export,
 all with no schema change. Permanent deletion, if added, will be an explicit action.
+
+## ADR-019 — Intentional planning is `Task.plannedFor: LocalDate`, separate from `dueAt`
+
+**Context.** Today needs "what I chose to work on today". A deadline and an intention
+aren't the same: an essay due Friday may be worked on Tuesday.
+**Decision.** Add optional `Task.plannedFor?: LocalDate` (schema V2, indexed). It is a
+real local calendar day, not a UTC-noon timestamp. `planFor` (open tasks only) and
+`removeFromPlan` never touch `dueAt`; `update` never touches `plannedFor`. Completing
+or dropping **keeps** `plannedFor` as a record of what day it was meant for; Today
+queries exclude closed tasks, so this is invisible in active views. `reopen` doesn't
+invent a plan; it keeps whatever was stored, so a task planned for today and reopened
+today returns to today's plan.
+**No carry-over.** A plan for an earlier day isn't moved forward or flagged. Unfinished
+plans simply don't show on Today (the task is still in Tasks and in the picker), and
+the Tasks screen doesn't mention past plans. This is deliberate: no guilt pile.
+**Consequences.** One optional field and one index. Migration is non-destructive (see
+DATA-MODEL § V1 → V2).
+
+## ADR-020 — Today's composition and de-duplication
+
+**Decision.** Today shows two task sections, from `tasks.watchForDay(today)` through the
+pure `composeToday()`:
+
+- **Needs attention**: open tasks due today or overdue (by deadline day, ADR-016);
+- **My plan**: open tasks with `plannedFor === today` that are _not_ in Needs attention.
+
+A task is shown at most once, and a deadline outranks a plan. Future deadlines don't
+appear automatically; plans for other days don't appear. Order in each section is the
+open-task order: deadline, then priority, then age. Taking a due task out of the plan
+clears `plannedFor` but leaves it under Needs attention. The empty states say so
+plainly ("Nothing pressing today.", "Nothing else planned.") rather than hiding the
+section, because "nothing pressing" is itself the answer to "what needs me today?".
+**Why no dedicated query per section.** One watch returns the union
+(`plannedFor = day` ∪ `dueAt ≤ end of day`), and composition is pure and unit-tested.
+That keeps the repository API small and the rules in one testable place.
+
+## ADR-021 — Protected time is a plan for people and rest, never a task
+
+**Decision.** `ProtectedTimeRepository` offers create, update, remove and
+`watchForDate`. Entries have a title, a kind (relationship, family, friends, rest,
+personal), an optional note, and a local date. There is **no** status, completion,
+checkbox, count, history, streak, target or "missed" state. The UI never uses words
+like goal, completed or streak for them. On Today they're shown as margin notes (a left
+rule and a kind icon) rather than as task rows. Remove deletes the entry: it's your own
+plan, and there is no history of protected time to keep honest.
+**Why.** Relationships and rest must never become productivity metrics (ADR-013 removed
+the relationship habit category for the same reason).
+**Consequences.** Entries are ordered by title within a day; there's no time of day
+yet. Entries may be sensitive and are stored unencrypted, like everything else
+(SECURITY.md).
+
+## ADR-022 — One chunk per screen via React Router `lazy`, plus idle prefetch
+
+**Context.** The PHASE 001 build was a single 497 kB chunk, near Vite's warning, and
+every new screen would have made it bigger.
+**Decision.** Screens are `lazy` routes (React Router's own API, no new dependency). A
+`prefetchScreens()` call on idle warms the other screen chunks. Separately, `lib/time`
+dropped date-fns (`format`/`parse` for plain `YYYY-MM-DD`), so the data layer no longer
+drags a date library into the entry; date-fns now loads only with the screens.
+**Result.** The entry is 440.6 kB (140.8 kB gzip); screens are 3–14 kB each, and shared
+display formatting is 21 kB. What remains in the entry is framework baseline (React,
+React Router, Zod, Dexie). Splitting that further wouldn't reduce first-load work, so
+it wasn't pursued.
+**Consequences.** Tests render through `renderApp`, which awaits the lazy screen. The
+very first paint waits for one small local chunk (`HydrateFallback` renders nothing).

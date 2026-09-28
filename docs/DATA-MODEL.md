@@ -57,6 +57,18 @@ bump rather than overloading this one.
 - Helpers: `toLocalDate(date)`, `fromLocalDate(value)` (local midnight; throws on
   impossible dates like `2026-02-30`).
 
+### Three kinds of date, kept apart
+
+| Concept            | Type                                    | Stored as                             | Used by                                                                 |
+| ------------------ | --------------------------------------- | ------------------------------------- | ----------------------------------------------------------------------- |
+| Instant            | `Timestamp`                             | ISO 8601 UTC (`toISOString()`)        | `createdAt`, `updatedAt`, `completedAt`, `processedAt`, hackathon dates |
+| Calendar day       | `LocalDate`                             | `YYYY-MM-DD` in the user's local zone | `Task.plannedFor`, `ProtectedTime.date`, `HabitEntry.date`              |
+| Date-only deadline | `Timestamp` by type, a _day_ by meaning | UTC noon of the chosen date (ADR-016) | `Task.dueAt`                                                            |
+
+Never convert `plannedFor` or `ProtectedTime.date` into timestamps, and never read the
+day of a `dueAt` in local time. Comparisons with "today" always use today's
+`LocalDate` (`useToday`).
+
 ### Optional fields
 
 Absent optional fields are **omitted** — never stored as `undefined` or `null`.
@@ -71,24 +83,32 @@ stays readable in exports and devtools.
 
 ## Entities
 
-### Task — store `tasks`, indexes `status, dueAt, createdAt`
+### Task — store `tasks`, indexes `status, dueAt, createdAt, plannedFor` (V2)
 
-| Field        | Type                               | Notes                                  |
-| ------------ | ---------------------------------- | -------------------------------------- |
-| id           | Id                                 |                                        |
-| title        | string                             | non-empty after trim                   |
-| notes?       | string                             |                                        |
-| status       | `todo \| doing \| done \| dropped` |                                        |
-| priority     | `low \| normal \| high`            | default `normal`                       |
-| dueAt?       | Timestamp                          |                                        |
-| project?     | string                             | free-text label; no Project entity yet |
-| createdAt    | Timestamp                          |                                        |
-| completedAt? | Timestamp                          | set when completed; cleared on reopen  |
-| updatedAt    | Timestamp                          |                                        |
+| Field        | Type                               | Notes                                     |
+| ------------ | ---------------------------------- | ----------------------------------------- |
+| id           | Id                                 |                                           |
+| title        | string                             | non-empty after trim                      |
+| notes?       | string                             |                                           |
+| status       | `todo \| doing \| done \| dropped` |                                           |
+| priority     | `low \| normal \| high`            | default `normal`                          |
+| dueAt?       | Timestamp                          |                                           |
+| project?     | string                             | free-text label; no Project entity yet    |
+| plannedFor?  | LocalDate                          | V2: day you chose to work on it (ADR-019) |
+| createdAt    | Timestamp                          |                                           |
+| completedAt? | Timestamp                          | set when completed; cleared on reopen     |
+| updatedAt    | Timestamp                          |                                           |
 
 Task lifecycle: `todo → done` (complete), `todo → dropped` (drop), `done|dropped →
 todo` (reopen). Nothing deletes a task. `doing` exists in the model but no UI sets it
 yet; it counts as open.
+
+`plannedFor` vs `dueAt`: a deadline says when something must be done; `plannedFor`
+says which day you chose to work on it. They are independent: `planFor` and
+`removeFromPlan` never touch `dueAt`, and `update` with `dueAt` never touches
+`plannedFor`. `plannedFor` survives complete/drop/reopen (a record of intent). Reopen
+never sets one, and Today ignores closed tasks, so a kept `plannedFor` never
+resurfaces a finished task.
 
 ### InboxItem — store `inbox`, index `createdAt`
 
@@ -155,7 +175,7 @@ The unique compound index guarantees **at most one entry per habit per day** (te
 | status                                        | `considering \| active \| finished \| dropped`           |
 | createdAt, updatedAt                          | Timestamp                                                |
 
-### ProtectedTime — store `protectedTime`, index `date`
+### ProtectedTime — store `protectedTime`, index `date` (repository since PHASE 002)
 
 | Field  | Type                                                    |
 | ------ | ------------------------------------------------------- |
@@ -169,8 +189,21 @@ The unique compound index guarantees **at most one entry per habit per day** (te
 
 - IndexedDB database name: `lowtide` (`DATABASE_NAME`). Never rename it — that would
   orphan existing data.
-- `SCHEMA_VERSION = 1` (unchanged in PHASE 001: no store, index or record-shape change). Dexie stores versions ×10 internally, so browser devtools show
-  the native IndexedDB version as `10`.
+- `SCHEMA_VERSION = 2` (PHASE 002). Version history:
+
+| Version | Phase | Stores changed                              | Record changes                           | Upgrade function |
+| ------- | ----- | ------------------------------------------- | ---------------------------------------- | ---------------- |
+| 1       | 000   | all six created (`STORES_V1`)               | —                                        | —                |
+| 2       | 002   | `tasks`: + `plannedFor` index (`STORES_V2`) | `Task.plannedFor?: LocalDate` (optional) | none needed      |
+
+**V1 → V2 migration, exactly.** When a V1 database is opened, Dexie runs the version-2
+schema step. It adds the `plannedFor` index to the `tasks` object store, and IndexedDB
+builds it from existing records (none have the field, so the index starts empty).
+Nothing else changes: no record is rewritten, other stores and indexes are untouched,
+and V1 tasks validate against the V2 schema unchanged, because `plannedFor` is optional.
+Tested in `src/test/migration.test.ts` against a database created with a bare V1
+definition. Dexie stores versions ×10 internally, so browser devtools show
+the native IndexedDB version as `10`.
 
 ## Migrations
 

@@ -53,9 +53,9 @@ Domain types (`src/types/domain.ts`) are plain TypeScript and are shared by ever
 This is what allows a later sync/cloud layer: a new implementation of the same
 interfaces can be swapped in at the composition root without touching components.
 
-Only `TaskRepository` and `InboxRepository` exist (PHASE 001 extended them for the
-Inbox and Tasks screens). Habits, hackathons and protected time have types, schemas
-and stores but no repository yet.
+Repositories: `TaskRepository`, `InboxRepository` and `ProtectedTimeRepository`
+(added in PHASE 002). Habits and hackathons have types, schemas and stores but no
+repository yet.
 
 ### Reactive data (ADR-015)
 
@@ -65,7 +65,11 @@ Repositories expose **watch** methods with a storage-agnostic type:
 type Watch<T> = (onChange: (value: T) => void, onError?: (error: unknown) => void) => Unsubscribe;
 ```
 
-- `tasks.watchOpen`, `tasks.watchClosed`, `inbox.watchUnprocessed`.
+- `tasks.watchOpen`, `tasks.watchClosed`, `tasks.watchForDay(day)`,
+  `inbox.watchUnprocessed`, `protectedTime.watchForDate(date)`.
+- Parameterised watches (`watchForDay`, `watchForDate`) return a new `Watch` per call;
+  components memoise them on their argument (`useMemo(() => tasks.watchForDay(today),
+[tasks, today])`), so the subscription changes exactly when the day does.
 - Implemented in `src/db/repositories/shared.ts` (`watchQuery`) with Dexie `liveQuery`.
   Dexie re-runs the query after any write that touches data it read, including
   writes from another tab. No Dexie or Observable type crosses the interface.
@@ -76,6 +80,20 @@ type Watch<T> = (onChange: (value: T) => void, onError?: (error: unknown) => voi
   state that isn't stored.
 - Watch methods are plain properties, stable for the repository's lifetime, so they
   are safe as effect dependencies.
+
+### Today (ADR-020)
+
+`TodayPage` subscribes to `tasks.watchForDay(today)`: open tasks planned for today, or
+due on or before today. The pure `composeToday(tasks, today)` in
+`src/features/today/compose.ts` splits them into sections:
+
+- **Needs attention**: open, with a deadline day ≤ today (overdue or due today).
+- **My plan**: open, `plannedFor === today`, and _not_ already under Needs attention.
+
+Each task appears at most once; deadlines take precedence. `planCandidates` lists the
+open tasks the picker can offer (anything not already on Today). `useToday()` gives
+today's local date and re-renders just after local midnight, which re-keys both the
+task and protected-time watches.
 
 ### Injected clock and ids
 
@@ -91,10 +109,11 @@ Missing records follow one rule (documented on the interfaces in
 - **Lookups** (`get`) resolve to `undefined` when nothing has that id. Absence is a
   normal answer.
 - **Operations that need an existing record** (`update`, `complete`, `reopen`, `drop`,
-  `convertToTask`, `markProcessed`) reject with `RecordNotFoundError`.
+  `planFor`, `removeFromPlan`, `convertToTask`, `markProcessed`, protected-time
+  `update`/`remove`) reject with `RecordNotFoundError`.
 - **Operations not allowed in the record's current state** reject with
-  `RecordStateError`. Task transitions: `complete` and `drop` need an open task (`todo`
-  or `doing`); `reopen` needs `done` or `dropped`. Inbox: `convertToTask` and
+  `RecordStateError`. Task transitions: `complete`, `drop` and `planFor` need an open
+  task (`todo` or `doing`); `reopen` needs `done` or `dropped`. Inbox: `convertToTask` and
   `markProcessed` need an unprocessed item.
 - UI code catches these and shows a plain-language message (`ErrorNotice`); raw error
   text and stack traces are never rendered.
@@ -107,7 +126,15 @@ Missing records follow one rule (documented on the interfaces in
 - `src/app/App.tsx` receives `repositories` and a `router` as props (so tests can use
   a memory router and a throwaway database) and provides the repository context.
 - `src/app/routes.tsx` is the route table: `Shell` is the layout route, with children
-  `/` (Home: capture), `/inbox`, `/tasks`, and a catch-all "Nothing here". A route
+  `/` (Today), `/inbox`, `/tasks`, and a catch-all "Nothing here".
+- **Route-level code splitting (ADR-022).** Each screen is a React Router `lazy` route,
+  so its code (and display-only libraries like date-fns `format`) is a separate chunk.
+  The entry keeps React, the router, the shell and the data layer. `prefetchScreens()`
+  runs once the first screen is up (`requestIdleCallback`, or a 200 ms timeout where
+  that isn't available), so later navigation doesn't wait on the network. The root
+  route's `HydrateFallback` renders nothing for the few milliseconds the first chunk
+  takes locally. While a later chunk loads, React Router keeps the current screen on
+  display, so focus doesn't jump. A route
   `errorElement` (`RouteError`) replaces a crashed screen with a calm message and a
   Reload button.
 - `Shell` (`src/app/Shell.tsx`): one `<header>` holding the wordmark and the main
@@ -142,7 +169,7 @@ Missing records follow one rule (documented on the interfaces in
 | Path                     | Holds                                                         |
 | ------------------------ | ------------------------------------------------------------- |
 | `src/app/`               | Composition: App, routes, context objects, app-level screens  |
-| `src/features/<area>/`   | Feature UI + feature logic (home, inbox, tasks so far)        |
+| `src/features/<area>/`   | Feature UI + feature logic (today, inbox, tasks so far)       |
 | `src/components/ui/`     | Small presentational primitives (Button, notices, styles)     |
 | `src/components/shared/` | Cross-feature composed components (created when first needed) |
 | `src/db/`                | Everything that knows about IndexedDB                         |

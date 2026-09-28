@@ -11,15 +11,16 @@ productivity dashboard: no fake AI, no analytics, no streak guilt, no KPI walls.
 Everything is stored in your browser's IndexedDB on your device. There is no server,
 no account, and no network call carrying your data anywhere.
 
-> **Status: PHASE 001.** Usable for brain dumps and tasks:
+> **Status: PHASE 002.** Usable day to day:
 >
-> - **Home** — a composer that's ready as soon as the app opens. Type, press Enter, keep going.
-> - **Inbox** — turn each thought into a task, or clear it.
-> - **Tasks** — add, edit, complete, drop and reopen, with optional notes, priority,
+> - **Today** (`/`): today's date, a box to dump a thought, what needs attention
+>   (due or overdue), what you chose to work on today, and the time you've protected
+>   for people and rest.
+> - **Inbox**: turn each thought into a task, or clear it.
+> - **Tasks**: add, edit, complete, drop and reopen, with optional notes, priority,
 >   deadline and project.
 >
-> Today, habits, hackathons and the other areas come later; see
-> [docs/ROADMAP.md](docs/ROADMAP.md).
+> Habits, hackathons and the rest come later; see [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Quick start
 
@@ -58,7 +59,7 @@ src/
     schema.ts     Zod record schemas, schema version, store/index layout
     repositories/ interfaces (types.ts) + Dexie implementations
   components/ui/  small primitives: Button, IconButton, notices, field styles
-  features/       home (capture page), inbox, tasks: screens + feature logic
+  features/       today, inbox, tasks: screens + feature logic (each screen its own chunk)
   hooks/          useRepositories, useWatch (live data), useToday, useDocumentTitle
   lib/            ids, time/date and deadline conventions, relative time labels
   styles/         design tokens + Tailwind entry

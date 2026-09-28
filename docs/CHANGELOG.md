@@ -5,6 +5,30 @@ app's `package.json` version.
 
 ## [Unreleased]
 
+### Added (PHASE 002)
+
+- **Today** page at `/` (first nav item): date, reused brain-dump composer, inbox
+  waiting link, Needs attention (due/overdue), My plan (planned today, de-duplicated),
+  "Add from Tasks" picker, "Take out of today's plan", Protected time.
+- `Task.plannedFor?: LocalDate` and **schema version 2** (`tasks.plannedFor` index;
+  non-destructive, no upgrade function) (ADR-019).
+- `TaskRepository.planFor`, `removeFromPlan`, `watchForDay` (ADR-020).
+- `ProtectedTimeRepository` (create, update, remove, `watchForDate`) and its UI (ADR-021).
+- Per-screen code splitting with idle prefetch (ADR-022).
+- Tasks rows show "In today's plan" / "Planned for …".
+
+### Changed (PHASE 002)
+
+- `lib/time` no longer uses date-fns; the entry chunk dropped from 497 kB to 441 kB.
+- The composer's label is now an `h2` (the page `h1` is "Today").
+- `TaskRow` is built on a shared `TaskLine`, also used by Today.
+- Focus after planning or saving protected time moves once the live data has
+  re-rendered, not on the next animation frame.
+
+### Removed (PHASE 002)
+
+- The separate Home page (`src/features/home`); Today replaces it.
+
 ### Added (PHASE 001)
 
 - App shell: sidebar on desktop, compact top bar on mobile, skip link, current-page
