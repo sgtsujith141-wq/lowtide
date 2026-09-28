@@ -1,4 +1,3 @@
-import { format, isValid, parse } from 'date-fns';
 import type { LocalDate, Timestamp } from '../types/domain';
 
 /** Source of "now". Injected into repositories so tests can control time. */
@@ -11,18 +10,22 @@ export function toTimestamp(date: Date): Timestamp {
   return date.toISOString();
 }
 
+const pad = (n: number, width = 2) => String(n).padStart(width, '0');
+
 /** Calendar day of `date` in the local time zone, as `YYYY-MM-DD`. */
 export function toLocalDate(date: Date): LocalDate {
-  return format(date, 'yyyy-MM-dd');
+  return `${pad(date.getFullYear(), 4)}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-/** Local midnight at the start of a `LocalDate`. Throws on malformed input. */
+/** Local midnight at the start of a `LocalDate`. Throws on malformed or impossible input. */
 export function fromLocalDate(value: LocalDate): Date {
-  const parsed = parse(value, 'yyyy-MM-dd', new Date(0));
-  if (!isValid(parsed) || toLocalDate(parsed) !== value) {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  const date = match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : null;
+  // Round-trip rejects overflow such as 2026-02-30 (which Date rolls into March).
+  if (!date || toLocalDate(date) !== value) {
     throw new RangeError(`Not a valid local date: ${value}`);
   }
-  return parsed;
+  return date;
 }
 
 /*
