@@ -10,7 +10,8 @@ protected. It does not claim more than is true.
   name `lowtide`. There is no server copy.
 - LOWTIDE makes **no network requests** carrying user data. At runtime it loads only its
   own static files; no analytics, telemetry, fonts CDN, or third-party scripts. (Checked
-  in PHASE 000 by recording every request in a headless browser: none left localhost.)
+  in PHASE 000 and again in PHASE 001, through the full capture → convert → complete
+  workflow, by recording every request in a headless browser: none left localhost.)
 - Data is scoped to the site origin. Anything else running on the **same origin** (e.g.
   another app served from the same host and port during development) can read it.
 
@@ -47,8 +48,11 @@ protected. It does not claim more than is true.
 
 - All persisted records are validated with Zod schemas before writing; the same
   schemas must gate any future import.
-- React escapes rendered text. Do not introduce `dangerouslySetInnerHTML` for user
-  content; if Markdown rendering is added later it must be sanitized.
+- React escapes rendered text. All user text (thoughts, task titles/notes, projects) is
+  rendered as plain text with `white-space: pre-wrap`; nothing uses
+  `dangerouslySetInnerHTML`. If Markdown rendering is added later it must be sanitized.
+- Error messages shown in the UI are fixed plain-language strings; raw exception text
+  (which could include internals) is never rendered.
 
 ## Future risks to design for
 

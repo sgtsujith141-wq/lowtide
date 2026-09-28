@@ -5,6 +5,31 @@ app's `package.json` version.
 
 ## [Unreleased]
 
+### Added (PHASE 001)
+
+- App shell: sidebar on desktop, compact top bar on mobile, skip link, current-page
+  marking.
+- Home: brain dump composer (Enter saves, Shift+Enter new line, IME-safe, failed saves
+  keep the text) and a live list of waiting thoughts.
+- Inbox: process thoughts into tasks (atomic) or clear them; history kept.
+- Tasks: add with optional notes/priority/deadline/project, inline edit, complete, drop,
+  reopen; a Finished section.
+- Reactive repositories: `Watch<T>` subscriptions (`tasks.watchOpen`,
+  `tasks.watchClosed`, `inbox.watchUnprocessed`) and the `useWatch` hook (ADR-015).
+- Repository methods: `tasks.update/reopen/drop`, `inbox.markProcessed`.
+- Date-only deadline convention and helpers (ADR-016).
+- Dev dependency `@testing-library/user-event`.
+
+### Changed (PHASE 001)
+
+- Light-mode `warn` token darkened to `#8a5a1c` (AA contrast); new `on-accent` token.
+- The persistence-schema lint ban now covers `src/app` too.
+- Blank `notes`/`project` are omitted when creating a task.
+
+### Removed (PHASE 001)
+
+- The temporary PHASE 000 foundation screen.
+
 ### Changed (PHASE 000 post-review corrections)
 
 - Removed `relationships` from habit categories. Time with people is modelled only as

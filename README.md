@@ -11,9 +11,15 @@ productivity dashboard: no fake AI, no analytics, no streak guilt, no KPI walls.
 Everything is stored in your browser's IndexedDB on your device. There is no server,
 no account, and no network call carrying your data anywhere.
 
-> **Status: PHASE 000 (foundation).** The app boots to a temporary screen that proves
-> the toolchain, routing, styling tokens and local database work. The real interface
-> starts in PHASE 001. See [docs/ROADMAP.md](docs/ROADMAP.md).
+> **Status: PHASE 001.** Usable for brain dumps and tasks:
+>
+> - **Home** — a composer that's ready as soon as the app opens. Type, press Enter, keep going.
+> - **Inbox** — turn each thought into a task, or clear it.
+> - **Tasks** — add, edit, complete, drop and reopen, with optional notes, priority,
+>   deadline and project.
+>
+> Today, habits, hackathons and the other areas come later; see
+> [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Quick start
 
@@ -46,21 +52,23 @@ React 19 · TypeScript 6 · Vite 8 · Tailwind CSS 4 · React Router 8 · Dexie 
 
 ```
 src/
-  app/            composition: App, routes, context, temporary foundation screen
+  app/            composition: App, Shell (navigation), routes, error screen
   db/             the only code that touches IndexedDB
     database.ts   Dexie database + version history
     schema.ts     Zod record schemas, schema version, store/index layout
     repositories/ interfaces (types.ts) + Dexie implementations
-  hooks/          useRepositories — how components reach data
-  lib/            ids, time/date conventions
+  components/ui/  small primitives: Button, IconButton, notices, field styles
+  features/       home (capture page), inbox, tasks: screens + feature logic
+  hooks/          useRepositories, useWatch (live data), useToday, useDocumentTitle
+  lib/            ids, time/date and deadline conventions, relative time labels
   styles/         design tokens + Tailwind entry
   types/          domain types (Task, InboxItem, Habit, …)
   test/           Vitest setup, helpers and tests
 docs/             product, architecture, decisions, data model, testing, security, phases
 ```
 
-Feature folders (`src/features/inbox`, `tasks`, …) and shared components are created
-when the first feature needs them, not before.
+Further feature folders (`today`, `habits`, `hackathons`, …) are created when the first
+feature needs them, not before.
 
 ## Documentation
 

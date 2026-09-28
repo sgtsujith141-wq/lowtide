@@ -7,7 +7,7 @@ and IndexedDB is the database.
 
 ```
  components / routes (src/app, src/features/*)
-        │  useRepositories()
+        │  useRepositories()  +  useWatch(repo.watch…)   ← live data
         ▼
  repository interfaces        src/db/repositories/types.ts
         │  implemented by
@@ -53,9 +53,29 @@ Domain types (`src/types/domain.ts`) are plain TypeScript and are shared by ever
 This is what allows a later sync/cloud layer: a new implementation of the same
 interfaces can be swapped in at the composition root without touching components.
 
-PHASE 000 implements only `TaskRepository` and `InboxRepository`, enough to prove the
-pattern (single-store writes, queries, and a cross-store transaction). Habits,
-hackathons and protected time have types, schemas and stores but no repository yet.
+Only `TaskRepository` and `InboxRepository` exist (PHASE 001 extended them for the
+Inbox and Tasks screens). Habits, hackathons and protected time have types, schemas
+and stores but no repository yet.
+
+### Reactive data (ADR-015)
+
+Repositories expose **watch** methods with a storage-agnostic type:
+
+```ts
+type Watch<T> = (onChange: (value: T) => void, onError?: (error: unknown) => void) => Unsubscribe;
+```
+
+- `tasks.watchOpen`, `tasks.watchClosed`, `inbox.watchUnprocessed`.
+- Implemented in `src/db/repositories/shared.ts` (`watchQuery`) with Dexie `liveQuery`.
+  Dexie re-runs the query after any write that touches data it read, including
+  writes from another tab. No Dexie or Observable type crosses the interface.
+- Components subscribe with `useWatch(watch)` (`src/hooks/useWatch.ts`), which returns
+  `{ status: 'loading' | 'ready' | 'error' }` and unsubscribes on unmount.
+- Mutations never trigger manual reloads. Screens stay non-optimistic: a list changes
+  only when the database has changed, so a failed write can't leave the UI showing a
+  state that isn't stored.
+- Watch methods are plain properties, stable for the repository's lifetime, so they
+  are safe as effect dependencies.
 
 ### Injected clock and ids
 
@@ -70,10 +90,14 @@ Missing records follow one rule (documented on the interfaces in
 
 - **Lookups** (`get`) resolve to `undefined` when nothing has that id. Absence is a
   normal answer.
-- **Operations that need an existing record** (`complete`, `convertToTask`, future
-  update/delete) reject with `RecordNotFoundError`.
-- **Operations not allowed in the record's current state** (e.g. converting an
-  already-processed inbox item) reject with `RecordStateError`.
+- **Operations that need an existing record** (`update`, `complete`, `reopen`, `drop`,
+  `convertToTask`, `markProcessed`) reject with `RecordNotFoundError`.
+- **Operations not allowed in the record's current state** reject with
+  `RecordStateError`. Task transitions: `complete` and `drop` need an open task (`todo`
+  or `doing`); `reopen` needs `done` or `dropped`. Inbox: `convertToTask` and
+  `markProcessed` need an unprocessed item.
+- UI code catches these and shows a plain-language message (`ErrorNotice`); raw error
+  text and stack traces are never rendered.
 - Invalid input rejects with a Zod error before anything is written.
   Domain error names deliberately avoid DOMException names — see
   [DECISIONS.md ADR-010](DECISIONS.md).
@@ -82,8 +106,16 @@ Missing records follow one rule (documented on the interfaces in
 
 - `src/app/App.tsx` receives `repositories` and a `router` as props (so tests can use
   a memory router and a throwaway database) and provides the repository context.
-- `src/app/routes.tsx` is the route table. PHASE 000 has `/` (temporary foundation
-  screen) and a catch-all "Nothing here" route.
+- `src/app/routes.tsx` is the route table: `Shell` is the layout route, with children
+  `/` (Home: capture), `/inbox`, `/tasks`, and a catch-all "Nothing here". A route
+  `errorElement` (`RouteError`) replaces a crashed screen with a calm message and a
+  Reload button.
+- `Shell` (`src/app/Shell.tsx`): one `<header>` holding the wordmark and the main
+  `<nav>`. It is a narrow sidebar at `md` and up, and a single compact top bar below
+  that. Same markup at every size, so nothing jumps. A skip link focuses `<main>`
+  without changing the URL. The current page is marked with `aria-current` (from
+  `NavLink`) and shown by weight plus an accent bar, not by colour alone.
+- Each page sets `document.title` via `useDocumentTitle`.
 - Browser history routing (`createBrowserRouter`). Static hosting must serve
   `index.html` for unknown paths; `vite preview` does this already.
 
@@ -97,15 +129,21 @@ Missing records follow one rule (documented on the interfaces in
 - Dark theme: follows `prefers-color-scheme` by default; `<html data-theme="light|dark">`
   overrides it. A switcher UI is a later phase; the CSS already supports it.
 - System font stacks only, so the app makes no font network requests.
-- Motion: a 140 ms default transition and `prefers-reduced-motion` respected globally.
+- Motion: a 140 ms default colour transition on buttons and fields only (the nav
+  has none), and `prefers-reduced-motion` respected globally. No animations.
+- Contrast: every text token meets 4.5:1 on every paper surface in both themes,
+  except `ink-faint`, which is for decoration only (PHASE 001 darkened light-mode
+  `warn` to `#8a5a1c` for this). Primary buttons use `accent-ink` with `on-accent`.
+- Shared control styles live in `src/components/ui/styles.ts` (`fieldClass`,
+  `labelClass`).
 
 ## Directory conventions
 
 | Path                     | Holds                                                         |
 | ------------------------ | ------------------------------------------------------------- |
 | `src/app/`               | Composition: App, routes, context objects, app-level screens  |
-| `src/features/<area>/`   | Feature UI + feature logic (from PHASE 001)                   |
-| `src/components/ui/`     | Small presentational primitives (created when first needed)   |
+| `src/features/<area>/`   | Feature UI + feature logic (home, inbox, tasks so far)        |
+| `src/components/ui/`     | Small presentational primitives (Button, notices, styles)     |
 | `src/components/shared/` | Cross-feature composed components (created when first needed) |
 | `src/db/`                | Everything that knows about IndexedDB                         |
 | `src/hooks/`             | Cross-feature hooks                                           |

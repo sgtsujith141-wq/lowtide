@@ -119,3 +119,60 @@ that require an existing record reject with `RecordNotFoundError`; operations in
 for the record's current state reject with `RecordStateError`.
 **Why.** "Is it there?" is a normal question for lookups and shouldn't need
 `try/catch`; for a mutation, a missing target is a genuine error the caller must see.
+
+## ADR-015 — Reactive data through storage-agnostic repository watches
+
+**Context.** PHASE 001 screens must update whenever data changes (capture on Home
+shows up below; converting in Inbox makes a task appear in Tasks), without components
+importing Dexie or reloading by hand after each mutation.
+**Decision.** Repository interfaces gain `watch…` members of type
+`Watch<T> = (onChange, onError?) => Unsubscribe`. The Dexie implementation wraps
+`liveQuery` in `src/db`; components use `useWatch(watch)`. Only watches the screens need
+exist: `tasks.watchOpen`, `tasks.watchClosed`, `inbox.watchUnprocessed`.
+**Alternatives rejected.** `dexie-react-hooks`' `useLiveQuery` in components (breaks the
+storage boundary, adds a dependency); returning Dexie/Observable types from repositories
+(leaks the engine); manual refetch after each mutation (misses other tabs, easy to forget);
+a state-management library (unnecessary).
+**Consequences.** A future sync implementation must provide the same push-style
+`Watch` semantics. Screens are non-optimistic: lists change only when storage changes.
+Liveness across repositories (convert in Inbox → Tasks updates) comes free from
+`liveQuery`'s cross-table change tracking; this is tested.
+
+## ADR-016 — Date-only deadlines encoded as UTC noon of the chosen date
+
+**Context.** The UI needs date-level deadlines; `Task.dueAt` is a UTC `Timestamp`.
+Converting a local date to a local instant and back shifts the day for zones far enough
+apart.
+**Decision.** Store a chosen day `D` as `D T12:00:00.000Z` and read the day back from the
+UTC date part (`dueAt.slice(0, 10)`), only through `deadlineFromLocalDate` /
+`localDateOfDeadline` in `src/lib/time.ts`. Overdue/today status compares that day with
+today's local calendar day, never instants. No schema change.
+**Alternatives.** _Local noon as an instant_ was implemented first and **failed the new
+tests**: a deadline entered in Asia/Kolkata showed a day early in America/Los_Angeles
+(12.5 h apart), and Auckland↔New York was off by a day too. _A new `dueDate: LocalDate`
+field_ would match the `LocalDate` convention best but needs a schema v2 migration and
+changes the specified `dueAt` model; not justified while every deadline is date-only.
+**Consequences.** `dueAt` currently means "due on this calendar day". Time-of-day
+deadlines, if ever needed, get an explicit field in a new schema version.
+
+## ADR-017 — Capture clears immediately and saves in order; failures put the text back
+
+**Context.** Brain dump must let you type, press Enter, and keep typing. The first
+implementation cleared the box only after the write finished and read the draft
+from React state. The PHASE 001 browser run showed that fast typing could merge the
+next thought into the one being saved.
+**Decision.** On Enter the composer reads the textarea's live value, clears
+immediately, and appends the write to a per-composer promise queue, so writes happen
+in order. If a write fails, its text is put back in the box ahead of anything typed
+since, with a visible error. Success is announced only after the write.
+**Consequences.** Enter is never lost and thoughts never merge. The text sits in memory
+(not on screen) for the few milliseconds of a local write. Regression tests slow the
+write down to reproduce the race.
+
+## ADR-018 — Processing keeps history
+
+**Decision.** Nothing in PHASE 001 deletes records. Clearing an inbox item sets
+`processedAt`; converting also links `convertedToTaskId`. Dropping a task sets status
+`dropped`; completed and dropped tasks stay listed under "Finished" and can be reopened.
+**Why.** Honest history, recoverable mistakes (there is no undo yet), and future export,
+all with no schema change. Permanent deletion, if added, will be an explicit action.

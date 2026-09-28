@@ -25,6 +25,20 @@ like a well-kept paper notebook than a SaaS dashboard.
 | Money / business experiments | Lightweight tracking of experiments (modelled in a later phase).                   |
 | Protected time               | Time reserved for relationship, family, friends, rest — visible so it is defended. |
 
+## What works today (PHASE 001)
+
+- **Home** leads with one question, "What's taking up space?", and a box that's focused
+  when the app opens. Enter saves (Shift+Enter for a new line); nothing to choose. The
+  last few waiting thoughts are listed underneath.
+- **Inbox** lists thoughts oldest first. Each can become a task (the first line becomes
+  the title, the rest the notes) or be cleared if it needs nothing more. Cleared items
+  are kept, not deleted.
+- **Tasks**: add by title; notes, priority, deadline and project are optional behind
+  "Details". Rows are one or two lines. Deadlines read in words ("Due today", "Was due
+  yesterday"). Complete, drop, edit inline, reopen from "Finished".
+- Copy stays calm and plain; empty states are quiet ("Your inbox is clear."), not
+  celebrations.
+
 ## Principles
 
 - **Low cognitive load.** Few decisions per screen. Capture first, organise later.

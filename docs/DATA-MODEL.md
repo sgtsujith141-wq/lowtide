@@ -26,6 +26,28 @@ a compile error (verified during PHASE 000 by deleting a field and running `tsc`
 - Used for: `createdAt`, `updatedAt`, `completedAt`, `processedAt`, `Task.dueAt`,
   `Hackathon.registrationDeadline / eventStart / eventEnd`.
 
+### Date-only deadlines (`Task.dueAt`, ADR-016)
+
+The Tasks UI sets deadlines by calendar day. `dueAt` stays a `Timestamp` (no schema
+change), with this convention:
+
+| Step       | Rule                                                                                                                      |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------- |
+| User input | `<input type="date">` gives a calendar day `YYYY-MM-DD`, as the user sees it                                              |
+| Storage    | `deadlineFromLocalDate(day)` → `` `${day}T12:00:00.000Z` `` (UTC noon _of that date_)                                     |
+| Reading    | `localDateOfDeadline(dueAt)` → `dueAt.slice(0, 10)`, the UTC date part                                                    |
+| Rendering  | the day is compared with today's **local** day (`useToday`) by calendar days: overdue / today / tomorrow / weekday / date |
+
+The day is encoded in the UTC fields, so it is identical in every time zone and
+never moves with DST or travel. **Never** derive the day with `new Date(dueAt)` in
+local time: in zones at UTC+12 or further east (e.g. New Zealand in summer) that lands
+on the next day.
+Tests set `process.env.TZ` to zones up to 17 hours apart to check this.
+
+Consequence: a `dueAt` currently means "due on this day", not a time of day. If
+time-of-day deadlines are ever needed, add an explicit field in a schema version
+bump rather than overloading this one.
+
 ### Local dates (calendar days)
 
 - Type alias `LocalDate`. Stored as **`YYYY-MM-DD` in the user's local time zone**.
@@ -61,8 +83,12 @@ stays readable in exports and devtools.
 | dueAt?       | Timestamp                          |                                        |
 | project?     | string                             | free-text label; no Project entity yet |
 | createdAt    | Timestamp                          |                                        |
-| completedAt? | Timestamp                          | set when marked done                   |
+| completedAt? | Timestamp                          | set when completed; cleared on reopen  |
 | updatedAt    | Timestamp                          |                                        |
+
+Task lifecycle: `todo → done` (complete), `todo → dropped` (drop), `done|dropped →
+todo` (reopen). Nothing deletes a task. `doing` exists in the model but no UI sets it
+yet; it counts as open.
 
 ### InboxItem — store `inbox`, index `createdAt`
 
@@ -73,6 +99,14 @@ stays readable in exports and devtools.
 | createdAt          | Timestamp |                              |
 | processedAt?       | Timestamp | set once dealt with          |
 | convertedToTaskId? | Id        | set when converted to a task |
+
+An item is processed exactly once, in one of two ways, and is **kept** either way:
+
+- **converted** — `processedAt` + `convertedToTaskId` (atomic with creating the task);
+- **cleared** (needs no action) — `processedAt` only.
+
+Nothing deletes inbox items. There's no screen for processed items yet, but the
+history is there.
 
 `processedAt` is not indexed (absent values aren't indexable); "unprocessed" is a
 filter over `createdAt` order. Fine at personal-data scale.
@@ -135,7 +169,7 @@ The unique compound index guarantees **at most one entry per habit per day** (te
 
 - IndexedDB database name: `lowtide` (`DATABASE_NAME`). Never rename it — that would
   orphan existing data.
-- `SCHEMA_VERSION = 1`. Dexie stores versions ×10 internally, so browser devtools show
+- `SCHEMA_VERSION = 1` (unchanged in PHASE 001: no store, index or record-shape change). Dexie stores versions ×10 internally, so browser devtools show
   the native IndexedDB version as `10`.
 
 ## Migrations
