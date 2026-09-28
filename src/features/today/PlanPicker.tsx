@@ -81,19 +81,22 @@ function Candidates({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const list = useRef<HTMLUListElement>(null);
-  const focusIndexAfterUpdate = useRef<number | null>(null);
+  const focusAfterUpdate = useRef<{ index: number; id: string } | null>(null);
+  const [focusTick, setFocusTick] = useState(0);
 
   // Once the planned task has left the list, focus whatever took its place
   // (or the toggle when nothing is left), so keyboard users stay in context.
+  // Runs on the data update and on the tick; acts only once the task is gone.
   useEffect(() => {
-    const index = focusIndexAfterUpdate.current;
-    if (index === null) return;
-    focusIndexAfterUpdate.current = null;
+    const pending = focusAfterUpdate.current;
+    if (!pending || candidates.some((t) => t.id === pending.id)) return;
+    focusAfterUpdate.current = null;
+    const index = pending.index;
     const buttons = list.current?.querySelectorAll<HTMLButtonElement>('button');
     const next = buttons?.[Math.min(index, buttons.length - 1)];
     if (next) next.focus();
     else focusToggle();
-  }, [candidates, focusToggle]);
+  }, [candidates, focusToggle, focusTick]);
 
   async function plan(task: Task, index: number) {
     setBusyId(task.id);
@@ -101,7 +104,8 @@ function Candidates({
     try {
       await tasks.planFor(task.id, today);
       onPlanned(task.title);
-      focusIndexAfterUpdate.current = index;
+      focusAfterUpdate.current = { index, id: task.id };
+      setFocusTick((t) => t + 1);
     } catch {
       setFailed(true);
     } finally {

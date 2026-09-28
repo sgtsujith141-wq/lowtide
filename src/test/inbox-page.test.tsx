@@ -36,14 +36,14 @@ describe('Inbox page', () => {
     const { user, repositories } = await setup(['Book the dentist\nafter 5pm', 'keep me']);
     const row = (await screen.findByText(/Book the dentist/)).closest('li')!;
 
-    await user.click(within(row).getByRole('button', { name: 'Make task' }));
+    await user.click(within(row).getByRole('button', { name: /^Make task: / }));
 
     await vi.waitFor(() =>
       expect(within(list()).queryByText(/Book the dentist/)).not.toBeInTheDocument(),
     );
     expect(within(list()).getByText('keep me')).toBeInTheDocument();
     // Focus moves to the item that took its place.
-    expect(within(items()[0]!).getByRole('button', { name: 'Make task' })).toHaveFocus();
+    expect(within(items()[0]!).getByRole('button', { name: /^Make task: / })).toHaveFocus();
     const [task] = await repositories.tasks.listOpen();
     expect(task).toMatchObject({ title: 'Book the dentist', notes: 'after 5pm' });
 
@@ -54,7 +54,7 @@ describe('Inbox page', () => {
 
   it('clears a thought that needs no action without making a task', async () => {
     const { user, db, repositories } = await setup(['just venting']);
-    await user.click(await screen.findByRole('button', { name: 'Clear' }));
+    await user.click(await screen.findByRole('button', { name: /^Clear: / }));
 
     expect(await screen.findByText(/Nothing waiting/)).toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: 'Inbox' })).toHaveFocus();
@@ -63,10 +63,11 @@ describe('Inbox page', () => {
     expect(stored).toMatchObject({ content: 'just venting', processedAt: expect.any(String) });
   });
 
-  it('describes each action button with the thought it acts on', async () => {
-    await setup(['water the plants']);
-    const button = await screen.findByRole('button', { name: 'Make task' });
+  it('names and describes each action button by the thought it acts on', async () => {
+    await setup(['water the plants', 'call the bank\nabout the card']);
+    const button = await screen.findByRole('button', { name: 'Make task: water the plants' });
     expect(button).toHaveAccessibleDescription('water the plants');
+    expect(screen.getByRole('button', { name: 'Clear: call the bank' })).toBeInTheDocument();
   });
 
   it('surfaces a failed conversion calmly and keeps the item', async () => {
@@ -74,7 +75,7 @@ describe('Inbox page', () => {
       ...r,
       inbox: { ...r.inbox, convertToTask: vi.fn().mockRejectedValue(new Error('AbortError')) },
     }));
-    await user.click(await screen.findByRole('button', { name: 'Make task' }));
+    await user.click(await screen.findByRole('button', { name: /^Make task: / }));
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Couldn’t turn that into a task. Nothing changed',
     );
@@ -86,7 +87,7 @@ describe('Inbox page', () => {
       ...r,
       inbox: { ...r.inbox, markProcessed: vi.fn().mockRejectedValue(new Error('x')) },
     }));
-    await user.click(await screen.findByRole('button', { name: 'Clear' }));
+    await user.click(await screen.findByRole('button', { name: /^Clear: / }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t clear that item');
     expect(screen.getByText('fragile')).toBeInTheDocument();
   });
