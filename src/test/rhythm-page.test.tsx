@@ -79,6 +79,8 @@ describe('Rhythm page', () => {
 
     await user.click(toggle);
     await vi.waitFor(() => expect(toggle).toHaveAttribute('aria-pressed', 'true'));
+    expect(toggle).toHaveFocus();
+    expect(toggle).toBeEnabled();
     expect(cell(today())).toHaveAccessibleName(/Gym done \(moderate activity across 1 habit\)/);
     expect(await db.habitEntries.toArray()).toMatchObject([{ date: today(), value: 1 }]);
 
@@ -110,6 +112,7 @@ describe('Rhythm page', () => {
     await user.click(within(todayLog()).getByRole('button', { name: 'Clear today’s Coding' }));
     await vi.waitFor(() => expect(cell(today())).toHaveAccessibleName(/nothing recorded/));
     expect(input).toHaveValue(null);
+    expect(input).toHaveFocus(); // the clear button disappears; focus stays in the row
     expect(await db.habitEntries.count()).toBe(0);
   });
 

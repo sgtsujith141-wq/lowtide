@@ -1,5 +1,5 @@
 import { Check, X } from 'lucide-react';
-import { useId, useState, type FormEvent, type ReactNode } from 'react';
+import { useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { IconButton } from '../../components/ui/Button';
 import { ErrorNotice } from '../../components/ui/Notice';
 import { fieldClass } from '../../components/ui/styles';
@@ -30,7 +30,10 @@ export function HabitLogRow({
   const [busy, setBusy] = useState(false);
   const level = habitLevel(habit, entry);
 
+  // Controls stay enabled while saving: disabling a focused control drops
+  // keyboard focus. Double submits are ignored here instead.
   async function run(action: () => Promise<unknown>, message: string) {
+    if (busy) return false;
     setBusy(true);
     setError(null);
     try {
@@ -56,7 +59,6 @@ export function HabitLogRow({
         <button
           type="button"
           aria-pressed={done}
-          disabled={busy}
           onClick={() =>
             void run(
               () =>
@@ -122,6 +124,7 @@ function AmountRow({
   const value = draft ?? saved;
   const id = useId();
   const unitWord = habit.unit === 'minutes' ? 'min' : '';
+  const input = useRef<HTMLInputElement>(null);
 
   async function commit() {
     if (busy) return;
@@ -179,8 +182,8 @@ function AmountRow({
           min={1}
           step={habit.unit === 'count' ? 1 : 'any'}
           value={value}
+          ref={input}
           placeholder="–"
-          disabled={busy}
           onChange={(e) => {
             setDraft(e.target.value);
             setError(null);
@@ -206,13 +209,18 @@ function AmountRow({
         <IconButton
           label={`Clear today’s ${habit.name}`}
           icon={<X aria-hidden className="size-4" />}
-          disabled={!entry || busy}
+          disabled={!entry}
           className={entry ? '' : 'invisible'}
           onClick={() =>
             void run(
               () => habits.clearEntry(habit.id, today),
               `${habit.name}: cleared for today`,
-            ).then((ok) => ok && setDraft(null))
+            ).then((ok) => {
+              if (!ok) return;
+              setDraft(null);
+              // The clear button disappears with the entry; keep focus in the row.
+              input.current?.focus();
+            })
           }
         />
       </form>
