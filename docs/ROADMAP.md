@@ -10,31 +10,28 @@ PHASE 001 is provisional and will be revised as the app is used.
 | 002   | Today view: what's due/open today, protected time for today, quick capture                                                          | Done (see PHASE-002.md) |
 | 003   | Rhythm: habits, daily logging, contribution-style activity squares                                                                  | Done (see PHASE-003.md) |
 | 004   | Hackathons: project sheets, LocalDate dates (schema V3), Today section                                                              | Done (see PHASE-004.md) |
-| 005   | **Backup: export / import** (validated JSON), persistent-storage request                                                            | **Next — priority**     |
-| 006   | Protected time planning beyond today; coding/learning and fitness views on habits                                                   | Planned                 |
+| 005   | Backup: validated JSON export, replace-import, atomic restore, persistent-storage request                                           | Done (see PHASE-005.md) |
+| 006   | Protected time planning beyond today; coding/learning and fitness views on habits                                                   | Next                    |
 | later | Money/business experiments; theme switcher; committed E2E suite; offline PWA; optional sync (only with a documented security model) | Unscheduled             |
 
-## PHASE 005 starting point: backup, export, import
+## PHASE 006 starting point
 
-Everything now lives in one browser profile with no copy: tasks, protected time, habit
-history and hackathons. Losing that profile, whether by clearing site data, eviction or
-switching browser, loses it all (SECURITY.md).
+Protected time beyond today, and category views on habits:
 
-1. **Export:** a single versioned JSON file. Include `SCHEMA_VERSION`, an export
-   timestamp and every store, read through the repositories. It's a user-initiated
-   download (a Blob), with no network. Warn plainly that the file is unencrypted
-   personal data, and name it `lowtide-backup-YYYY-MM-DD.json`; `.gitignore` already
-   covers `lowtide-backup*`.
-2. **Import:** validate every record with the existing Zod schemas. Run older exports
-   through the same migrations (`migrateHackathonToV3`, etc.). Preview counts before
-   writing. Choose and document replace-vs-merge semantics (ids are UUIDs, so merge is
-   possible). Write atomically in one transaction.
-3. **Persistence:** call `navigator.storage.persist()` and show the result honestly.
-4. **Tests:** round-trip export → import; import of a V1/V2-era export; malformed and
-   partial files rejected without writing.
-5. **Carry-overs:**
+1. **Protected time for the week ahead.** `ProtectedTimeRepository` already takes any
+   date (`watchForDate`).
+   - Add a small date-range watch for the next 7 days.
+   - Add a compact "This week" view: plan dinner on Friday, a rest block on Sunday.
+   - It must never show completion, counts or "missed" (ADR-021).
+2. **Coding/learning and fitness views on Rhythm.** Filter the existing grid by
+   category (the categories already exist) instead of new screens. Keep ADR-024/025
+   levels, and never a relationship category (ADR-013).
+3. **Keep backups whole.** Any new store or field must appear in the backup envelope,
+   in `STORE_NAMES`, and in import validation, and needs a schema bump plus a
+   `migrateSnapshot` step if records change.
+4. **Carry-overs:**
    - undo for Clear, Drop, protected-time Remove and clearing a habit day;
    - global keyboard shortcuts;
    - a committed browser E2E suite;
-   - an optional compact "Rhythm today" line on Today;
-   - an explicit "Send next action to Tasks".
+   - an explicit "Send next action to Tasks";
+   - encrypted backups (evaluate first).

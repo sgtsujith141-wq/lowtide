@@ -43,5 +43,8 @@ npm run check      # typecheck, lint, prettier check, tests, build
   is `fsevents` (optional, macOS file watching, pulled in by Vite). It ships prebuilt
   binaries; the script is not needed and has been left unapproved. Everything builds,
   tests and runs without it.
+- **Backups.** Use Data & backup (`/data`) to export before experimenting, and to
+  restore afterwards. Backup files (`lowtide-backup*.json`) are git-ignored; never commit
+  one, since they contain personal data.
 - **Resetting local data.** Devtools → Application → IndexedDB → delete `lowtide`.
   This permanently deletes your LOWTIDE data in that browser profile.

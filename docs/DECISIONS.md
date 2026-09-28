@@ -420,3 +420,106 @@ button), focus moves to the nearest sensible control (the amount field).
 **Consequences.** Rows can still show `aria-busy`. Tests assert focus after these
 actions; the browser run confirmed it for the Rhythm toggle and the hackathon PPT
 select.
+
+## ADR-031 — Backup envelope, versioned separately from the database schema
+
+**Decision.** A backup is one JSON document:
+
+```json
+{
+  "format": "lowtide-backup",
+  "formatVersion": 1,
+  "schemaVersion": 3,
+  "exportedAt": "2026-09-28T11:33:51.758Z",
+  "data": {
+    "tasks": [],
+    "inbox": [],
+    "habits": [],
+    "habitEntries": [],
+    "hackathons": [],
+    "protectedTime": []
+  }
+}
+```
+
+- **`formatVersion`** (`BACKUP_FORMAT_VERSION = 1`) versions the envelope: the
+  wrapper's shape and meaning.
+- **`schemaVersion`** records which database schema the records were written under.
+- They change independently. A new store or field bumps the schema, and the envelope
+  can stay at 1. A different envelope (say, adding encryption) bumps the format.
+- **Newer versions are rejected.** A newer `formatVersion` or `schemaVersion` than this
+  build knows is refused, never guessed at.
+- **Older schemas are migrated.** Data from schema 1 or 2 is upgraded in memory by
+  `migrateSnapshot`, which calls the same functions as the database's own upgrade
+  steps (`migrateHackathonToV3`).
+- **Export** reads every store in one read-only transaction and sorts each store
+  deterministically, so identical data gives an identical file. The file is named
+  `lowtide-backup-YYYY-MM-DD-HHmm.json` (local time).
+
+## ADR-032 — Import replaces; it never merges
+
+**Decision.** Restoring a backup replaces all LOWTIDE data in the browser with the
+backup's snapshot.
+**Why not merge.** Merging raises questions with no calm answer:
+
+- the same id with different content;
+- two habits both called "Gym";
+- two entries for one habit and day;
+- a task completed in one copy and dropped in the other;
+- whose timestamps win.
+
+A restore should recreate a known state.
+**UX consequences.**
+
+- The file is fully validated before anything is shown.
+- The preview gives per-store counts for the backup against the browser now, and
+  states "Importing this backup will replace the LOWTIDE data currently stored in this
+  browser."
+- Restore stays disabled until an explicit checkbox is ticked.
+- Selecting a file never writes anything.
+
+**Strict validation.** The import checks the current Zod schemas, the repositories'
+own domain rules (shared via `src/db/rules.ts`), unique ids per store, entries whose
+habit is in the backup, one entry per habit per day, and converted inbox items whose
+task is in the backup. A corrupt file is rejected whole, never repaired or partially
+imported. A dangling relationship means the file isn't a faithful snapshot.
+
+## ADR-033 — Restore is one atomic transaction
+
+**Decision.** `restore(validatedBackup)` runs one Dexie read-write transaction over all
+six stores:
+
+- it clears every store;
+- then it bulk-inserts in parent-before-child order: habits, tasks, hackathons,
+  protected time, inbox, habit entries;
+- any failure (a constraint violation, a quota error, a rejected write) aborts the
+  transaction, and IndexedDB rolls every store back to its state before the
+  transaction.
+
+**Proof.** Tests make a validated backup fail during the transaction:
+
+- one tampers it after validation, so the last insert violates the unique
+  `[habitId+date]` index;
+- another makes a middle insert reject.
+
+In both, the original data is intact afterwards, record for record. Both tests fail if
+the clearing is moved outside the transaction.
+**Other consequences.** `restore` accepts only a `ValidatedBackup`, a branded type that
+only `inspect` produces. Live watches update after the commit, so no page reload is
+needed.
+
+## ADR-034 — Persistent storage: read quietly, ask only on request, never oversell
+
+**Decision.**
+
+- The Data page reads `navigator.storage.persisted()` on load, which never prompts.
+- `navigator.storage.persist()` is called only when the user presses "Ask browser to
+  keep LOWTIDE data".
+- Every outcome is shown in plain words:
+  - persistent;
+  - granted;
+  - not granted ("Keep backup files somewhere safe.");
+  - not supported.
+- The page and SECURITY.md both state the limit: persistence lowers the chance the
+  browser evicts LOWTIDE under storage pressure. It does not survive clearing site data,
+  deleting the browser profile or losing the device. Backups still matter.

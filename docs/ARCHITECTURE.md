@@ -54,8 +54,9 @@ This is what allows a later sync/cloud layer: a new implementation of the same
 interfaces can be swapped in at the composition root without touching components.
 
 Repositories: `TaskRepository`, `InboxRepository`, `ProtectedTimeRepository`
-(PHASE 002), `HabitRepository` (PHASE 003) and `HackathonRepository` (PHASE 004).
-Every store now has a repository.
+(PHASE 002), `HabitRepository` (PHASE 003), `HackathonRepository` (PHASE 004), and
+`BackupRepository` (PHASE 005), which spans every store. Domain invariants that both
+repositories and backup import enforce live in `src/db/rules.ts`.
 
 ### Reactive data (ADR-015)
 
@@ -131,6 +132,24 @@ next action save through `hackathons.update`, with no side effects on tasks or h
 The Hackathons tests replace the habit repository with a trap that throws if it's ever
 called.
 
+### Backup and restore (ADR-031 to ADR-034)
+
+- `src/db/backup.ts` holds the envelope constants and the pure `inspectBackup(text)`:
+  parse → envelope → `migrateSnapshot` (in `migrations.ts`, reusing the database's
+  upgrade functions) → current schemas and rules → cross-store integrity.
+- `BackupRepository` (`dexie-backup-repository.ts`):
+  - `exportBackup()` reads all six stores in one read-only transaction;
+  - `watchCounts` gives live per-store counts;
+  - `inspect` delegates to `inspectBackup`;
+  - `restore(ValidatedBackup)` clears and refills all six stores in one read-write
+    transaction.
+- The UI (`src/features/backup/DataPage.tsx`, lazy route `/data`) only ever sees
+  `BackupDocument`, `BackupInspection` and `ValidatedBackup`. It downloads with Blob,
+  an object URL and a temporary anchor.
+- `src/lib/storage-persistence.ts` wraps `navigator.storage.persisted`/`persist`.
+- **Entry points:** a link in the desktop sidebar footer, and a `<footer>`
+  (`contentinfo`) on phones, below `md`. The five-item tab bar is unchanged.
+
 ### Injected clock and ids
 
 Repositories accept optional `clock` and `newId` dependencies (defaults:
@@ -166,8 +185,8 @@ Missing records follow one rule (documented on the interfaces in
 - `src/app/App.tsx` receives `repositories` and a `router` as props (so tests can use
   a memory router and a throwaway database) and provides the repository context.
 - `src/app/routes.tsx` is the route table: `Shell` is the layout route, with children
-  `/` (Today), `/inbox`, `/tasks`, `/rhythm`, `/hackathons`, and a catch-all "Nothing
-  here".
+  `/` (Today), `/inbox`, `/tasks`, `/rhythm`, `/hackathons`, `/data` (Data & backup,
+  not in the tab bar), and a catch-all "Nothing here".
 - **Narrow screens:** below `md` each nav item stacks its icon over a 10 px label
   (tab-bar style), and the wordmark hides its text below 440 px. That way five items
   fit with no overflow from 320 to 768 px (measured in Chromium).

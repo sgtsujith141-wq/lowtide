@@ -5,6 +5,30 @@ app's `package.json` version.
 
 ## [Unreleased]
 
+### Added (PHASE 005)
+
+- **Data & backup** (`/data`, lazy; linked from the sidebar footer and a phone footer):
+  - JSON export `lowtide-backup-YYYY-MM-DD-HHmm.json`;
+  - validated restore with a preview and an explicit confirmation;
+  - persistent-storage status and request.
+- `BackupRepository`:
+  - `exportBackup` (one read-only transaction over all six stores);
+  - `inspect` (parse → envelope → migrate → schemas and domain rules → cross-store
+    integrity);
+  - `restore` (replace, one read-write transaction);
+  - `watchCounts`.
+- Backup envelope `format: "lowtide-backup"`, `formatVersion` 1
+  (`BACKUP_FORMAT_VERSION`), `schemaVersion`, `exportedAt`, `data` (ADR-031).
+- `migrateSnapshot`: upgrades schema-1/2 backup data with the database's own
+  migrations.
+- `src/db/rules.ts`: domain invariants shared by repositories and import.
+
+### Changed (PHASE 005)
+
+- Habit and hackathon repositories now take their rules from `src/db/rules.ts`
+  (behaviour unchanged).
+- `SCHEMA_VERSION` is re-exported from the repositories index for display.
+
 ### Added (PHASE 004)
 
 - **Hackathons** (`/hackathons`, fifth nav item, lazy chunk):

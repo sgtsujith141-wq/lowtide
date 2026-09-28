@@ -25,7 +25,7 @@ like a well-kept paper notebook than a SaaS dashboard.
 | Money / business experiments | Lightweight tracking of experiments (modelled in a later phase).                   |
 | Protected time               | Time reserved for relationship, family, friends, rest — visible so it is defended. |
 
-## What works today (PHASE 004)
+## What works today (PHASE 005)
 
 - **Today** (`/`, first in the nav) answers "what about today?" at a glance:
   - the date, and a box to dump a thought (Enter saves). A quiet link says how many
@@ -75,6 +75,15 @@ like a well-kept paper notebook than a SaaS dashboard.
   a pending registration that's overdue or due within 7 days, or an event starting
   within 7 days or happening now. One line each, with the next action, and nothing when
   nothing's near.
+- **Data & backup** (`/data`, linked from the sidebar footer, or from the page footer
+  on phones):
+  - "Download backup" saves everything as `lowtide-backup-YYYY-MM-DD-HHmm.json`, with a
+    plain note that the file isn't encrypted.
+  - Restore: choose a file. LOWTIDE checks it completely and shows what it holds next to
+    what's in the browser now. You confirm that it replaces the current data, and it
+    restores in one step that either fully happens or doesn't happen at all.
+  - A browser-storage line says whether the browser treats LOWTIDE's storage as
+    persistent, and can ask it to. It's honest that this is no substitute for backups.
 - Copy stays calm and plain; empty states are quiet ("Nothing pressing today."), not
   celebrations or warnings.
 

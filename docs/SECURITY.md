@@ -40,9 +40,12 @@ protected. It does not claim more than is true.
   everything else. LOWTIDE never fetches hackathon sites, and there are no link fields.
   The V3 upgrade may copy unreadable old date values into a record's notes, where they
   stay local.
-- **Durability is not guaranteed.** Browsers may evict IndexedDB under storage pressure
-  (persistent-storage permission is not requested yet), and clearing site data or using
-  private/incognito mode deletes it. Until export exists, there is no backup.
+- **Durability is not guaranteed.** Browsers may evict IndexedDB under storage pressure,
+  and clearing site data or using private/incognito mode deletes it.
+  - Since PHASE 005 the Data page can ask for persistent storage, but only when you
+    press the button. Persistence only makes eviction under pressure less likely; it
+    does not survive clearing site data, deleting the profile or losing the device.
+  - **Backups (manual JSON export) are the real safeguard.**
 
 ## Secrets
 
@@ -71,11 +74,29 @@ protected. It does not claim more than is true.
 - Error messages shown in the UI are fixed plain-language strings; raw exception text
   (which could include internals) is never rendered.
 
+## Backup files (PHASE 005)
+
+- **Backups are plaintext JSON and are not encrypted.** A backup contains everything:
+  tasks and notes, inbox history, protected time (relationship and family entries),
+  health and gym habits, business activity, hackathon strategy and team names. Anyone
+  with the file can read it all. The Data page says so next to the download button.
+- **LOWTIDE doesn't control where the file goes.** The browser, the OS, and any cloud
+  folder or sync client watching Downloads may copy it. Deleting the file there is up
+  to you.
+- **Export and import are fully local:** a Blob download and a file you choose. No
+  upload, no network, no File System Access API.
+- **Import never trusts the file.** It's fully validated (schemas, domain rules,
+  integrity) before anything is shown, nothing is written without explicit
+  confirmation, and a restore is one atomic transaction.
+- **Keeping backups out of the repo:** `.gitignore` excludes `lowtide-backup*.json` and
+  `lowtide-export*.json`.
+- **Encryption** (a password-protected backup) isn't implemented. It could be evaluated
+  later.
+
 ## Future risks to design for
 
-- **Export/backup files** will contain all personal data in plain JSON. Users must be
-  told this; files should be named so `.gitignore` catches them; imports must be
-  validated and never trusted.
+- **Backup encryption.** If added, be clear that a forgotten password makes the backup
+  unrecoverable, and that encryption protects the file, not the live browser data.
 - **Synchronization** (if ever added) changes the threat model entirely: transport
   security, authentication, server-side storage, and ideally end-to-end encryption
   so a server never sees plaintext. It must be opt-in and documented before shipping.

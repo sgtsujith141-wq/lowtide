@@ -246,6 +246,33 @@ against a genuine V2 database, which also holds tasks with `plannedFor`, habits,
 entries and protected time; all of them survive unchanged. Dexie stores versions ×10 internally, so browser devtools show
 the native IndexedDB version as `10`.
 
+## Backups (PHASE 005)
+
+A backup file is the JSON envelope of ADR-031:
+
+- `format: "lowtide-backup"`;
+- `formatVersion` (currently 1, `BACKUP_FORMAT_VERSION`);
+- `schemaVersion` (the database schema of the data);
+- `exportedAt` (a timestamp);
+- `data` with all six stores: `tasks`, `inbox`, `habits`, `habitEntries`,
+  `hackathons`, `protectedTime`.
+
+Records are stored exactly as in IndexedDB. Each store is sorted: records with
+`createdAt` by `createdAt` then id, habit entries by date, habit and id, and protected
+time by date then id.
+
+**Import** (`src/db/backup.ts`) runs in this order:
+
+1. parse;
+2. check the envelope;
+3. migrate from the backup's `schemaVersion` with `migrateSnapshot`;
+4. validate against the current schemas and domain rules;
+5. check cross-store integrity;
+6. **replace** in one transaction.
+
+Unknown extra fields in a record are dropped by the Zod parse. No schema change was
+needed for backups; the database stays at V3.
+
 ## Migrations
 
 1. Never edit a shipped `this.version(n)` block in `src/db/database.ts`.
