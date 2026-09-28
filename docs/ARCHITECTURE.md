@@ -67,8 +67,9 @@ type Watch<T> = (onChange: (value: T) => void, onError?: (error: unknown) => voi
 ```
 
 - `tasks.watchOpen`, `tasks.watchClosed`, `tasks.watchForDay(day)`,
-  `inbox.watchUnprocessed`, `protectedTime.watchForDate(date)`, `habits.watchAll`,
-  `habits.watchEntries(start, end)`, `hackathons.watchAll`.
+  `inbox.watchUnprocessed`, `protectedTime.watchForDate(date)`,
+  `protectedTime.watchRange(start, end)`, `habits.watchAll`,
+  `habits.watchEntries(start, end)`, `hackathons.watchAll`, `backup.watchCounts`.
 - Parameterised watches (`watchForDay`, `watchForDate`) return a new `Watch` per call;
   components memoise them on their argument (`useMemo(() => tasks.watchForDay(today),
 [tasks, today])`), so the subscription changes exactly when the day does.
@@ -113,8 +114,17 @@ Everything else is pure and unit-tested:
   and month labels.
 
 `ActivityGrid` renders the result as an ARIA grid with a roving tabindex (ADR-026).
+Views are `overall`, `group` (`RHYTHM_GROUPS`: Coding & learning, Fitness & health) or
+`habit` (ADR-036). The selector affects only the grid, never today's logging.
 Activity colours come from `--lt-activity-0…4` tokens via `LEVEL_CLASS`, the only place
 levels meet colour.
+
+### Protected time this week (ADR-035)
+
+`ProtectedTimeSection` subscribes to `protectedTime.watchRange(today, today + 6)`. The
+pure `weekAhead(today)` and `groupByDay` (in `src/features/today/week.ts`) lay out
+seven day rows. Add, edit (including moving between days, through the shared
+`ProtectedTimeForm` and its Day select) and remove all go through the repository.
 
 ### Hackathons (ADR-027 to ADR-029)
 

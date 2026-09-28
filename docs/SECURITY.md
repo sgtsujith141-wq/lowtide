@@ -88,6 +88,10 @@ protected. It does not claim more than is true.
 - **Import never trusts the file.** It's fully validated (schemas, domain rules,
   integrity) before anything is shown, nothing is written without explicit
   confirmation, and a restore is one atomic transaction.
+- **Personal data never enters the repository.** Real personal state (for example a
+  bootstrap of current tasks, rhythms and hackathons) is loaded only through a
+  `lowtide-backup-*.json` file and the normal restore flow. It's never committed as a
+  seed, fixture, migration or script.
 - **Keeping backups out of the repo:** `.gitignore` excludes `lowtide-backup*.json` and
   `lowtide-export*.json`.
 - **Encryption** (a password-protected backup) isn't implemented. It could be evaluated

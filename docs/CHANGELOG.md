@@ -5,6 +5,37 @@ app's `package.json` version.
 
 ## [Unreleased]
 
+### Added (PHASE 006 — core v0.1 roadmap complete)
+
+- **Protected time for the week ahead** on Today: seven day rows (today plus six);
+  add on any day, edit, move between days (a new Day select), remove. Still plans only
+  (ADR-035).
+- `ProtectedTimeRepository.watchRange(start, end)`: one inclusive indexed range query;
+  `watchForDate` is now a one-day range.
+- **Rhythm groups** in "Show": Coding & learning, Fitness & health. The grid filter
+  doesn't affect today's logging (ADR-036).
+
+### Fixed (PHASE 006 sweep)
+
+- Protected-time day headings read "Thursday**Thu** 1 Oct" to screen readers; a real
+  space now separates the words.
+- After moving a protected-time entry to another day, focus landed on the old row just
+  before it unmounted; focus now waits for the entry on its new day.
+- Inbox action buttons all had the same names ("Make task", "Clear"). They're now
+  named by the thought's first line, and stay enabled while saving (ADR-030).
+- Inbox and the plan picker could lose keyboard focus when the live update arrived
+  before the save returned. Focus now moves once the item is gone, whichever comes
+  first.
+
+- Tests asserted focus and `document.title` the instant an element rendered, while the
+  app sets them in effects just after, causing intermittent failures under load. A new
+  `expectFocus` helper waits, and the title assertion waits too (`9b514c6`).
+
+### Unchanged (PHASE 006)
+
+- `SCHEMA_VERSION` 3 and `BACKUP_FORMAT_VERSION` 1; no migration, no new stores or
+  fields.
+
 ### Added (PHASE 005)
 
 - **Data & backup** (`/data`, lazy; linked from the sidebar footer and a phone footer):

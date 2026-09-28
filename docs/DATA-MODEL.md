@@ -246,6 +246,11 @@ against a genuine V2 database, which also holds tasks with `plannedFor`, habits,
 entries and protected time; all of them survive unchanged. Dexie stores versions ×10 internally, so browser devtools show
 the native IndexedDB version as `10`.
 
+PHASE 006 changed no persisted shape. Week-ahead protected time uses ordinary
+`ProtectedTime` records, and Rhythm groups read the existing `Habit.category`.
+`SCHEMA_VERSION` stays 3 and `BACKUP_FORMAT_VERSION` stays 1 (verified by a backup
+round-trip test).
+
 ## Backups (PHASE 005)
 
 A backup file is the JSON envelope of ADR-031:

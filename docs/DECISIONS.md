@@ -523,3 +523,52 @@ needed.
 - The page and SECURITY.md both state the limit: persistence lowers the chance the
   browser evicts LOWTIDE under storage pressure. It does not survive clearing site data,
   deleting the browser profile or losing the device. Backups still matter.
+
+## ADR-035 — Protected time for the week ahead lives on Today
+
+**Context.** Protected time only covered today, so there was no way to keep Friday
+evening free for dinner with friends.
+**Decision.** Today's Protected time section covers **today and the next six local
+days** (seven rows: "Today", "Tomorrow", then weekday names), rather than getting a
+new route or tab.
+
+- **Actions:** add on any of the seven days, edit, move an entry to another day
+  (the form gains a labelled **Day** select), and remove.
+- **Data:** `ProtectedTimeRepository.watchRange(start, end)` does one inclusive
+  indexed `between` query on `date`, ordered by date, then title, then id.
+  `watchForDate` is now a one-day range.
+- **Days are calendar days.** The seven days come from `addDays` on `LocalDate`s,
+  never from instants.
+
+**Kept from ADR-021:** no checkbox, no "done", no counts, streaks, targets or
+"missed". Empty days say "Nothing planned here yet." There's no calendar grid, no
+hours and no drag-and-drop.
+**Accessibility:**
+
+- each day is an `h3`;
+- button names include the day ("Add protected time for Friday", "Edit Dinner
+  (tomorrow)"), so repeated titles never produce duplicate names;
+- after add or edit, focus goes to the entry's Edit button once the data shows it on
+  its (possibly new) day;
+- after remove, focus goes to that day's Add button.
+
+**Consequences.** No schema change and no backup change: future entries are ordinary
+`ProtectedTime` records.
+
+## ADR-036 — Rhythm category groups change the history grid only
+
+**Decision.** The Rhythm "Show" selector gains a Groups section:
+
+- **Coding & learning:** categories `coding` and `learning`;
+- **Fitness & health:** categories `fitness` and `health`.
+
+It sits between "All rhythms" and the individual rhythms (then Archived). A group view
+counts only entries of habits in those categories, archived habits included, using the
+existing overall rule (ADR-025) unchanged. Per-habit levels (ADR-024) are unchanged too.
+The grid's name says which view it is ("Coding & learning, last six months").
+
+**Today's logging is not filtered.** It always lists every active rhythm, so changing
+the history view never makes habits seem to disappear.
+
+**Not added:** a Money & personal group (not needed), new routes, or any body metrics.
+Relationship-type categories still don't exist (ADR-013), so no group can include them.

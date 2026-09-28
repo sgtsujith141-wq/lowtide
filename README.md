@@ -11,17 +11,18 @@ productivity dashboard: no fake AI, no analytics, no streak guilt, no KPI walls.
 Everything is stored in your browser's IndexedDB on your device. There is no server,
 no account, and no network call carrying your data anywhere.
 
-> **Status: PHASE 005.** Usable day to day:
+> **Status: core v0.1 roadmap complete (PHASE 000–006).** Usable day to day:
 >
 > - **Today** (`/`): today's date, a box to dump a thought, what needs attention
->   (due or overdue), what you chose to work on today, and the time you've protected
->   for people and rest.
+>   (due or overdue), what you chose to work on today, near-term hackathons, and the
+>   time you've protected for people and rest over the next seven days.
 > - **Inbox**: turn each thought into a task, or clear it.
 > - **Tasks**: add, edit, complete, drop and reopen, with optional notes, priority,
 >   deadline and project.
 > - **Rhythm** (`/rhythm`): habits you want to show up for (coding, study, the gym…),
->   logged in one tap or a number, and six months of activity squares. No streaks and
->   no scores.
+>   logged in one tap or a number, and six months of activity squares, shown for all
+>   rhythms, Coding & learning, Fitness & health, or one rhythm. No streaks and no
+>   scores.
 > - **Hackathons** (`/hackathons`): each event as a compact sheet (what's next, dates,
 >   registration, PPT, build), with near-term ones on Today.
 >
@@ -29,7 +30,7 @@ no account, and no network call carrying your data anywhere.
 >   keep it somewhere safe), restore from one after a preview, and ask the browser to
 >   keep LOWTIDE's storage.
 >
-> See [docs/ROADMAP.md](docs/ROADMAP.md) for what's next.
+> Optional future work is listed in [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Quick start
 

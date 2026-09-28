@@ -25,7 +25,7 @@ like a well-kept paper notebook than a SaaS dashboard.
 | Money / business experiments | Lightweight tracking of experiments (modelled in a later phase).                   |
 | Protected time               | Time reserved for relationship, family, friends, rest — visible so it is defended. |
 
-## What works today (PHASE 005)
+## What works today (core v0.1 complete, PHASE 006)
 
 - **Today** (`/`, first in the nav) answers "what about today?" at a glance:
   - the date, and a box to dump a thought (Enter saves). A quiet link says how many
@@ -35,7 +35,8 @@ like a well-kept paper notebook than a SaaS dashboard.
   - **My plan**: tasks you chose to work on today. "Add from Tasks" takes one click to
     open and one click to add. "Take out of today's plan" never deletes or drops
     anything, and a deadline keeps a task under Needs attention regardless;
-  - **Protected time**: dinner together, call home, do nothing for an hour. Add, edit,
+  - **Protected time**, for today and the next six days: dinner together on Friday,
+    call home tomorrow, do nothing for an hour on Sunday. Add, edit, move between days,
     remove. Never ticked off, counted or scored.
 - **Inbox** lists thoughts oldest first. Each can become a task (the first line becomes
   the title, the rest the notes) or be cleared if it needs nothing more. Cleared items
@@ -53,6 +54,9 @@ like a well-kept paper notebook than a SaaS dashboard.
   - **Your rhythms**: name, broad category (coding, learning, fitness, health, money,
     personal), how to record it, and an optional daily target. The name carries the
     specifics ("LeetCode / DSA", "Money Lab").
+  - **Show** switches the squares between all rhythms, **Coding & learning**,
+    **Fitness & health**, or a single rhythm. It changes the history only; today's
+    logging always lists every rhythm.
   - **Archive** instead of delete: an archived rhythm leaves daily logging but keeps
     its squares and can be restored.
   - **Deliberately absent:** streak counts, "missed day" colours, scores, levels,
