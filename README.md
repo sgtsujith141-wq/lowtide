@@ -24,17 +24,17 @@ npm install
 npm run dev          # http://localhost:5173
 ```
 
-| Command                | What it does                                                            |
-| ---------------------- | ----------------------------------------------------------------------- |
-| `npm run dev`          | Vite dev server with hot reload                                         |
-| `npm run build`        | Type-check (`tsc -b`) then production build into `dist/`                |
-| `npm run preview`      | Serve the production build locally                                      |
-| `npm run typecheck`    | TypeScript only                                                         |
-| `npm run lint`         | ESLint (includes the "no Dexie outside `src/db`" rule)                  |
-| `npm run format`       | Prettier, write                                                         |
-| `npm run format:check` | Prettier, check only                                                    |
-| `npm test`             | Vitest in watch mode (`npm test -- --run` for a single pass)            |
-| `npm run check`        | typecheck + lint + format check + tests + build — run before committing |
+| Command                | What it does                                                              |
+| ---------------------- | ------------------------------------------------------------------------- |
+| `npm run dev`          | Vite dev server with hot reload                                           |
+| `npm run build`        | Type-check (`tsc -b`) then production build into `dist/`                  |
+| `npm run preview`      | Serve the production build locally                                        |
+| `npm run typecheck`    | TypeScript only                                                           |
+| `npm run lint`         | ESLint (includes the storage-boundary rule: UI goes through repositories) |
+| `npm run format`       | Prettier, write                                                           |
+| `npm run format:check` | Prettier, check only                                                      |
+| `npm test`             | Vitest in watch mode (`npm test -- --run` for a single pass)              |
+| `npm run check`        | typecheck + lint + format check + tests + build — run before committing   |
 
 ## Stack
 

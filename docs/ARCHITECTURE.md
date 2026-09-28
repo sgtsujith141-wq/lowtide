@@ -25,8 +25,24 @@ Domain types (`src/types/domain.ts`) are plain TypeScript and are shared by ever
 
 ### The repository boundary
 
-- UI code never imports Dexie or `LowtideDatabase`. ESLint enforces this: importing
-  `dexie` anywhere outside `src/db/**` is a lint error.
+- UI and feature code never touch the concrete database. ESLint
+  (`no-restricted-imports` in `eslint.config.js`) enforces, for everything under `src/`:
+  - importing the `dexie` package, `db/database`, `db/repositories/dexie-*` or
+    `db/repositories/shared` is a lint error;
+  - in `src/features/**`, `src/components/**` and `src/hooks/**`, importing
+    `db/schema` (Zod persistence schemas, store layout) is also a lint error.
+  - Exempt: `src/db/**` itself, the composition root `src/main.tsx`, and `src/test/**`
+    (persistence-level tests need the real database).
+  - Allowed everywhere: `db/repositories` (the index: interfaces, error classes) and
+    `hooks/useRepositories`.
+  - `src/app/**` may still import `db/schema`: the temporary foundation screen reads
+    `SCHEMA_VERSION`. It may not import the database.
+  - `src/test/storage-boundary.test.ts` lints probe sources at those paths and asserts
+    the rule fires (and doesn't fire for allowed imports), so a config regression
+    fails `npm test`.
+  - Limits: this is static import checking. It does not see dynamic `import()` or a
+    `LowtideDatabase` instance handed to UI code at runtime. The composition root is
+    the only place that creates one, and it gives UI code only repositories.
 - Components get data through `useRepositories()`, which reads a React context.
 - The concrete implementation is chosen once, in the composition root `src/main.tsx`:
   `createDexieRepositories(openDatabase())`. Tests pass their own database.
@@ -49,9 +65,18 @@ never needs to.
 
 ### Errors
 
-Repositories throw `RecordNotFoundError` and `RecordStateError`, plus Zod errors on
-invalid input. Domain error names deliberately avoid DOMException names — see
-[DECISIONS.md ADR-010](DECISIONS.md).
+Missing records follow one rule (documented on the interfaces in
+`src/db/repositories/types.ts`):
+
+- **Lookups** (`get`) resolve to `undefined` when nothing has that id. Absence is a
+  normal answer.
+- **Operations that need an existing record** (`complete`, `convertToTask`, future
+  update/delete) reject with `RecordNotFoundError`.
+- **Operations not allowed in the record's current state** (e.g. converting an
+  already-processed inbox item) reject with `RecordStateError`.
+- Invalid input rejects with a Zod error before anything is written.
+  Domain error names deliberately avoid DOMException names — see
+  [DECISIONS.md ADR-010](DECISIONS.md).
 
 ## App shell and routing
 

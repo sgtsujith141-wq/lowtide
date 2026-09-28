@@ -47,6 +47,11 @@ describe('TaskRepository (Dexie)', () => {
     expect((await tasks.listOpen()).map((t) => t.id)).toEqual([first.id, second.id]);
   });
 
+  it('resolves get() to undefined for a missing task instead of throwing', async () => {
+    const tasks = createDexieTaskRepository({ db: newDb() });
+    await expect(tasks.get(crypto.randomUUID())).resolves.toBeUndefined();
+  });
+
   it('rejects completing a missing task', async () => {
     const tasks = createDexieTaskRepository({ db: newDb() });
     await expect(tasks.complete(crypto.randomUUID())).rejects.toBeInstanceOf(RecordNotFoundError);

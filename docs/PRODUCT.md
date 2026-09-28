@@ -32,6 +32,9 @@ like a well-kept paper notebook than a SaaS dashboard.
 - **Small and fast.** Instant start, no spinners for local data.
 - **Local-first.** Works offline; data stays on the device unless the user exports it.
 - **Honest.** No fake AI, no invented numbers, no demo data shipped as real.
+- **People are not productivity.** Relationships and quality time are never tasks,
+  habits, streaks, scores or activity-grid squares. They appear only as protected time,
+  reserved and visible, never measured.
 
 ## Explicit non-goals
 

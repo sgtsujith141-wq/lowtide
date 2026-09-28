@@ -47,13 +47,17 @@ export interface InboxItem {
   convertedToTaskId?: Id;
 }
 
+/**
+ * Deliberately no relationship/family/friends category: time with people is
+ * never tracked as a habit, streak or activity square. It lives in
+ * `ProtectedTime` instead.
+ */
 export const HABIT_CATEGORIES = [
   'coding',
   'learning',
   'fitness',
   'health',
   'money',
-  'relationships',
   'personal',
 ] as const;
 export type HabitCategory = (typeof HABIT_CATEGORIES)[number];

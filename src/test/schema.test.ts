@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { habitSchema, taskSchema } from '../db/schema';
+import { habitSchema, protectedTimeSchema, taskSchema } from '../db/schema';
 
 const validTask = {
   id: '6f1c2f0e-3a4b-4c5d-8e9f-0a1b2c3d4e5f',
@@ -38,5 +38,26 @@ describe('persisted-record schemas', () => {
     };
     expect(habitSchema.parse({ ...habit, target: 20 }).target).toBe(20);
     expect(() => habitSchema.parse({ ...habit, target: 0 })).toThrow();
+  });
+
+  it('does not allow relationships to be tracked as a habit', () => {
+    const habit = {
+      id: validTask.id,
+      name: 'Date night',
+      category: 'relationships',
+      unit: 'check',
+      archived: false,
+      createdAt: validTask.createdAt,
+    };
+    expect(() => habitSchema.parse(habit)).toThrow();
+  });
+
+  it('keeps relationship, family and friends time as protected time', () => {
+    for (const kind of ['relationship', 'family', 'friends']) {
+      expect(
+        protectedTimeSchema.parse({ id: validTask.id, title: 'Dinner', date: '2026-09-28', kind })
+          .kind,
+      ).toBe(kind);
+    }
   });
 });

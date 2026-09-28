@@ -79,15 +79,20 @@ filter over `createdAt` order. Fine at personal-data scale.
 
 ### Habit — store `habits`, index `createdAt`
 
-| Field     | Type                                                                            | Notes                                             |
-| --------- | ------------------------------------------------------------------------------- | ------------------------------------------------- |
-| id        | Id                                                                              |                                                   |
-| name      | string                                                                          | non-empty                                         |
-| category  | `coding \| learning \| fitness \| health \| money \| relationships \| personal` |                                                   |
-| unit      | `check \| count \| minutes`                                                     | `check` entries store value 1                     |
-| target?   | number > 0                                                                      | daily amount that counts as done                  |
-| archived  | boolean                                                                         | not indexed: booleans aren't valid IndexedDB keys |
-| createdAt | Timestamp                                                                       |                                                   |
+| Field     | Type                                                           | Notes                                             |
+| --------- | -------------------------------------------------------------- | ------------------------------------------------- |
+| id        | Id                                                             |                                                   |
+| name      | string                                                         | non-empty                                         |
+| category  | `coding \| learning \| fitness \| health \| money \| personal` | no relationship category, by design (see below)   |
+| unit      | `check \| count \| minutes`                                    | `check` entries store value 1                     |
+| target?   | number > 0                                                     | daily amount that counts as done                  |
+| archived  | boolean                                                        | not indexed: booleans aren't valid IndexedDB keys |
+| createdAt | Timestamp                                                      |                                                   |
+
+There is deliberately **no relationship, family or friends habit category**. Time
+with people is never tracked as a habit, streak, score or activity square; it is
+modelled only as `ProtectedTime` (kinds `relationship`, `family`, `friends`, …) so it
+is visible and defended, not measured. See DECISIONS.md ADR-013.
 
 ### HabitEntry — store `habitEntries`, indexes `habitId, date, &[habitId+date]`
 

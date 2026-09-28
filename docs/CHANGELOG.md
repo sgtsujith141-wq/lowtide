@@ -5,6 +5,16 @@ app's `package.json` version.
 
 ## [Unreleased]
 
+### Changed (PHASE 000 post-review corrections)
+
+- Removed `relationships` from habit categories. Time with people is modelled only as
+  `ProtectedTime` (ADR-013).
+- Documented repository missing-record semantics precisely: `get` resolves `undefined`,
+  mutations reject with `RecordNotFoundError` (ADR-014).
+- ESLint storage boundary now also blocks UI/feature imports of the concrete database,
+  Dexie repository implementations and (in features/components/hooks) persistence
+  schemas, not just the `dexie` package. A new test proves the rule fires.
+
 ## [0.1.0] — 2026-09-28 — PHASE 000 foundation
 
 The previous prototype was removed; LOWTIDE restarts on a new foundation.

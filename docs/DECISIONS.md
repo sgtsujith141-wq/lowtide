@@ -23,7 +23,11 @@ browser (see SECURITY.md). Dexie is ~95 KB of source in the bundle.
 **Context.** A future sync or cloud backend must not require rewriting components.
 **Decision.** Components access data only through repository interfaces
 (`src/db/repositories/types.ts`) obtained from `useRepositories()`. Dexie
-implementations live in `src/db`. ESLint forbids importing `dexie` elsewhere.
+implementations live in `src/db`. ESLint forbids UI/feature code from importing
+`dexie`, the concrete database, Dexie repository implementations, and (in features,
+components and hooks) persistence schemas. Only `src/db`, the composition root
+`src/main.tsx` and tests are exempt. A test proves the rule fires. See ARCHITECTURE.md
+for the exact scope and limits.
 **Consequences.** Slight indirection; storage can be swapped at the composition root.
 Reactive live queries (Dexie `liveQuery`) will need to be exposed through the
 repository layer when needed rather than used directly in components.
@@ -94,3 +98,24 @@ own classes.
   formatting (`eslint-config-prettier` disables conflicting rules).
 - System font stacks, so no font CDN requests (privacy + offline).
 - `createBrowserRouter` for clean URLs; static hosts must fall back to `index.html`.
+
+## ADR-013 — Relationships are protected time, never habits
+
+**Context.** PHASE 000 shipped a `relationships` habit category. Review flagged that
+it contradicts a core product principle: relationships and quality time must not be
+turned into productivity tasks, streaks, scores or contribution-grid performance.
+**Decision.** Remove `relationships` from `HABIT_CATEGORIES` and add no replacement
+relationship-type category. Time with partner, family and friends (and rest) is
+modelled only by `ProtectedTime` (`relationship | family | friends | rest | personal`).
+**Consequences.** Habit validation rejects `category: "relationships"` (tested). No data
+migration was needed: PHASE 000 has no habit repository or UI, so no code path could
+have written a habit with that category.
+Future features (activity squares, stats) must not score protected time.
+
+## ADR-014 — Missing-record semantics for repositories
+
+**Decision.** `get`-style lookups resolve to `undefined` for a missing id; operations
+that require an existing record reject with `RecordNotFoundError`; operations invalid
+for the record's current state reject with `RecordStateError`.
+**Why.** "Is it there?" is a normal question for lookups and shouldn't need
+`try/catch`; for a mutation, a missing target is a genuine error the caller must see.

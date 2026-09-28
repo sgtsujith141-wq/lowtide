@@ -189,6 +189,43 @@ Ready", "Schema version: 1", "Unprocessed inbox items: 0".
 - Data is unencrypted in IndexedDB; protection relies on the OS/browser. Documented
   honestly in SECURITY.md.
 
+## Post-review corrections
+
+An independent review of `8208b4e` accepted the foundation but found three issues.
+They were fixed in one follow-up commit on 2026-09-28
+(`fix(phase-000): tighten domain and storage boundaries`; find its SHA with
+`git log --oneline -- docs/phases/PHASE-000.md`, since it can't record its own).
+
+1. **Relationships were a habit category.** `HABIT_CATEGORIES` contained
+   `relationships`, contradicting the principle that time with people is never a
+   habit, streak or activity square. Removed it with no replacement; `ProtectedTime`
+   keeps `relationship | family | friends | rest | personal`. Updated DATA-MODEL,
+   PRODUCT, DECISIONS (ADR-013). Tests added: the habit schema rejects `relationships`,
+   and protected time still accepts relationship/family/friends. No migration needed:
+   nothing in PHASE 000 writes habits.
+2. **Repository contract overstated errors.** `types.ts` said missing records always
+   reject with `RecordNotFoundError`, but `TaskRepository.get` resolves `undefined` (by
+   design). The contract now says: lookups resolve `undefined`; operations needing an
+   existing record reject with `RecordNotFoundError`; invalid-state operations reject
+   with `RecordStateError` (ADR-014, ARCHITECTURE § Errors). Test added for `get` on a
+   missing id. No behaviour changed.
+3. **Storage boundary only blocked the `dexie` package.** UI code could still import
+   `src/db/database.ts` and use `LowtideDatabase` directly. `eslint.config.js` now also
+   blocks, anywhere in `src/`, imports of `db/database`, `db/repositories/dexie-*` and
+   `db/repositories/shared`, and additionally `db/schema` in
+   features/components/hooks. `src/db`, `src/main.tsx` and `src/test` are exempt. No
+   new dependency. `src/test/storage-boundary.test.ts` (11 tests) lints probe sources
+   through the ESLint API. Mutation check: with the database regex disabled, 7 of its 11
+   tests failed; restored, all passed. Known limit (documented in ARCHITECTURE):
+   dynamic `import()` isn't covered.
+
+The "Boundary" bullet under "Foundation implemented" describes the original state;
+this section supersedes it.
+
+**Checks run after the corrections (2026-09-28):** `npm run check`, which runs
+`typecheck` → `lint` → `format:check` → `npm test -- --run` → `build` in sequence and
+stops on the first failure: all passed, **7 test files, 39 tests** (was 6 / 25).
+
 ## Next phase
 
 **PHASE 001 — App shell, Inbox and Tasks.** Start from
