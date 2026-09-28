@@ -20,3 +20,15 @@ export class RecordStateError extends Error {
     this.name = 'RecordStateError';
   }
 }
+
+/**
+ * Input that is well-formed for storage but wrong for its context, e.g. a
+ * `check` habit logged with a value other than 1, or a target on a `check`
+ * habit. (Named to avoid DOMException names such as `InvalidStateError`.)
+ */
+export class InvalidInputError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'InvalidInputError';
+  }
+}

@@ -1,4 +1,8 @@
 import type {
+  Habit,
+  HabitCategory,
+  HabitEntry,
+  HabitUnit,
   Id,
   InboxItem,
   LocalDate,
@@ -22,7 +26,8 @@ import type {
  *   absence is a normal answer, not an error.
  * - Operations that need an existing record (`update`, `complete`, `reopen`,
  *   `drop`, `planFor`, `removeFromPlan`, `convertToTask`, `markProcessed`, and
- *   protected-time `update`/`remove`) reject with `RecordNotFoundError`.
+ *   protected-time `update`/`remove`, habit `update`/`archive`/`restore`/
+ *   `setEntry`/`clearEntry`) reject with `RecordNotFoundError`.
  * - Operations not allowed in the record's current state (e.g. completing a
  *   dropped task, converting an already-processed inbox item) reject with
  *   `RecordStateError`.
@@ -146,8 +151,55 @@ export interface ProtectedTimeRepository {
   watchForDate(date: LocalDate): Watch<ProtectedTime[]>;
 }
 
+export interface NewHabit {
+  name: string;
+  category: HabitCategory;
+  unit: HabitUnit;
+  /** Only for `count`/`minutes`; must be positive. */
+  target?: number;
+}
+
+/**
+ * Omitted keys are left alone; `target: null` removes the target. The unit
+ * can't change: it would change the meaning of every entry already logged.
+ */
+export interface HabitChanges {
+  name?: string;
+  category?: HabitCategory;
+  target?: number | null;
+}
+
+/**
+ * Rhythm: habits and one entry per habit per local day (ADR-023).
+ * No entry means no recorded activity; entries are only ever created by an
+ * explicit `setEntry`.
+ */
+export interface HabitRepository {
+  /** Rejects with `InvalidInputError` for a target on a `check` habit or a non-positive target. */
+  create(input: NewHabit): Promise<Habit>;
+  update(id: Id, changes: HabitChanges): Promise<Habit>;
+  /** Hides a habit from daily logging. Its entries are kept. */
+  archive(id: Id): Promise<Habit>;
+  restore(id: Id): Promise<Habit>;
+  /** Every habit, active and archived, oldest first. */
+  watchAll: Watch<Habit[]>;
+  /**
+   * Upserts the entry for (habit, day): creates it, or updates value/note and
+   * `updatedAt` while keeping its id and `createdAt`. Value rules by unit:
+   * `check` = 1; `count` = positive whole number; `minutes` = positive, up to
+   * 1440. Invalid values reject with `InvalidInputError`; archived habits with
+   * `RecordStateError`.
+   */
+  setEntry(habitId: Id, date: LocalDate, value: number, note?: string): Promise<HabitEntry>;
+  /** Removes the entry for (habit, day) if there is one. Missing habit → `RecordNotFoundError`. */
+  clearEntry(habitId: Id, date: LocalDate): Promise<void>;
+  /** Entries for every habit (archived included) with `start <= date <= end`. */
+  watchEntries(start: LocalDate, end: LocalDate): Watch<HabitEntry[]>;
+}
+
 export interface Repositories {
   tasks: TaskRepository;
   inbox: InboxRepository;
   protectedTime: ProtectedTimeRepository;
+  habits: HabitRepository;
 }
