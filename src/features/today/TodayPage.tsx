@@ -16,6 +16,7 @@ import { composeToday } from './compose';
 import { PlanPicker } from './PlanPicker';
 import { ProtectedTimeSection } from './ProtectedTimeSection';
 import { SectionHeading } from './SectionHeading';
+import { TodayHackathons } from './TodayHackathons';
 
 type Action = 'complete' | 'removeFromPlan';
 
@@ -137,6 +138,7 @@ export function TodayPage() {
         </>
       )}
 
+      <TodayHackathons today={today} />
       <ProtectedTimeSection date={today} />
       <Announcer message={announcement} />
     </>

@@ -1,4 +1,4 @@
-import { AudioWaveform, Inbox, ListTodo, Sun, Waves, type LucideIcon } from 'lucide-react';
+import { AudioWaveform, Inbox, ListTodo, Sun, Trophy, Waves, type LucideIcon } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router';
 
 const NAV: { to: string; label: string; icon: LucideIcon }[] = [
@@ -6,6 +6,7 @@ const NAV: { to: string; label: string; icon: LucideIcon }[] = [
   { to: '/inbox', label: 'Inbox', icon: Inbox },
   { to: '/tasks', label: 'Tasks', icon: ListTodo },
   { to: '/rhythm', label: 'Rhythm', icon: AudioWaveform },
+  { to: '/hackathons', label: 'Hackathons', icon: Trophy },
 ];
 
 /**
@@ -31,24 +32,25 @@ export function Shell() {
       <header className="sticky top-0 z-[1] flex h-12 items-center gap-3 border-b border-line bg-paper-sunken px-3 md:h-dvh md:w-44 md:shrink-0 md:flex-col md:items-stretch md:gap-5 md:border-r md:border-b-0 md:px-3 md:py-5">
         <p className="flex items-center gap-1.5 font-serif text-base font-semibold tracking-tight md:px-2">
           <Waves aria-hidden className="size-5 text-accent" strokeWidth={1.75} />
-          <span className="max-[359px]:sr-only">LOWTIDE</span>
+          <span className="max-[439px]:sr-only">LOWTIDE</span>
         </p>
         <nav aria-label="Main" className="ml-auto md:ml-0">
-          <ul className="flex gap-0.5 md:flex-col">
+          <ul className="flex gap-px md:flex-col md:gap-0.5">
             {NAV.map(({ to, label, icon: Icon }) => (
               <li key={to}>
                 <NavLink
                   to={to}
                   end
                   className={({ isActive }) =>
-                    `flex h-8 items-center gap-2 rounded-md px-2 text-sm ${
+                    // Below md: icon over a small label, so five items fit at 320 px.
+                    `flex h-11 flex-col items-center justify-center gap-1 rounded-md px-1.5 text-[10px] leading-none md:h-8 md:flex-row md:justify-start md:gap-2 md:px-2 md:text-sm ${
                       isActive
                         ? 'bg-paper-raised font-semibold text-ink shadow-[inset_0_-2px_0_var(--lt-accent)] md:shadow-[inset_2px_0_0_var(--lt-accent)]'
                         : 'text-ink-muted hover:bg-paper hover:text-ink'
                     }`
                   }
                 >
-                  <Icon aria-hidden className="size-4 shrink-0 max-[419px]:hidden" />
+                  <Icon aria-hidden className="size-4 shrink-0" />
                   {label}
                 </NavLink>
               </li>

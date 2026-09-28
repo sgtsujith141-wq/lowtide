@@ -13,6 +13,7 @@ const screens = {
   inbox: () => import('../features/inbox/InboxPage'),
   tasks: () => import('../features/tasks/TasksPage'),
   rhythm: () => import('../features/rhythm/RhythmPage'),
+  hackathons: () => import('../features/hackathons/HackathonsPage'),
 };
 
 /** Warms every screen chunk. Safe to call more than once. */
@@ -33,6 +34,10 @@ export const routes: RouteObject[] = [
       { path: 'inbox', lazy: async () => ({ Component: (await screens.inbox()).InboxPage }) },
       { path: 'tasks', lazy: async () => ({ Component: (await screens.tasks()).TasksPage }) },
       { path: 'rhythm', lazy: async () => ({ Component: (await screens.rhythm()).RhythmPage }) },
+      {
+        path: 'hackathons',
+        lazy: async () => ({ Component: (await screens.hackathons()).HackathonsPage }),
+      },
       { path: '*', element: <NotFound /> },
     ],
   },
