@@ -327,3 +327,96 @@ only, and ignores entries whose `habitId` isn't a known habit (tested).
   screens the grid scrolls horizontally inside its own box and starts scrolled to the
   most recent weeks; the page itself never overflows.
 - **No chart library.** It's plain React and CSS.
+
+## ADR-027 — Hackathon dates are LocalDate (schema V3)
+
+**Context.** PHASE 000 typed `registrationDeadline`, `eventStart` and `eventEnd` as UTC
+timestamps. For hackathons they mean calendar days ("registration closes on the 1st",
+"the event runs 4–5 Oct"). ADR-016's UTC-noon trick was a workaround for tasks, where
+changing the field wasn't justified at the time.
+**Decision.** The three fields become `LocalDate` (`YYYY-MM-DD`), validated with
+`z.iso.date()`.
+
+- **Date rules** (repository, `InvalidInputError`): `eventEnd` needs `eventStart` and
+  can't be earlier. The registration deadline is independent; no ordering rule is
+  imposed on it.
+- **Clock times** don't exist in the model. Users can write "closes 11:59 pm" in notes.
+- **Schema V3** keeps the same `hackathons` indexes (`status`, `registrationDeadline`,
+  `eventStart`). The version exists to run a data upgrade:
+  - absent → absent;
+  - a real `YYYY-MM-DD` → kept;
+  - an ISO timestamp → its UTC date component;
+  - anything else, including impossible dates and an end that's missing its start or
+    precedes it → removed from the field and appended to `notes` as
+    `[Moved by LOWTIDE upgrade] field: raw`. Never silently discarded.
+
+**Consequences.** `LocalDate` string comparison works for index range queries. Real
+databases were expected to hold no hackathons (there was no UI before), but the
+upgrade is tested against a genuine V2 database with legacy timestamp, missing, already
+local and malformed values.
+
+## ADR-028 — Hackathon ordering and date wording
+
+**Decision.** Open hackathons (considering or active) are ordered by `orderHackathons`
+(pure):
+
+1. **Upcoming**, keyed by the earliest of:
+   - the registration deadline, if registration is still `not_registered` and the
+     deadline is today or later;
+   - the event start, if the event hasn't ended (ongoing events key on their start and
+     so come first).
+2. **No dates at all.**
+3. **Only past dates**, most recent first.
+
+Ties are broken by `createdAt`, then name, then id. A registered, waitlisted or rejected
+hackathon's deadline never drives urgency. Past events stay where the user left them:
+status is never changed automatically.
+
+**Wording** is calm and factual, from calendar-day arithmetic:
+
+- "Registration due today / tomorrow / in N days / 12 Oct", "Registration closed N days
+  ago";
+- "Starts tomorrow / in N days / 5 Oct", "Happening today" (one-day event), "Happening
+  now" (multi-day), "Ended N days ago / 9 Sep";
+- ranges like "28–29 Sep" or "30 Sep – 2 Oct", with the year only when it isn't the
+  current one.
+
+Tone adds weight ("today" and "now" in accent, past in muted) but the words always say
+it.
+
+## ADR-029 — Which hackathons appear on Today
+
+**Decision.** `hackathonsForToday(list, today)` shows a hackathon when it is open (not
+finished or dropped), registration isn't `rejected`, and at least one of these holds:
+
+- registration is still `not_registered` and the deadline is overdue or within the next
+  7 calendar days;
+- the event starts within the next 7 days (0–7), or is happening now.
+
+Each hackathon is **one row**, even with two reasons ("Registration due tomorrow ·
+Starts in 4 days"), plus "Next: …" when set.
+
+- **Order:** by the earliest relevant date, then the usual tie-breaks.
+- **Limit:** at most 3, then "See all hackathons (N more coming up)".
+- **Placement:** between My plan and Protected time, and absent entirely when nothing
+  qualifies.
+- **No controls:** the name links to `/hackathons`.
+- **No side effects:** hackathons never create tasks or habit entries, and Rhythm never
+  sees them.
+
+## ADR-030 — Don't disable a focused control while its save runs
+
+**Context.** Several controls were `disabled` while their write was in flight:
+
+- the Rhythm toggle and amount field;
+- the clear button, which disables itself once the entry is gone;
+- the hackathon status selects, during development.
+
+Chromium drops keyboard focus from an element that becomes disabled, so keyboard users
+lost their place after each action.
+**Decision.** Controls that trigger a save stay enabled. Double submits are ignored in
+the handler (`if (busy) return`). When the control itself goes away (e.g. the clear
+button), focus moves to the nearest sensible control (the amount field).
+**Consequences.** Rows can still show `aria-busy`. Tests assert focus after these
+actions; the browser run confirmed it for the Rhythm toggle and the hackathon PPT
+select.

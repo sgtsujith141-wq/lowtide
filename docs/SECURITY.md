@@ -10,7 +10,7 @@ protected. It does not claim more than is true.
   name `lowtide`. There is no server copy.
 - LOWTIDE makes **no network requests** carrying user data. At runtime it loads only its
   own static files; no analytics, telemetry, fonts CDN, or third-party scripts. (Checked
-  in PHASE 000, 001 and 002 (full capture, plan, protected-time and complete
+  in PHASE 000–004 (full capture, plan, protected-time, rhythm and hackathon
   workflows), by recording every request in a headless browser: none left localhost.)
 - Data is scoped to the site origin. Anything else running on the **same origin** (e.g.
   another app served from the same host and port during development) can read it.
@@ -35,6 +35,11 @@ protected. It does not claim more than is true.
   daily routine and a health picture. They're stored unencrypted in IndexedDB like
   everything else. Archiving hides a habit from logging but keeps all its entries;
   there's no delete for habits yet.
+- **Hackathon sheets can hold private strategy.** Teammate names, chosen problem
+  statements, competition notes and next steps are stored unencrypted in IndexedDB like
+  everything else. LOWTIDE never fetches hackathon sites, and there are no link fields.
+  The V3 upgrade may copy unreadable old date values into a record's notes, where they
+  stay local.
 - **Durability is not guaranteed.** Browsers may evict IndexedDB under storage pressure
   (persistent-storage permission is not requested yet), and clearing site data or using
   private/incognito mode deletes it. Until export exists, there is no backup.

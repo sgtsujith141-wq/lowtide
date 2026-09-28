@@ -11,7 +11,7 @@ productivity dashboard: no fake AI, no analytics, no streak guilt, no KPI walls.
 Everything is stored in your browser's IndexedDB on your device. There is no server,
 no account, and no network call carrying your data anywhere.
 
-> **Status: PHASE 003.** Usable day to day:
+> **Status: PHASE 004.** Usable day to day:
 >
 > - **Today** (`/`): today's date, a box to dump a thought, what needs attention
 >   (due or overdue), what you chose to work on today, and the time you've protected
@@ -22,8 +22,11 @@ no account, and no network call carrying your data anywhere.
 > - **Rhythm** (`/rhythm`): habits you want to show up for (coding, study, the gym…),
 >   logged in one tap or a number, and six months of activity squares. No streaks and
 >   no scores.
+> - **Hackathons** (`/hackathons`): each event as a compact sheet (what's next, dates,
+>   registration, PPT, build), with near-term ones on Today.
 >
-> Hackathons and the rest come later; see [docs/ROADMAP.md](docs/ROADMAP.md).
+> **Next: backup / export**. Until then all data lives in one browser profile only.
+> See [docs/ROADMAP.md](docs/ROADMAP.md).
 
 ## Quick start
 
@@ -62,7 +65,7 @@ src/
     schema.ts     Zod record schemas, schema version, store/index layout
     repositories/ interfaces (types.ts) + Dexie implementations
   components/ui/  small primitives: Button, IconButton, notices, field styles
-  features/       today, inbox, tasks, rhythm: screens + feature logic (each screen its own chunk)
+  features/       today, inbox, tasks, rhythm, hackathons: screens + feature logic (each screen its own chunk)
   hooks/          useRepositories, useWatch (live data), useToday, useDocumentTitle
   lib/            ids, time/date and deadline conventions, LocalDate calendar maths, relative time labels
   styles/         design tokens + Tailwind entry

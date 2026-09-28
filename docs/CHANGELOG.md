@@ -5,6 +5,36 @@ app's `package.json` version.
 
 ## [Unreleased]
 
+### Added (PHASE 004)
+
+- **Hackathons** (`/hackathons`, fifth nav item, lazy chunk):
+  - compact project sheets with date wording, an editable "Next:" line, and
+    Registration / PPT / Build / Status selects;
+  - quick add (name and dates) and a full editor;
+  - a collapsed Past section.
+- `HackathonRepository` (`create`, `update`, `watchAll`); `eventEnd` rules via
+  `InvalidInputError`.
+- **Schema version 3**: hackathon dates become `LocalDate`, with a tested upgrade that
+  keeps real dates, converts timestamps to their UTC date, and moves anything
+  unreadable into notes (ADR-027).
+- Pure hackathon ordering and wording (ADR-028), and Today's "Hackathons" section
+  (at most 3 near-term rows, ADR-029).
+
+### Fixed (PHASE 004)
+
+- Rhythm logging controls were disabled while saving, which drops keyboard focus in
+  Chromium. They now stay enabled, and focus moves to the amount field after clearing
+  (ADR-030).
+- "Add a next action" had the accessible name "Add a next actionfor …"; it now uses an
+  explicit label.
+
+### Changed (PHASE 004)
+
+- Mobile nav: below `md` items stack icon over a small label, and the wordmark text
+  hides below 440 px; five items fit at 320 px.
+- `SCHEMA_VERSION` 2 → 3. The PHASE 002 migration test now asserts "opens at the current
+  version".
+
 ### Added (PHASE 003)
 
 - **Rhythm** (`/rhythm`, fourth nav item, lazy chunk):

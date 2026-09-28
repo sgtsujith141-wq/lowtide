@@ -54,8 +54,8 @@ This is what allows a later sync/cloud layer: a new implementation of the same
 interfaces can be swapped in at the composition root without touching components.
 
 Repositories: `TaskRepository`, `InboxRepository`, `ProtectedTimeRepository`
-(PHASE 002) and `HabitRepository` (PHASE 003). Hackathons have types, schemas and a
-store but no repository yet.
+(PHASE 002), `HabitRepository` (PHASE 003) and `HackathonRepository` (PHASE 004).
+Every store now has a repository.
 
 ### Reactive data (ADR-015)
 
@@ -67,7 +67,7 @@ type Watch<T> = (onChange: (value: T) => void, onError?: (error: unknown) => voi
 
 - `tasks.watchOpen`, `tasks.watchClosed`, `tasks.watchForDay(day)`,
   `inbox.watchUnprocessed`, `protectedTime.watchForDate(date)`, `habits.watchAll`,
-  `habits.watchEntries(start, end)`.
+  `habits.watchEntries(start, end)`, `hackathons.watchAll`.
 - Parameterised watches (`watchForDay`, `watchForDate`) return a new `Watch` per call;
   components memoise them on their argument (`useMemo(() => tasks.watchForDay(today),
 [tasks, today])`), so the subscription changes exactly when the day does.
@@ -115,6 +115,22 @@ Everything else is pure and unit-tested:
 Activity colours come from `--lt-activity-0…4` tokens via `LEVEL_CLASS`, the only place
 levels meet colour.
 
+### Hackathons (ADR-027 to ADR-029)
+
+`HackathonsPage` (`/hackathons`) and Today's `TodayHackathons` both subscribe to
+`hackathons.watchAll`. Everything that decides what to show is pure, in
+`src/features/hackathons/schedule.ts`:
+
+- `orderHackathons`: upcoming by next meaningful date, then undated, then past;
+- `primaryMoment` and the moment functions: date wording;
+- `formatRange`;
+- `hackathonsForToday`: the at-most-3 relevant rows.
+
+All date arithmetic uses `src/lib/calendar.ts` on `LocalDate`s. Status changes and the
+next action save through `hackathons.update`, with no side effects on tasks or habits.
+The Hackathons tests replace the habit repository with a trap that throws if it's ever
+called.
+
 ### Injected clock and ids
 
 Repositories accept optional `clock` and `newId` dependencies (defaults:
@@ -130,8 +146,8 @@ Missing records follow one rule (documented on the interfaces in
   normal answer.
 - **Operations that need an existing record** (`update`, `complete`, `reopen`, `drop`,
   `planFor`, `removeFromPlan`, `convertToTask`, `markProcessed`, protected-time
-  `update`/`remove`, habit `update`/`archive`/`restore`/`setEntry`/`clearEntry`)
-  reject with `RecordNotFoundError`.
+  `update`/`remove`, habit `update`/`archive`/`restore`/`setEntry`/`clearEntry`,
+  hackathon `update`) reject with `RecordNotFoundError`.
 - **Input that is well-formed but wrong for its context** (a habit value that doesn't
   fit its unit, a target on a done-or-not habit) rejects with `InvalidInputError`.
   Logging an archived habit rejects with `RecordStateError`.
@@ -150,8 +166,11 @@ Missing records follow one rule (documented on the interfaces in
 - `src/app/App.tsx` receives `repositories` and a `router` as props (so tests can use
   a memory router and a throwaway database) and provides the repository context.
 - `src/app/routes.tsx` is the route table: `Shell` is the layout route, with children
-  `/` (Today), `/inbox`, `/tasks`, `/rhythm`, and a catch-all "Nothing here". Below
-  420 px the nav hides its icons so all four labels fit, down to 320 px.
+  `/` (Today), `/inbox`, `/tasks`, `/rhythm`, `/hackathons`, and a catch-all "Nothing
+  here".
+- **Narrow screens:** below `md` each nav item stacks its icon over a 10 px label
+  (tab-bar style), and the wordmark hides its text below 440 px. That way five items
+  fit with no overflow from 320 to 768 px (measured in Chromium).
 - **Route-level code splitting (ADR-022).** Each screen is a React Router `lazy` route,
   so its code (and display-only libraries like date-fns `format`) is a separate chunk.
   The entry keeps React, the router, the shell and the data layer. `prefetchScreens()`
@@ -189,6 +208,9 @@ Missing records follow one rule (documented on the interfaces in
 - Activity squares: `--lt-activity-0…4` form a muted sea-glass ramp, not GitHub green.
   Each step is at least 1.19:1 against the previous one in light and 1.30:1 in dark,
   rising steadily. Squares carry text labels, so colour is never the only signal.
+- **Saving never disables a focused control** (ADR-030). Buttons, selects and fields
+  that trigger a write stay enabled and ignore repeats while busy, because disabling a
+  focused element drops keyboard focus.
 - Shared control styles live in `src/components/ui/styles.ts` (`fieldClass`,
   `labelClass`).
 

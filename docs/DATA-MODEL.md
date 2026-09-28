@@ -23,8 +23,8 @@ a compile error (verified during PHASE 000 by deleting a field and running `tsc`
 - Fixed width and UTC, so lexicographic order = chronological order, which makes them
   valid, correctly sorted IndexedDB index keys. Offsets (`+05:30`) and date-only
   strings are rejected by validation.
-- Used for: `createdAt`, `updatedAt`, `completedAt`, `processedAt`, `Task.dueAt`,
-  `Hackathon.registrationDeadline / eventStart / eventEnd`.
+- Used for: `createdAt`, `updatedAt`, `completedAt`, `processedAt`, `Task.dueAt`.
+  (Hackathon dates were timestamps until schema V3; they are now `LocalDate`s.)
 
 ### Date-only deadlines (`Task.dueAt`, ADR-016)
 
@@ -59,11 +59,11 @@ bump rather than overloading this one.
 
 ### Three kinds of date, kept apart
 
-| Concept            | Type                                    | Stored as                             | Used by                                                                 |
-| ------------------ | --------------------------------------- | ------------------------------------- | ----------------------------------------------------------------------- |
-| Instant            | `Timestamp`                             | ISO 8601 UTC (`toISOString()`)        | `createdAt`, `updatedAt`, `completedAt`, `processedAt`, hackathon dates |
-| Calendar day       | `LocalDate`                             | `YYYY-MM-DD` in the user's local zone | `Task.plannedFor`, `ProtectedTime.date`, `HabitEntry.date`              |
-| Date-only deadline | `Timestamp` by type, a _day_ by meaning | UTC noon of the chosen date (ADR-016) | `Task.dueAt`                                                            |
+| Concept            | Type                                    | Stored as                             | Used by                                                                          |
+| ------------------ | --------------------------------------- | ------------------------------------- | -------------------------------------------------------------------------------- |
+| Instant            | `Timestamp`                             | ISO 8601 UTC (`toISOString()`)        | `createdAt`, `updatedAt`, `completedAt`, `processedAt`                           |
+| Calendar day       | `LocalDate`                             | `YYYY-MM-DD` in the user's local zone | `Task.plannedFor`, `ProtectedTime.date`, `HabitEntry.date`, hackathon dates (V3) |
+| Date-only deadline | `Timestamp` by type, a _day_ by meaning | UTC noon of the chosen date (ADR-016) | `Task.dueAt`                                                                     |
 
 Never convert `plannedFor` or `ProtectedTime.date` into timestamps, and never read the
 day of a `dueAt` in local time. Comparisons with "today" always use today's
@@ -182,19 +182,23 @@ The unique compound index guarantees **at most one entry per habit per day** (te
   handful of records).
 - **Grid levels** (0–4) are computed for display and never stored (ADR-024, ADR-025).
 
-### Hackathon — store `hackathons`, indexes `status, registrationDeadline, eventStart`
+### Hackathon — store `hackathons`, indexes `status, registrationDeadline, eventStart` (repository since PHASE 004)
 
-| Field                                         | Type                                                     |
-| --------------------------------------------- | -------------------------------------------------------- |
-| id                                            | Id                                                       |
-| name                                          | string                                                   |
-| registrationDeadline?, eventStart?, eventEnd? | Timestamp                                                |
-| registrationStatus                            | `not_registered \| registered \| waitlisted \| rejected` |
-| pptStatus                                     | `not_needed \| not_started \| in_progress \| submitted`  |
-| buildStatus                                   | `not_started \| in_progress \| demo_ready \| submitted`  |
-| team?, problemStatement?, nextAction?, notes? | string                                                   |
-| status                                        | `considering \| active \| finished \| dropped`           |
-| createdAt, updatedAt                          | Timestamp                                                |
+| Field                                         | Type                                                     | Notes                                                           |
+| --------------------------------------------- | -------------------------------------------------------- | --------------------------------------------------------------- |
+| id                                            | Id                                                       |                                                                 |
+| name                                          | string                                                   | the only required input                                         |
+| registrationDeadline?, eventStart?, eventEnd? | LocalDate (V3; timestamps before)                        | `eventEnd` needs `eventStart`, not earlier                      |
+| registrationStatus                            | `not_registered \| registered \| waitlisted \| rejected` | default `not_registered`; UI says "Not selected" for `rejected` |
+| pptStatus                                     | `not_needed \| not_started \| in_progress \| submitted`  | default `not_started`                                           |
+| buildStatus                                   | `not_started \| in_progress \| demo_ready \| submitted`  | default `not_started`                                           |
+| team?, problemStatement?, nextAction?, notes? | string                                                   | trimmed; blank = omitted                                        |
+| status                                        | `considering \| active \| finished \| dropped`           | default `considering`; user-controlled only                     |
+| createdAt, updatedAt                          | Timestamp                                                |                                                                 |
+
+Hackathons are never deleted; finished and dropped keep every field. `nextAction` is
+plain text and is never turned into a task or completed automatically. Nothing about a
+hackathon touches habits or the activity grid.
 
 ### ProtectedTime — store `protectedTime`, index `date` (repository since PHASE 002)
 
@@ -210,7 +214,7 @@ The unique compound index guarantees **at most one entry per habit per day** (te
 
 - IndexedDB database name: `lowtide` (`DATABASE_NAME`). Never rename it — that would
   orphan existing data.
-- `SCHEMA_VERSION = 2` (PHASE 002). Version history:
+- `SCHEMA_VERSION = 3` (PHASE 004). Version history:
 
 | Version | Phase | Stores changed                              | Record changes                           | Upgrade function |
 | ------- | ----- | ------------------------------------------- | ---------------------------------------- | ---------------- |
@@ -223,7 +227,23 @@ builds it from existing records (none have the field, so the index starts empty)
 Nothing else changes: no record is rewritten, other stores and indexes are untouched,
 and V1 tasks validate against the V2 schema unchanged, because `plannedFor` is optional.
 Tested in `src/test/migration.test.ts` against a database created with a bare V1
-definition. Dexie stores versions ×10 internally, so browser devtools show
+definition.
+
+**V2 → V3 migration, exactly.** Dexie runs the version-3 upgrade over every
+`hackathons` record with `migrateHackathonToV3` (`src/db/migrations.ts`, pure). For each
+of `registrationDeadline`, `eventStart` and `eventEnd`:
+
+| Stored value                                    | After V3                                                                      |
+| ----------------------------------------------- | ----------------------------------------------------------------------------- |
+| absent                                          | absent                                                                        |
+| real `YYYY-MM-DD`                               | kept                                                                          |
+| ISO timestamp (`…T…Z` or `±hh:mm`)              | its **UTC** date component, e.g. `2026-10-04T01:00:00+05:30` → `2026-10-03`   |
+| anything else (text, numbers, impossible dates) | field removed; appended to `notes` as `[Moved by LOWTIDE upgrade] field: raw` |
+
+Afterwards, an `eventEnd` without an `eventStart`, or before it, is also moved to notes.
+Other stores and indexes are untouched. Tested in `src/test/migration-v3.test.ts`
+against a genuine V2 database, which also holds tasks with `plannedFor`, habits,
+entries and protected time; all of them survive unchanged. Dexie stores versions ×10 internally, so browser devtools show
 the native IndexedDB version as `10`.
 
 ## Migrations

@@ -25,7 +25,7 @@ like a well-kept paper notebook than a SaaS dashboard.
 | Money / business experiments | Lightweight tracking of experiments (modelled in a later phase).                   |
 | Protected time               | Time reserved for relationship, family, friends, rest — visible so it is defended. |
 
-## What works today (PHASE 003)
+## What works today (PHASE 004)
 
 - **Today** (`/`, first in the nav) answers "what about today?" at a glance:
   - the date, and a box to dump a thought (Enter saves). A quiet link says how many
@@ -58,6 +58,23 @@ like a well-kept paper notebook than a SaaS dashboard.
   - **Deliberately absent:** streak counts, "missed day" colours, scores, levels,
     badges, reminders and schedules. Rest days are just quiet squares. Relationships
     and protected time never appear here.
+- **Hackathons** (`/hackathons`) answer "which one is next, and what do I do for it?":
+  - Every event you're considering or in is a compact sheet:
+    - where it stands in time: "Registration due tomorrow", "Starts in 4 days",
+      "Happening now", with the dates;
+    - a prominent **Next:** line you can edit in place;
+    - Registration, PPT, Build and Status, each changeable with one select.
+  - Problem statement, team and notes are a click away. Adding one needs only a name
+    and a date.
+  - Sheets are ordered by what's next. Registration deadlines stop mattering once
+    you've registered.
+  - Finished and dropped hackathons move to a collapsed "Past" with everything kept.
+  - **Deliberately absent:** percentages, progress rings, Kanban, fetching event sites,
+    turning next actions into tasks automatically.
+- **Today** also shows up to three hackathons that genuinely need attention this week:
+  a pending registration that's overdue or due within 7 days, or an event starting
+  within 7 days or happening now. One line each, with the next action, and nothing when
+  nothing's near.
 - Copy stays calm and plain; empty states are quiet ("Nothing pressing today."), not
   celebrations or warnings.
 
