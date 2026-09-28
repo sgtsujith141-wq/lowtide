@@ -91,8 +91,10 @@ describe('Brain dump capture', () => {
     expect(composer()).toHaveFocus();
 
     await user.keyboard('{Enter}');
+    // The box clears at once (ADR-017); the error goes only after the write
+    // succeeds, so wait for that rather than assuming it's already done.
     await vi.waitFor(() => expect(composer()).toHaveValue(''));
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    await vi.waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
     expect((await repositories.inbox.listUnprocessed()).map((i) => i.content)).toEqual([
       'do not lose this',
     ]);
