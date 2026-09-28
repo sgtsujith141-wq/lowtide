@@ -1,5 +1,5 @@
 import { cleanup } from '@testing-library/react';
-import { afterEach, vi } from 'vitest';
+import { afterEach, expect, vi } from 'vitest';
 import { openDatabase, type LowtideDatabase } from '../db/database';
 import type { Watch } from '../db/repositories';
 import type { Clock } from '../lib/time';
@@ -53,4 +53,20 @@ export function recordWatch<T>(watch: Watch<T>) {
       });
     },
   };
+}
+
+/**
+ * Asserts focus, waiting for it: components move focus in effects that run
+ * just after render, so an element found by `findBy…` may not be focused yet
+ * at that instant (PHASE 006: two intermittent failures traced to this).
+ */
+export async function expectFocus(
+  target: Element | Promise<Element> | (() => Element | null),
+): Promise<void> {
+  if (typeof target === 'function') {
+    await vi.waitFor(() => expect(target()).toHaveFocus());
+    return;
+  }
+  const element = await target;
+  await vi.waitFor(() => expect(element).toHaveFocus());
 }

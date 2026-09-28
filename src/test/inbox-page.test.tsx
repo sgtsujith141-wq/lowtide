@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { createDexieRepositories, type Repositories } from '../db/repositories';
-import { setupTestDatabase, steppingClock } from './helpers';
+import { setupTestDatabase, steppingClock, expectFocus } from './helpers';
 import { renderApp } from './render';
 
 const newDb = setupTestDatabase();
@@ -43,7 +43,7 @@ describe('Inbox page', () => {
     );
     expect(within(list()).getByText('keep me')).toBeInTheDocument();
     // Focus moves to the item that took its place.
-    expect(within(items()[0]!).getByRole('button', { name: /^Make task: / })).toHaveFocus();
+    await expectFocus(() => within(items()[0]!).getByRole('button', { name: /^Make task: / }));
     const [task] = await repositories.tasks.listOpen();
     expect(task).toMatchObject({ title: 'Book the dentist', notes: 'after 5pm' });
 
@@ -57,7 +57,7 @@ describe('Inbox page', () => {
     await user.click(await screen.findByRole('button', { name: /^Clear: / }));
 
     expect(await screen.findByText(/Nothing waiting/)).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 1, name: 'Inbox' })).toHaveFocus();
+    await expectFocus(() => screen.getByRole('heading', { level: 1, name: 'Inbox' }));
     expect(await repositories.tasks.listOpen()).toEqual([]);
     const [stored] = await db.inbox.toArray();
     expect(stored).toMatchObject({ content: 'just venting', processedAt: expect.any(String) });

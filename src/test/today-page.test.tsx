@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createDexieRepositories, type Repositories } from '../db/repositories';
 import { addDays } from '../lib/calendar';
 import { deadlineFromLocalDate, toLocalDate } from '../lib/time';
-import { setupTestDatabase } from './helpers';
+import { setupTestDatabase, expectFocus } from './helpers';
 import { renderApp } from './render';
 
 const newDb = setupTestDatabase();
@@ -33,7 +33,7 @@ describe('Today page', () => {
         (_, el) => el?.tagName === 'TIME' && el.getAttribute('datetime') === today(),
       ),
     ).toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: 'What’s taking up space?' })).toHaveFocus();
+    await expectFocus(() => screen.getByRole('textbox', { name: 'What’s taking up space?' }));
     expect(
       within(region('Needs attention')).getByText('Nothing pressing today.'),
     ).toBeInTheDocument();
@@ -89,7 +89,7 @@ describe('Today page', () => {
     expect(
       await within(plan).findByRole('button', { name: 'Plan for today: Read chapter 4' }),
     ).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'My plan' })).toHaveFocus();
+    await expectFocus(() => screen.getByRole('heading', { name: 'My plan' }));
     const [kept] = await repositories.tasks.listOpen();
     expect(kept).toMatchObject({ title: 'Read chapter 4', status: 'todo' });
     expect(kept).not.toHaveProperty('plannedFor');
@@ -104,7 +104,7 @@ describe('Today page', () => {
     expect(
       screen.queryByRole('button', { name: 'Plan for today: Someday' }),
     ).not.toBeInTheDocument();
-    expect(toggle).toHaveFocus();
+    await expectFocus(() => toggle);
   });
 
   it('shows a task due and planned today once, and keeps it there when unplanned', async () => {
@@ -216,7 +216,7 @@ describe('Protected time this week on Today', () => {
     );
     const form = within(section).getByRole('form', { name: `Protect time on ${threeDaysWord}` });
     expect(within(form).getByLabelText('Day')).toHaveValue(inThree);
-    expect(within(form).getByLabelText('What’s it for?')).toHaveFocus();
+    await expectFocus(() => within(form).getByLabelText('What’s it for?'));
     await user.keyboard('Dinner with friends');
     await user.selectOptions(within(form).getByLabelText('Kind'), 'friends');
     await user.type(within(form).getByLabelText('Note (optional)'), 'the usual place{Enter}');
@@ -224,7 +224,7 @@ describe('Protected time this week on Today', () => {
     const edit = await within(section).findByRole('button', {
       name: `Edit Dinner with friends (${threeDaysWord})`,
     });
-    expect(edit).toHaveFocus();
+    await expectFocus(() => edit);
     expect(
       within(dayRow(new RegExp(`^${threeDaysWord}`))).getByText('Dinner with friends'),
     ).toBeInTheDocument();
@@ -245,7 +245,7 @@ describe('Protected time this week on Today', () => {
     const moved = await within(section).findByRole('button', {
       name: 'Edit Movie night (tomorrow)',
     });
-    expect(moved).toHaveFocus();
+    await expectFocus(() => moved);
     expect(within(dayRow(/^Tomorrow/)).getByText('Movie night')).toBeInTheDocument();
     const [stored] = await new Promise<
       { title: string; kind: string; date: string; notes?: string }[]
@@ -273,9 +273,9 @@ describe('Protected time this week on Today', () => {
         within(dayRow(/^Tomorrow/)).getByText('Nothing planned here yet.'),
       ).toBeInTheDocument(),
     );
-    expect(
+    await expectFocus(() =>
       within(section).getByRole('button', { name: 'Add protected time for tomorrow' }),
-    ).toHaveFocus();
+    );
   });
 
   it('requires a title and cancels with Escape, returning focus to that day', async () => {

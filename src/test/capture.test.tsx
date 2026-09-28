@@ -1,7 +1,7 @@
 import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { createDexieRepositories, type Repositories } from '../db/repositories';
-import { setupTestDatabase } from './helpers';
+import { setupTestDatabase, expectFocus } from './helpers';
 import { renderApp } from './render';
 
 const newDb = setupTestDatabase();
@@ -23,7 +23,7 @@ describe('Brain dump capture', () => {
       await screen.findByRole('link', { name: '1 thought waiting in your inbox' }),
     ).toHaveAttribute('href', '/inbox');
     expect(composer()).toHaveValue('');
-    expect(composer()).toHaveFocus();
+    await expectFocus(() => composer());
     expect((await repositories.inbox.listUnprocessed()).map((i) => i.content)).toEqual([
       'buy stamps',
     ]);
@@ -88,7 +88,7 @@ describe('Brain dump capture', () => {
     expect(composer()).toHaveValue('do not lose this');
     expect(composer()).toHaveAttribute('aria-invalid', 'true');
     expect(composer()).toHaveAccessibleDescription(/Couldn’t save that/);
-    expect(composer()).toHaveFocus();
+    await expectFocus(() => composer());
 
     await user.keyboard('{Enter}');
     // The box clears at once (ADR-017); the error goes only after the write

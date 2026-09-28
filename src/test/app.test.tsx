@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createDexieRepositories } from '../db/repositories';
-import { setupTestDatabase } from './helpers';
+import { setupTestDatabase, expectFocus } from './helpers';
 import { renderApp } from './render';
 
 const newDb = setupTestDatabase();
@@ -18,8 +18,8 @@ describe('App shell', () => {
         .map((l) => l.textContent),
     ).toEqual(['Today', 'Inbox', 'Tasks', 'Rhythm', 'Hackathons']);
     expect(screen.getByRole('heading', { level: 1, name: 'Today' })).toBeInTheDocument();
-    expect(screen.getByRole('textbox', { name: 'What’s taking up space?' })).toHaveFocus();
-    expect(document.title).toBe('Today · LOWTIDE');
+    await expectFocus(() => screen.getByRole('textbox', { name: 'What’s taking up space?' }));
+    await vi.waitFor(() => expect(document.title).toBe('Today · LOWTIDE')); // set in an effect
   });
 
   it('marks the current section and navigates between sections', async () => {
@@ -45,7 +45,7 @@ describe('App shell', () => {
   it('offers a skip link that moves focus to the main content', async () => {
     const { user } = await renderApp('/tasks', createDexieRepositories(newDb()));
     await user.click(screen.getByRole('link', { name: 'Skip to content' }));
-    expect(screen.getByRole('main')).toHaveFocus();
+    await expectFocus(() => screen.getByRole('main'));
   });
 
   it('shows a way home for unknown routes, inside the shell', async () => {

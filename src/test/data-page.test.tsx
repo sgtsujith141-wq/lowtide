@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createDexieRepositories, type Repositories } from '../db/repositories';
-import { setupTestDatabase } from './helpers';
+import { setupTestDatabase, expectFocus } from './helpers';
 import { renderApp } from './render';
 
 const newDb = setupTestDatabase();
@@ -144,7 +144,7 @@ describe('Data & backup page', () => {
     await user.upload(fileInput(), file(backupText, 'my-backup.json'));
 
     const heading = await screen.findByRole('heading', { level: 3, name: /^Backup from / });
-    expect(heading).toHaveFocus();
+    await expectFocus(() => heading);
     expect(screen.getByText(/my-backup\.json · Database version 3/)).toBeInTheDocument();
     const table = screen.getByRole('table', {
       name: 'Records in the backup and in this browser now',
@@ -174,7 +174,7 @@ describe('Data & backup page', () => {
     await user.click(restore);
 
     const status = await screen.findByText(/^Backup restored\./);
-    expect(status).toHaveFocus();
+    await expectFocus(() => status);
     expect((await db.tasks.toArray()).map((t) => t.title)).toEqual(['From the backup']);
     expect(await db.habits.count()).toBe(0);
     expect(await db.hackathons.count()).toBe(0);
@@ -207,7 +207,7 @@ describe('Data & backup page', () => {
     await user.upload(fileInput(), file(backupText));
     await screen.findByRole('heading', { level: 3 });
     await user.tab();
-    expect(screen.getByRole('checkbox')).toHaveFocus();
+    await expectFocus(() => screen.getByRole('checkbox'));
     await user.keyboard(' ');
     expect(screen.getByRole('button', { name: 'Restore backup' })).toBeEnabled();
     await user.click(screen.getByRole('button', { name: 'Cancel' }));

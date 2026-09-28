@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createDexieRepositories, type Repositories } from '../db/repositories';
 import { addDays } from '../lib/calendar';
 import { toLocalDate } from '../lib/time';
-import { setupTestDatabase } from './helpers';
+import { setupTestDatabase, expectFocus } from './helpers';
 import { renderApp } from './render';
 
 const newDb = setupTestDatabase();
@@ -49,7 +49,7 @@ describe('Hackathons page', () => {
 
     const article = await screen.findByRole('article', { name: 'Hackurity' });
     expect(within(article).getByText('Starts in 4 days')).toBeInTheDocument();
-    expect(within(article).getByRole('button', { name: 'Edit Hackurity' })).toHaveFocus();
+    await expectFocus(() => within(article).getByRole('button', { name: 'Edit Hackurity' }));
     expect(await db.hackathons.toArray()).toMatchObject([
       { name: 'Hackurity', eventStart: addDays(today(), 4), status: 'considering' },
     ]);
@@ -88,7 +88,7 @@ describe('Hackathons page', () => {
     await user.click(within(form).getByRole('button', { name: 'Save' }));
 
     const article = await screen.findByRole('article', { name: 'AI Build Week' });
-    expect(within(article).getByRole('button', { name: 'Edit AI Build Week' })).toHaveFocus();
+    await expectFocus(() => within(article).getByRole('button', { name: 'Edit AI Build Week' }));
     expect(within(article).getByText('Registration due tomorrow')).toBeInTheDocument();
     expect(within(article).getByText('Register team')).toBeInTheDocument();
     await user.click(within(article).getByText('Problem statement, Team, Notes'));
@@ -129,7 +129,7 @@ describe('Hackathons page', () => {
       'In progress',
     );
     // Controls stay enabled while saving, so keyboard focus isn't dropped.
-    expect(within(article).getByRole('combobox', { name: 'Build for Hackurity' })).toHaveFocus();
+    await expectFocus(() => within(article).getByRole('combobox', { name: 'Build for Hackurity' }));
     expect(within(article).getByRole('combobox', { name: 'Build for Hackurity' })).toBeEnabled();
     expect(await db.habitEntries.count()).toBe(0);
     expect(trap).not.toHaveBeenCalled();
@@ -185,7 +185,7 @@ describe('Hackathons page', () => {
       screen.getByRole('combobox', { name: 'Status for Old one' }),
       'active',
     );
-    expect(await screen.findByRole('button', { name: 'Edit Old one' })).toHaveFocus();
+    await expectFocus(screen.findByRole('button', { name: 'Edit Old one' }));
     expect(screen.queryByText(/^Past/)).not.toBeInTheDocument();
   });
 

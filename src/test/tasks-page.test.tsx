@@ -2,7 +2,7 @@ import { screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { createDexieRepositories, type Repositories } from '../db/repositories';
 import { deadlineFromLocalDate, toLocalDate } from '../lib/time';
-import { setupTestDatabase } from './helpers';
+import { setupTestDatabase, expectFocus } from './helpers';
 import { renderApp } from './render';
 
 const newDb = setupTestDatabase();
@@ -31,7 +31,7 @@ describe('Tasks page', () => {
 
     expect(await within(openList()).findByText('Renew passport')).toBeInTheDocument();
     expect(titleInput()).toHaveValue('');
-    expect(titleInput()).toHaveFocus();
+    await expectFocus(() => titleInput());
     expect((await repositories.tasks.listOpen())[0]).toMatchObject({
       title: 'Renew passport',
       priority: 'normal',

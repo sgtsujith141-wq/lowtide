@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createDexieRepositories, type Repositories } from '../db/repositories';
 import { addDays } from '../lib/calendar';
 import { toLocalDate } from '../lib/time';
-import { setupTestDatabase } from './helpers';
+import { setupTestDatabase, expectFocus } from './helpers';
 import { renderApp } from './render';
 
 const newDb = setupTestDatabase();
@@ -43,7 +43,7 @@ describe('Rhythm page', () => {
     await user.selectOptions(within(form).getByLabelText('Record as'), 'minutes');
     await user.type(within(form).getByLabelText('Daily target (optional)'), '60{Enter}');
 
-    expect(await screen.findByRole('button', { name: 'Edit Coding' })).toHaveFocus();
+    await expectFocus(screen.findByRole('button', { name: 'Edit Coding' }));
     // Name and details are separate words for assistive tech, not "CodingCoding".
     expect(screen.getByRole('button', { name: 'Edit Coding' }).closest('li')).toHaveTextContent(
       /^Coding Coding · 60 min a day$/,
@@ -79,7 +79,7 @@ describe('Rhythm page', () => {
 
     await user.click(toggle);
     await vi.waitFor(() => expect(toggle).toHaveAttribute('aria-pressed', 'true'));
-    expect(toggle).toHaveFocus();
+    await expectFocus(() => toggle);
     expect(toggle).toBeEnabled();
     expect(cell(today())).toHaveAccessibleName(/Gym done \(moderate activity across 1 habit\)/);
     expect(await db.habitEntries.toArray()).toMatchObject([{ date: today(), value: 1 }]);
@@ -112,7 +112,7 @@ describe('Rhythm page', () => {
     await user.click(within(todayLog()).getByRole('button', { name: 'Clear today’s Coding' }));
     await vi.waitFor(() => expect(cell(today())).toHaveAccessibleName(/nothing recorded/));
     expect(input).toHaveValue(null);
-    expect(input).toHaveFocus(); // the clear button disappears; focus stays in the row
+    await expectFocus(() => input); // the clear button disappears; focus stays in the row
     expect(await db.habitEntries.count()).toBe(0);
   });
 
@@ -189,7 +189,7 @@ describe('Rhythm page', () => {
     await user.type(within(form).getByLabelText('Name'), 'Deep work');
     await user.clear(within(form).getByLabelText('Daily target (optional)'));
     await user.click(within(form).getByRole('button', { name: 'Save' }));
-    expect(await screen.findByRole('button', { name: 'Edit Deep work' })).toHaveFocus();
+    await expectFocus(screen.findByRole('button', { name: 'Edit Deep work' }));
     const [habit] = await db.habits.toArray();
     expect(habit).toMatchObject({ name: 'Deep work', unit: 'minutes' });
     expect(habit).not.toHaveProperty('target');
@@ -207,23 +207,23 @@ describe('Rhythm page', () => {
 
     await user.click(screen.getByLabelText('Show'));
     await user.tab();
-    expect(cell(today())).toHaveFocus();
+    await expectFocus(() => cell(today()));
     await user.keyboard('{ArrowLeft}');
-    expect(cell(addDays(today(), -7))).toHaveFocus();
+    await expectFocus(() => cell(addDays(today(), -7)));
     await user.keyboard('{ArrowUp}');
-    expect(cell(addDays(today(), -8))).toHaveFocus();
+    await expectFocus(() => cell(addDays(today(), -8)));
     expect(grid.querySelectorAll('[tabindex="0"]')).toHaveLength(1);
     // The visible detail line follows focus.
     expect(
       screen.getByText(cell(addDays(today(), -8)).getAttribute('aria-label')!, { selector: 'p' }),
     ).toBeInTheDocument();
     await user.keyboard('{Home}');
-    expect(grid.querySelector('[tabindex="0"]')).toHaveFocus();
+    await expectFocus(() => grid.querySelector('[tabindex="0"]'));
     expect(grid.querySelector('[tabindex="0"]')).toBe(grid.querySelector('[role="gridcell"]'));
     await user.keyboard('{End}');
-    expect(cell(today())).toHaveFocus();
+    await expectFocus(() => cell(today()));
     await user.keyboard('{ArrowRight}'); // no future days: focus stays
-    expect(cell(today())).toHaveFocus();
+    await expectFocus(() => cell(today()));
   });
 
   it('has 7 weekday rows and about six months of squares', async () => {
