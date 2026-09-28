@@ -9,7 +9,7 @@ import { useToday } from '../../hooks/useToday';
 import { useWatch } from '../../hooks/useWatch';
 import type { Habit } from '../../types/domain';
 import { ActivityGrid } from './ActivityGrid';
-import { buildGrid, gridRange, type GridView } from './grid';
+import { buildGrid, gridRange, RHYTHM_GROUPS, type GridView } from './grid';
 import { HabitForm } from './HabitForm';
 import { HabitLogRow } from './HabitLogRow';
 import { CATEGORY_LABEL } from './labels';
@@ -55,13 +55,14 @@ export function RhythmPage() {
   const active = habitList.filter((h) => !h.archived);
   const archived = habitList.filter((h) => h.archived);
   const entryList = useMemo(() => (entries.status === 'ready' ? entries.data : []), [entries]);
-  const view = useMemo<GridView>(
-    () =>
-      viewId !== 'overall' && habitList.some((h) => h.id === viewId)
-        ? { kind: 'habit', habitId: viewId }
-        : { kind: 'overall' },
-    [viewId, habitList],
-  );
+  // The selector only changes the history grid; today's logging always lists
+  // every active rhythm (ADR-036).
+  const view = useMemo<GridView>(() => {
+    const group = RHYTHM_GROUPS.find((g) => `group:${g.id}` === viewId);
+    if (group) return { kind: 'group', groupId: group.id };
+    if (habitList.some((h) => h.id === viewId)) return { kind: 'habit', habitId: viewId };
+    return { kind: 'overall' };
+  }, [viewId, habitList]);
   const weeks = useMemo(
     () => buildGrid(today, habitList, entryList, view),
     [today, habitList, entryList, view],
@@ -69,7 +70,12 @@ export function RhythmPage() {
   const todayEntries = new Map(
     entryList.filter((e) => e.date === today).map((e) => [e.habitId, e]),
   );
-  const viewed = view.kind === 'habit' ? habitList.find((h) => h.id === view.habitId) : null;
+  const viewLabel =
+    view.kind === 'habit'
+      ? (habitList.find((h) => h.id === view.habitId)?.name ?? 'All rhythms')
+      : view.kind === 'group'
+        ? RHYTHM_GROUPS.find((g) => g.id === view.groupId)!.label
+        : 'All rhythms';
 
   // After a save, focus the habit's Edit button once the list shows it.
   useEffect(() => {
@@ -123,16 +129,33 @@ export function RhythmPage() {
               Show
               <select
                 id={selectId}
-                value={view.kind === 'overall' ? 'overall' : view.habitId}
+                value={
+                  view.kind === 'overall'
+                    ? 'overall'
+                    : view.kind === 'group'
+                      ? `group:${view.groupId}`
+                      : view.habitId
+                }
                 onChange={(e) => setViewId(e.target.value)}
                 className={`${fieldClass} w-auto py-1 text-sm`}
               >
                 <option value="overall">All rhythms</option>
-                {active.map((h) => (
-                  <option key={h.id} value={h.id}>
-                    {h.name}
-                  </option>
-                ))}
+                <optgroup label="Groups">
+                  {RHYTHM_GROUPS.map((g) => (
+                    <option key={g.id} value={`group:${g.id}`}>
+                      {g.label}
+                    </option>
+                  ))}
+                </optgroup>
+                {active.length > 0 && (
+                  <optgroup label="Rhythms">
+                    {active.map((h) => (
+                      <option key={h.id} value={h.id}>
+                        {h.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                )}
                 {archived.length > 0 && (
                   <optgroup label="Archived">
                     {archived.map((h) => (
@@ -145,11 +168,7 @@ export function RhythmPage() {
               </select>
             </label>
           </div>
-          <ActivityGrid
-            weeks={weeks}
-            today={today}
-            label={viewed ? `${viewed.name}, last six months` : 'All rhythms, last six months'}
-          />
+          <ActivityGrid weeks={weeks} today={today} label={`${viewLabel}, last six months`} />
         </section>
       )}
 

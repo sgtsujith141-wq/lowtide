@@ -235,3 +235,56 @@ describe('Rhythm page', () => {
     expect(cells.length).toBeLessThanOrEqual(26 * 7);
   });
 });
+
+describe('Rhythm category groups', () => {
+  it('shows a group grid while today’s logging still lists every active rhythm', async () => {
+    const { user } = await setup(async ({ habits }) => {
+      const coding = await habits.create({ name: 'Coding', category: 'coding', unit: 'check' });
+      const study = await habits.create({
+        name: 'Study session',
+        category: 'learning',
+        unit: 'check',
+      });
+      const gym = await habits.create({ name: 'Gym', category: 'fitness', unit: 'check' });
+      await habits.create({ name: 'Side project', category: 'money', unit: 'check' });
+      for (const h of [coding, study, gym]) await habits.setEntry(h.id, today(), 1);
+    });
+    const show = await screen.findByLabelText('Show');
+    expect(within(show).getByRole('group', { name: 'Groups' })).toHaveTextContent(
+      'Coding & learningFitness & health',
+    );
+
+    await user.selectOptions(show, 'group:coding-learning'); // by value: user-event compares innerHTML (&amp;)
+    expect(
+      screen.getByRole('grid', { name: 'Coding & learning, last six months' }),
+    ).toBeInTheDocument();
+    expect(cell(today())).toHaveAccessibleName(
+      /Coding done, Study session done \(strong activity across 2 habits\)$/,
+    );
+
+    await user.selectOptions(show, 'group:fitness-health');
+    expect(
+      screen.getByRole('grid', { name: 'Fitness & health, last six months' }),
+    ).toBeInTheDocument();
+    expect(cell(today())).toHaveAccessibleName(/Gym done \(moderate activity across 1 habit\)$/);
+
+    // The filter changes only the history grid.
+    for (const name of ['Coding', 'Study session', 'Gym', 'Side project']) {
+      expect(within(todayLog()).getByRole('button', { name })).toBeInTheDocument();
+    }
+    await user.click(within(todayLog()).getByRole('button', { name: 'Side project' }));
+    await vi.waitFor(() =>
+      expect(within(todayLog()).getByRole('button', { name: 'Side project' })).toHaveAttribute(
+        'aria-pressed',
+        'true',
+      ),
+    );
+    // Money isn't in Fitness & health, so the grid square is unchanged.
+    expect(cell(today())).toHaveAccessibleName(/Gym done \(moderate activity across 1 habit\)$/);
+
+    await user.selectOptions(show, 'All rhythms');
+    expect(cell(today())).toHaveAccessibleName(/across 4 habits\)$/);
+    await user.selectOptions(show, 'Gym');
+    expect(cell(today())).toHaveAccessibleName(/: done \(high\)$/);
+  });
+});
