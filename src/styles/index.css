@@ -33,8 +33,11 @@
   --lt-accent-ink: #2f6a65;
   --lt-accent-soft: #dbe9e5;
 
-  /* Status (muted on purpose; nothing shouts) */
-  --lt-warn: #a8712a;
+  /* Text/icons on an accent-ink fill (primary buttons) */
+  --lt-on-accent: #faf7f1;
+
+  /* Status (muted on purpose; nothing shouts). All ≥ 4.5:1 on every paper surface. */
+  --lt-warn: #8a5a1c;
   --lt-danger: #a4473b;
 
   --lt-focus: #3f7f7a;
@@ -54,6 +57,7 @@
     --lt-accent: #7bb8b0;
     --lt-accent-ink: #98cbc4;
     --lt-accent-soft: #24332f;
+    --lt-on-accent: #1f1d1a;
     --lt-warn: #d6a15a;
     --lt-danger: #d98474;
     --lt-focus: #7bb8b0;
@@ -73,6 +77,7 @@
   --lt-accent: #7bb8b0;
   --lt-accent-ink: #98cbc4;
   --lt-accent-soft: #24332f;
+  --lt-on-accent: #1f1d1a;
   --lt-warn: #d6a15a;
   --lt-danger: #d98474;
   --lt-focus: #7bb8b0;
@@ -91,6 +96,7 @@
   --color-accent: var(--lt-accent);
   --color-accent-ink: var(--lt-accent-ink);
   --color-accent-soft: var(--lt-accent-soft);
+  --color-on-accent: var(--lt-on-accent);
   --color-warn: var(--lt-warn);
   --color-danger: var(--lt-danger);
 

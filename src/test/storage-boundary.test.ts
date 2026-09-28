@@ -37,6 +37,12 @@ describe('storage boundary lint rule', () => {
     expect(await boundaryErrors('src/hooks/useProbe.ts', code)).toBe(1);
   });
 
+  it('blocks app code from persistence schemas', async () => {
+    expect(
+      await boundaryErrors('src/app/Probe.tsx', 'import { SCHEMA_VERSION } from "../db/schema";'),
+    ).toBe(1);
+  });
+
   it('blocks app code from the concrete database', async () => {
     expect(
       await boundaryErrors('src/app/Probe.tsx', 'import { openDatabase } from "../db/database";'),

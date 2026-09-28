@@ -1,9 +1,22 @@
 import type { RouteObject } from 'react-router';
-import { FoundationScreen } from './FoundationScreen';
+import { HomePage } from '../features/home/HomePage';
+import { InboxPage } from '../features/inbox/InboxPage';
+import { TasksPage } from '../features/tasks/TasksPage';
 import { NotFound } from './NotFound';
+import { RouteError } from './RouteError';
+import { Shell } from './Shell';
 
-/** Route table. Feature routes (today, inbox, tasks, …) are added here from PHASE 001. */
+/** Route table. Future sections (Today, habits, …) are added as Shell children. */
 export const routes: RouteObject[] = [
-  { path: '/', element: <FoundationScreen /> },
-  { path: '*', element: <NotFound /> },
+  {
+    path: '/',
+    element: <Shell />,
+    errorElement: <RouteError />,
+    children: [
+      { index: true, element: <HomePage /> },
+      { path: 'inbox', element: <InboxPage /> },
+      { path: 'tasks', element: <TasksPage /> },
+      { path: '*', element: <NotFound /> },
+    ],
+  },
 ];

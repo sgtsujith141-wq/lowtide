@@ -49,7 +49,7 @@ export default defineConfig([
     },
   },
   {
-    files: ['src/{features,components,hooks}/**/*.{ts,tsx}'],
+    files: ['src/{app,features,components,hooks}/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
         'error',
