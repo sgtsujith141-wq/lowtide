@@ -1,4 +1,9 @@
 import type {
+  BuildStatus,
+  Hackathon,
+  HackathonStatus,
+  PptStatus,
+  RegistrationStatus,
   Habit,
   HabitCategory,
   HabitEntry,
@@ -27,7 +32,7 @@ import type {
  * - Operations that need an existing record (`update`, `complete`, `reopen`,
  *   `drop`, `planFor`, `removeFromPlan`, `convertToTask`, `markProcessed`, and
  *   protected-time `update`/`remove`, habit `update`/`archive`/`restore`/
- *   `setEntry`/`clearEntry`) reject with `RecordNotFoundError`.
+ *   `setEntry`/`clearEntry`, hackathon `update`) reject with `RecordNotFoundError`.
  * - Operations not allowed in the record's current state (e.g. completing a
  *   dropped task, converting an already-processed inbox item) reject with
  *   `RecordStateError`.
@@ -197,9 +202,59 @@ export interface HabitRepository {
   watchEntries(start: LocalDate, end: LocalDate): Watch<HabitEntry[]>;
 }
 
+/** Only `name` is required; statuses default to considering / not registered / not started. */
+export interface NewHackathon {
+  name: string;
+  status?: HackathonStatus;
+  registrationDeadline?: LocalDate;
+  eventStart?: LocalDate;
+  eventEnd?: LocalDate;
+  registrationStatus?: RegistrationStatus;
+  pptStatus?: PptStatus;
+  buildStatus?: BuildStatus;
+  team?: string;
+  problemStatement?: string;
+  nextAction?: string;
+  notes?: string;
+}
+
+/** Omitted keys are left alone; `null` (or a blank string) removes an optional field. */
+export type HackathonChanges = {
+  name?: string;
+  status?: HackathonStatus;
+  registrationStatus?: RegistrationStatus;
+  pptStatus?: PptStatus;
+  buildStatus?: BuildStatus;
+} & {
+  [
+    K in
+      | 'registrationDeadline'
+      | 'eventStart'
+      | 'eventEnd'
+      | 'team'
+      | 'problemStatement'
+      | 'nextAction'
+      | 'notes'
+  ]?: string | null;
+};
+
+/**
+ * Hackathons as project sheets (ADR-027/028). Never deleted: finished and
+ * dropped keep everything. Dates are `LocalDate`s; `eventEnd` needs
+ * `eventStart` and can't be earlier (`InvalidInputError`). Nothing here
+ * touches habits or tasks.
+ */
+export interface HackathonRepository {
+  create(input: NewHackathon): Promise<Hackathon>;
+  update(id: Id, changes: HackathonChanges): Promise<Hackathon>;
+  /** Every hackathon, oldest first. Composition (sorting, Today) is pure and done by callers. */
+  watchAll: Watch<Hackathon[]>;
+}
+
 export interface Repositories {
   tasks: TaskRepository;
   inbox: InboxRepository;
   protectedTime: ProtectedTimeRepository;
   habits: HabitRepository;
+  hackathons: HackathonRepository;
 }

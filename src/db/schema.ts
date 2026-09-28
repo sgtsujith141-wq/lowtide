@@ -75,9 +75,9 @@ export const habitEntrySchema = z.object({
 export const hackathonSchema = z.object({
   id,
   name: text,
-  registrationDeadline: z.exactOptional(timestamp),
-  eventStart: z.exactOptional(timestamp),
-  eventEnd: z.exactOptional(timestamp),
+  registrationDeadline: z.exactOptional(localDate),
+  eventStart: z.exactOptional(localDate),
+  eventEnd: z.exactOptional(localDate),
   registrationStatus: z.enum(REGISTRATION_STATUSES),
   pptStatus: z.enum(PPT_STATUSES),
   buildStatus: z.enum(BUILD_STATUSES),
@@ -107,7 +107,7 @@ export const DATABASE_NAME = 'lowtide';
  * Current schema version. Bump it (never edit a shipped version) when the
  * store layout or record shape changes; see docs/DATA-MODEL.md#migrations.
  */
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 /**
  * Dexie store definitions for version 1. First entry is the primary key;
@@ -132,4 +132,13 @@ export const STORES_V1 = {
  */
 export const STORES_V2 = {
   tasks: 'id, status, dueAt, createdAt, plannedFor',
+} as const;
+
+/**
+ * Version 3 (PHASE 004): hackathon dates become `LocalDate` (ADR-027). The
+ * index layout is unchanged; the version exists to run the data upgrade in
+ * `migrations.ts` (`migrateHackathonToV3`).
+ */
+export const STORES_V3 = {
+  hackathons: 'id, status, registrationDeadline, eventStart',
 } as const;

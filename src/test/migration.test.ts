@@ -45,7 +45,7 @@ const v1Inbox = {
 };
 
 describe('schema V1 → V2 migration', () => {
-  it('opens a V1 database at V2 and keeps every V1 record unchanged and valid', async () => {
+  it('opens a V1 database at the current version and keeps every V1 record unchanged and valid', async () => {
     const name = await createV1Database(async (db) => {
       await db.table('tasks').bulkAdd([v1Task, v1DoneTask]);
       await db.table('inbox').add(v1Inbox);
@@ -53,8 +53,8 @@ describe('schema V1 → V2 migration', () => {
 
     const db = openDatabase(name);
     await db.open();
-    expect(SCHEMA_VERSION).toBe(2);
-    expect(db.verno).toBe(2);
+    // V1 → V2 → V3 run in order; V3 only rewrites hackathons (none here).
+    expect(db.verno).toBe(SCHEMA_VERSION);
 
     const stored = await db.tasks.get(v1Task.id);
     expect(stored).toEqual(v1Task);

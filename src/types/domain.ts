@@ -115,9 +115,11 @@ export type HackathonStatus = (typeof HACKATHON_STATUSES)[number];
 export interface Hackathon {
   id: Id;
   name: string;
-  registrationDeadline?: Timestamp;
-  eventStart?: Timestamp;
-  eventEnd?: Timestamp;
+  /** Calendar days, not instants (schema V3, ADR-027). Exact times go in `notes`. */
+  registrationDeadline?: LocalDate;
+  eventStart?: LocalDate;
+  /** Not before `eventStart`; only set together with `eventStart`. */
+  eventEnd?: LocalDate;
   registrationStatus: RegistrationStatus;
   pptStatus: PptStatus;
   buildStatus: BuildStatus;

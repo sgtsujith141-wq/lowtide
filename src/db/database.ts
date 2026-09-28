@@ -1,6 +1,7 @@
 import { Dexie, type EntityTable } from 'dexie';
 import type { Habit, HabitEntry, Hackathon, InboxItem, ProtectedTime, Task } from '../types/domain';
-import { DATABASE_NAME, STORES_V1, STORES_V2 } from './schema';
+import { migrateHackathonToV3 } from './migrations';
+import { DATABASE_NAME, STORES_V1, STORES_V2, STORES_V3 } from './schema';
 
 /**
  * The LOWTIDE IndexedDB database.
@@ -22,6 +23,17 @@ export class LowtideDatabase extends Dexie {
     this.version(1).stores(STORES_V1);
     // V2: + tasks.plannedFor index. No upgrade(): existing tasks stay valid as-is.
     this.version(2).stores(STORES_V2);
+    // V3: hackathon dates become LocalDate. Same indexes; rewrites records.
+    this.version(3)
+      .stores(STORES_V3)
+      .upgrade((tx) =>
+        tx
+          .table('hackathons')
+          .toCollection()
+          .modify((record: Record<string, unknown>, ref: { value: unknown }) => {
+            ref.value = migrateHackathonToV3(record);
+          }),
+      );
   }
 }
 
