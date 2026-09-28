@@ -14,7 +14,7 @@ async function setup(
   const base = createDexieRepositories(newDb());
   await seed?.(base);
   const repositories = override ? override(base) : base;
-  const rendered = renderApp('/tasks', repositories);
+  const rendered = await renderApp('/tasks', repositories);
   await screen.findByRole('heading', { name: /^Open/ });
   return { repositories, ...rendered };
 }

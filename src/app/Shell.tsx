@@ -1,8 +1,8 @@
-import { House, Inbox, ListTodo, Waves, type LucideIcon } from 'lucide-react';
+import { Inbox, ListTodo, Sun, Waves, type LucideIcon } from 'lucide-react';
 import { NavLink, Outlet } from 'react-router';
 
 const NAV: { to: string; label: string; icon: LucideIcon }[] = [
-  { to: '/', label: 'Home', icon: House },
+  { to: '/', label: 'Today', icon: Sun },
   { to: '/inbox', label: 'Inbox', icon: Inbox },
   { to: '/tasks', label: 'Tasks', icon: ListTodo },
 ];

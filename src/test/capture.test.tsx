@@ -1,4 +1,4 @@
-import { fireEvent, screen, within } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { createDexieRepositories, type Repositories } from '../db/repositories';
 import { setupTestDatabase } from './helpers';
@@ -7,20 +7,21 @@ import { renderApp } from './render';
 const newDb = setupTestDatabase();
 const composer = () => screen.getByRole('textbox', { name: 'What’s taking up space?' });
 
-function setup(override?: (repos: Repositories) => Repositories) {
+async function setup(override?: (repos: Repositories) => Repositories) {
   const db = newDb();
   const base = createDexieRepositories(db);
   const repositories = override ? override(base) : base;
-  return { db, repositories, ...renderApp('/', repositories) };
+  return { db, repositories, ...(await renderApp('/', repositories)) };
 }
 
 describe('Brain dump capture', () => {
-  it('saves on Enter, clears, keeps focus, and shows the thought reactively', async () => {
-    const { user, repositories } = setup();
+  it('saves on Enter, clears, keeps focus, and the inbox link updates reactively', async () => {
+    const { user, repositories } = await setup();
     await user.type(composer(), 'buy stamps{Enter}');
 
-    const waiting = await screen.findByRole('region', { name: 'Waiting in your inbox' });
-    expect(within(waiting).getByText('buy stamps')).toBeInTheDocument();
+    expect(
+      await screen.findByRole('link', { name: '1 thought waiting in your inbox' }),
+    ).toHaveAttribute('href', '/inbox');
     expect(composer()).toHaveValue('');
     expect(composer()).toHaveFocus();
     expect((await repositories.inbox.listUnprocessed()).map((i) => i.content)).toEqual([
@@ -28,39 +29,41 @@ describe('Brain dump capture', () => {
     ]);
 
     await user.type(composer(), 'call the bank{Enter}');
-    await within(waiting).findByText('call the bank');
+    expect(
+      await screen.findByRole('link', { name: '2 thoughts waiting in your inbox' }),
+    ).toBeInTheDocument();
     expect(await repositories.inbox.countUnprocessed()).toBe(2);
   });
 
   it('inserts a newline on Shift+Enter without saving', async () => {
-    const { user, repositories } = setup();
+    const { user, repositories } = await setup();
     await user.type(composer(), 'first line{Shift>}{Enter}{/Shift}second line');
     expect(composer()).toHaveValue('first line\nsecond line');
     expect(await repositories.inbox.countUnprocessed()).toBe(0);
 
     await user.keyboard('{Enter}');
-    await screen.findByText(/first line/);
+    await screen.findByRole('link', { name: /waiting in your inbox/ });
     expect((await repositories.inbox.listUnprocessed())[0]?.content).toBe(
       'first line\nsecond line',
     );
   });
 
   it('also saves on Cmd+Enter and Ctrl+Enter', async () => {
-    const { user, repositories } = setup();
+    const { user, repositories } = await setup();
     await user.type(composer(), 'one{Meta>}{Enter}{/Meta}');
     await user.type(composer(), 'two{Control>}{Enter}{/Control}');
     await vi.waitFor(async () => expect(await repositories.inbox.countUnprocessed()).toBe(2));
   });
 
   it('does nothing for whitespace-only input', async () => {
-    const { user, repositories } = setup();
+    const { user, repositories } = await setup();
     await user.type(composer(), '   {Enter}');
     expect(await repositories.inbox.countUnprocessed()).toBe(0);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
 
   it('does not save while an IME composition is in progress', async () => {
-    const { user, repositories } = setup();
+    const { user, repositories } = await setup();
     await user.type(composer(), 'にほん');
     fireEvent.keyDown(composer(), { key: 'Enter', isComposing: true });
     fireEvent.keyDown(composer(), { key: 'Enter', keyCode: 229 });
@@ -71,7 +74,7 @@ describe('Brain dump capture', () => {
 
   it('keeps the draft and says so when saving fails, then saves on retry', async () => {
     const capture = vi.fn();
-    const { user, repositories } = setup((repos) => {
+    const { user, repositories } = await setup((repos) => {
       capture
         .mockRejectedValueOnce(new Error('QuotaExceededError'))
         .mockImplementation(repos.inbox.capture);
@@ -96,7 +99,7 @@ describe('Brain dump capture', () => {
   });
 
   it('keeps rapid captures separate and in order while saves are still in flight', async () => {
-    const { user, repositories } = setup((repos) => {
+    const { user, repositories } = await setup((repos) => {
       const slow = async (text: string) => {
         await new Promise((resolve) => setTimeout(resolve, 40));
         return repos.inbox.capture(text);
@@ -119,7 +122,7 @@ describe('Brain dump capture', () => {
 
   it('puts a failed thought back ahead of anything typed since', async () => {
     const capture = vi.fn();
-    const { user } = setup((repos) => {
+    const { user } = await setup((repos) => {
       capture.mockImplementationOnce(async () => {
         await new Promise((resolve) => setTimeout(resolve, 40));
         throw new Error('disk full');

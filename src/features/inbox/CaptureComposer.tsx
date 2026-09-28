@@ -57,9 +57,9 @@ export function CaptureComposer({ autoFocus = false }: { autoFocus?: boolean }) 
 
   return (
     <form onSubmit={onSubmit}>
-      <h1 className="mb-2 font-serif text-xl font-semibold tracking-tight">
+      <h2 className="mb-1.5 text-sm font-medium text-ink-muted">
         <label htmlFor={`${id}-text`}>What’s taking up space?</label>
-      </h1>
+      </h2>
       <textarea
         ref={textarea}
         id={`${id}-text`}
@@ -67,11 +67,11 @@ export function CaptureComposer({ autoFocus = false }: { autoFocus?: boolean }) 
         onChange={(event) => setDraft(event.target.value)}
         onKeyDown={onKeyDown}
         autoFocus={autoFocus}
-        rows={3}
+        rows={2}
         placeholder="Anything. It goes to your inbox; sort it out later."
         aria-describedby={failed ? `${id}-error` : `${id}-hint`}
         aria-invalid={failed || undefined}
-        className={`${fieldClass} max-h-[40vh] min-h-[5.5rem] resize-none text-base leading-relaxed [field-sizing:content]`}
+        className={`${fieldClass} max-h-[40vh] min-h-[4rem] resize-none text-base leading-relaxed [field-sizing:content]`}
       />
       <div className="mt-1.5 flex items-center justify-between gap-3">
         <p id={`${id}-hint`} className="text-xs text-ink-muted">

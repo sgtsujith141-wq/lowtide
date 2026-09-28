@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, ComponentProps, ReactNode } from 'react';
 
 const base =
   'inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md px-2.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50';
@@ -9,7 +9,7 @@ const variants = {
   ghost: 'text-ink-muted hover:bg-paper-sunken hover:text-ink',
 } as const;
 
-type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
+type ButtonProps = ComponentProps<'button'> & {
   variant?: keyof typeof variants;
 };
 

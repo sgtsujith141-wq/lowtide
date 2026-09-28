@@ -2,7 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createBrowserRouter } from 'react-router';
 import { App } from './app/App';
-import { routes } from './app/routes';
+import { prefetchScreens, routes } from './app/routes';
 import { openDatabase } from './db/database';
 import { createDexieRepositories } from './db/repositories';
 import './styles/index.css';
@@ -19,3 +19,7 @@ createRoot(root).render(
     <App repositories={repositories} router={router} />
   </StrictMode>,
 );
+
+// Warm the other screens once the first one is up, so switching is instant.
+const idle = window.requestIdleCallback ?? ((callback: () => void) => setTimeout(callback, 200));
+idle(() => prefetchScreens());

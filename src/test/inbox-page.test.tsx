@@ -11,7 +11,7 @@ async function setup(thoughts: string[], override?: (r: Repositories) => Reposit
   const base = createDexieRepositories(db, { clock: steppingClock() });
   for (const t of thoughts) await base.inbox.capture(t);
   const repositories = override ? override(base) : base;
-  return { db, repositories, ...renderApp('/inbox', repositories) };
+  return { db, repositories, ...(await renderApp('/inbox', repositories)) };
 }
 
 const list = () => screen.getByRole('list', { name: 'Inbox items' });
