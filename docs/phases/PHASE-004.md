@@ -4,12 +4,16 @@
 - **Status:** Complete (see "Tests actually run" and "Browser verification actually run")
 - **Starting point:** `890ad37` (verified: local `HEAD` = `origin/main`, clean tree).
   Baseline `npm run check` passed: 20 files, 218 tests, entry 443.95 kB, 19.8 s total.
-- **Commits:**
+- **Commits (in order):**
   - `cd5dab6` — `feat(data): hackathon repository and schema v3 LocalDate migration`
   - `35c4e3a` — `fix(a11y): keep Rhythm logging controls focused while saving`
   - `868c4b1` — `feat(hackathons): hackathon sheets, ordering, and a small Today section`
-  - a follow-up `docs(phase-004): …` commit containing this report. It can't record its
-    own SHA; find it with `git log --oneline -- docs/phases/PHASE-004.md`.
+  - `adb607e` — `fix(test): wait for the capture error to clear instead of racing the write`
+  - `8714c1d` — `docs(phase-004): document hackathons, schema v3 and Today relevance`
+  - `28492a5` — `fix(test): fail the capture save on cue instead of after a fixed delay`
+    (found while locking the phase; see "Finalization")
+  - a final `docs(phase-004): record final test fixes` commit that corrects this list
+    (find it with `git log --oneline -- docs/phases/PHASE-004.md`).
 
 `cd5dab6` was verified on its own (typecheck, lint, 234 tests, build), and so was
 `35c4e3a` (typecheck, lint, 234 tests). `868c4b1` is exactly the tree that passed the
@@ -66,7 +70,9 @@ It's not a dashboard, a task list or a habit.
   `src/db/repositories/{types,index}.ts`
 - **App:** `src/app/{routes,Shell}.tsx`, `src/features/today/TodayPage.tsx`
 - **Focus fix:** `src/features/rhythm/HabitLogRow.tsx`
-- **Tests:** `src/test/{app,rhythm-page}.test.tsx`, `src/test/migration.test.ts`
+- **Tests:** `src/test/{app,rhythm-page,capture}.test.tsx`, `src/test/migration.test.ts`
+  (`capture.test.tsx`: the racing retry assertion, fixed in `adb607e`, and the
+  fixed-delay failure, fixed in `28492a5`)
 - **Docs:** `README.md` and `docs/{ARCHITECTURE,DATA-MODEL,DECISIONS,PRODUCT,ROADMAP,CHANGELOG,TESTING,SECURITY}.md`.
   `SETUP.md` is unchanged because setup didn't change.
 
@@ -336,6 +342,27 @@ after saving.
 The entry grew 3.8 kB: the hackathon repository and V3 migration (the data layer lives
 in the entry). The hackathon UI and scheduling logic are lazy. Today's `TodayHackathons`
 imports `schedule.ts`, adding about 1 kB to the Today chunk.
+
+## Finalization (phase lock)
+
+Before locking, the docs correction's `npm run check` failed one test once at normal
+speed. The failing name hadn't been captured, so the check was repeated six times with
+full output, and all six passed. The suite was then run with `tsc --force` and ESLint
+in parallel to add load, which reproduced it: "puts a failed thought back ahead of
+anything typed since" (`capture.test.tsx`).
+
+That test failed the save after a fixed 40 ms and assumed typing would finish first.
+Under load the failure landed mid-typing, and user-event overwrote the restored text
+from its own tracked value. The app restores with a functional state update, so this
+was a test assumption, not an app bug. `28492a5` makes the save fail on cue after the
+typing. Afterwards:
+
+- 4 loaded runs: the capture test passed every time;
+- 3 consecutive normal `npm run check` runs: 278/278 each.
+
+Two of the loaded runs also timed out 8 first-render tests at about 5.2 s against
+`renderApp`'s 5 s wait. That was the deliberate CPU starvation, not a race, and it
+doesn't occur in normal runs. No timeout was changed; `testTimeout` stays 15 s.
 
 ## Next phase
 

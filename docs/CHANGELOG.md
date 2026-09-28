@@ -22,6 +22,10 @@ app's `package.json` version.
 
 ### Fixed (PHASE 004)
 
+- A flaky PHASE 001 test: the capture retry test asserted the error was gone before the
+  write finished. It now waits for the error to clear (`adb607e`).
+- Another flaky capture test failed the save after a fixed 40 ms, which could land
+  mid-typing under load. The save now fails on cue after typing (`28492a5`).
 - Rhythm logging controls were disabled while saving, which drops keyboard focus in
   Chromium. They now stay enabled, and focus moves to the amount field after clearing
   (ADR-030).
