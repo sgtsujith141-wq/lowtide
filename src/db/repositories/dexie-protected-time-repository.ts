@@ -11,6 +11,16 @@ function optionalText(value: string | null | undefined): string | undefined {
 export function createDexieProtectedTimeRepository(deps: RepositoryDeps): ProtectedTimeRepository {
   const { db, newId } = resolveDeps(deps);
 
+  const range = (start: string, end: string) =>
+    watchQuery(async () =>
+      (await db.protectedTime.where('date').between(start, end, true, true).toArray()).sort(
+        (a, b) =>
+          a.date.localeCompare(b.date) ||
+          a.title.localeCompare(b.title) ||
+          a.id.localeCompare(b.id),
+      ),
+    );
+
   return {
     async create(input) {
       const entry = protectedTimeSchema.parse(
@@ -49,11 +59,11 @@ export function createDexieProtectedTimeRepository(deps: RepositoryDeps): Protec
     },
 
     watchForDate(date) {
-      return watchQuery(async () =>
-        (await db.protectedTime.where('date').equals(date).toArray()).sort(
-          (a, b) => a.title.localeCompare(b.title) || a.id.localeCompare(b.id),
-        ),
-      );
+      return range(date, date);
+    },
+
+    watchRange(start, end) {
+      return range(start, end);
     },
   };
 }

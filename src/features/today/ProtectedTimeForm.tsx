@@ -2,23 +2,29 @@ import { useId, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { Button } from '../../components/ui/Button';
 import { ErrorNotice } from '../../components/ui/Notice';
 import { fieldClass, labelClass } from '../../components/ui/styles';
-import { PROTECTED_TIME_KINDS, type ProtectedTimeKind } from '../../types/domain';
+import { PROTECTED_TIME_KINDS, type LocalDate, type ProtectedTimeKind } from '../../types/domain';
 import { KIND_LABEL } from './protected-time-kinds';
 
 export interface ProtectedTimeDraft {
   title: string;
+  date: LocalDate;
   kind: ProtectedTimeKind;
   notes: string;
 }
 
-/** Add/edit form for protected time. Escape cancels. */
+/** Add/edit form for protected time, with a Day choice across the week. Escape cancels. */
 export function ProtectedTimeForm({
   initial,
+  days,
+  formLabel,
   submitLabel,
   onSave,
   onCancel,
 }: {
   initial: ProtectedTimeDraft;
+  /** Days the entry can be placed on (this week). */
+  days: readonly { date: LocalDate; heading: string; short: string }[];
+  formLabel: string;
   submitLabel: string;
   /** Resolves when saved; rejects to keep the form open with an error. */
   onSave: (draft: ProtectedTimeDraft) => Promise<void>;
@@ -53,8 +59,8 @@ export function ProtectedTimeForm({
       onSubmit={onSubmit}
       onKeyDown={onKeyDown}
       noValidate
-      aria-label={submitLabel === 'Save' ? `Edit protected time: ${initial.title}` : 'Protect time'}
-      className="my-2 grid gap-3 rounded-md bg-paper-sunken p-2 sm:grid-cols-[1fr_10rem]"
+      aria-label={formLabel}
+      className="my-2 grid gap-3 rounded-md bg-paper-sunken p-2 sm:grid-cols-[1fr_11rem_9rem]"
     >
       <div>
         <label htmlFor={`${id}-title`} className={labelClass}>
@@ -76,6 +82,23 @@ export function ProtectedTimeForm({
         />
       </div>
       <div>
+        <label htmlFor={`${id}-date`} className={labelClass}>
+          Day
+        </label>
+        <select
+          id={`${id}-date`}
+          value={draft.date}
+          onChange={(e) => setDraft({ ...draft, date: e.target.value })}
+          className={`${fieldClass} text-sm`}
+        >
+          {days.map((day) => (
+            <option key={day.date} value={day.date}>
+              {day.heading} · {day.short}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div>
         <label htmlFor={`${id}-kind`} className={labelClass}>
           Kind
         </label>
@@ -92,7 +115,7 @@ export function ProtectedTimeForm({
           ))}
         </select>
       </div>
-      <div className="sm:col-span-2">
+      <div className="sm:col-span-3">
         <label htmlFor={`${id}-notes`} className={labelClass}>
           Note (optional)
         </label>
@@ -105,13 +128,13 @@ export function ProtectedTimeForm({
         />
       </div>
       {error && (
-        <div className="sm:col-span-2">
+        <div className="sm:col-span-3">
           <ErrorNotice id={`${id}-error`}>
             {error === 'empty' ? 'Give it a short title.' : 'Couldn’t save that. It’s still here.'}
           </ErrorNotice>
         </div>
       )}
-      <div className="flex justify-end gap-2 sm:col-span-2">
+      <div className="flex justify-end gap-2 sm:col-span-3">
         <Button variant="ghost" onClick={onCancel}>
           Cancel
         </Button>

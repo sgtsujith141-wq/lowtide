@@ -1,6 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { createDexieRepositories, type Repositories } from '../db/repositories';
+import { addDays } from '../lib/calendar';
 import { deadlineFromLocalDate, toLocalDate } from '../lib/time';
 import { setupTestDatabase } from './helpers';
 import { renderApp } from './render';
@@ -38,8 +39,8 @@ describe('Today page', () => {
     ).toBeInTheDocument();
     expect(within(region('My plan')).getByText('Nothing else planned.')).toBeInTheDocument();
     expect(
-      await within(region('Protected time')).findByText('Nothing protected yet.'),
-    ).toBeInTheDocument();
+      await within(region('Protected time')).findAllByText('Nothing planned here yet.'),
+    ).toHaveLength(7);
   });
 
   it('shows overdue and due-today tasks under Needs attention, but not future ones', async () => {
@@ -175,62 +176,114 @@ describe('Today page', () => {
   });
 });
 
-describe('Protected time on Today', () => {
-  it('adds, edits and removes an entry with the keyboard, with no completion controls', async () => {
+describe('Protected time this week on Today', () => {
+  const week = () => screen.getByRole('list', { name: 'Protected time this week' });
+  const dayRow = (heading: RegExp | string) =>
+    within(week()).getByRole('listitem', { name: heading });
+
+  it('shows exactly today and the next six days, calmly empty', async () => {
+    await setup();
+    const section = region('Protected time');
+    await within(section).findByRole('list', { name: 'Protected time this week' });
+    const headings = within(week()).getAllByRole('heading', { level: 3 });
+    expect(headings).toHaveLength(7);
+    expect(headings[0]).toHaveTextContent(/^Today/);
+    expect(headings[1]).toHaveTextContent(/^Tomorrow/);
+    expect(within(section).getAllByText('Nothing planned here yet.')).toHaveLength(7);
+    // Every day has exactly one uniquely named add button.
+    const addButtons = within(section).getAllByRole('button', { name: /^Add protected time for / });
+    expect(new Set(addButtons.map((b) => b.getAttribute('aria-label'))).size).toBe(7);
+    expect(
+      within(section).getByRole('button', { name: 'Add protected time for today' }),
+    ).toBeInTheDocument();
+    expect(
+      within(section).queryByText(/goal|target|streak|completed|missed|score|\d+\/\d+/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it('adds on a future day, edits, moves and removes by keyboard, with no completion controls', async () => {
     const { user, repositories } = await setup();
     const section = region('Protected time');
+    const inThree = addDays(today(), 3);
+    const threeDaysWord = within(
+      await within(section).findByRole('list', { name: 'Protected time this week' }),
+    )
+      .getAllByRole('heading', { level: 3 })[3]!
+      .textContent!.match(/^[A-Za-z]+/)![0];
 
-    await user.click(within(section).getByRole('button', { name: 'Protect time' }));
-    const form = within(section).getByRole('form', { name: 'Protect time' });
+    await user.click(
+      within(section).getByRole('button', { name: `Add protected time for ${threeDaysWord}` }),
+    );
+    const form = within(section).getByRole('form', { name: `Protect time on ${threeDaysWord}` });
+    expect(within(form).getByLabelText('Day')).toHaveValue(inThree);
     expect(within(form).getByLabelText('What’s it for?')).toHaveFocus();
-    await user.keyboard('Dinner together');
-    await user.selectOptions(within(form).getByLabelText('Kind'), 'relationship');
-    await user.type(within(form).getByLabelText('Note (optional)'), 'no phones{Enter}');
+    await user.keyboard('Dinner with friends');
+    await user.selectOptions(within(form).getByLabelText('Kind'), 'friends');
+    await user.type(within(form).getByLabelText('Note (optional)'), 'the usual place{Enter}');
 
-    const list = await within(section).findByRole('list', { name: 'Protected time today' });
-    expect(within(list).getByText('Dinner together')).toBeInTheDocument();
-    expect(within(list).getByText(/Relationship/)).toBeInTheDocument();
-    expect(within(list).getByRole('button', { name: 'Edit: Dinner together' })).toHaveFocus();
-    // Protected time is not a task: nothing to tick off, nothing counted.
+    const edit = await within(section).findByRole('button', {
+      name: `Edit Dinner with friends (${threeDaysWord})`,
+    });
+    expect(edit).toHaveFocus();
+    expect(
+      within(dayRow(new RegExp(`^${threeDaysWord}`))).getByText('Dinner with friends'),
+    ).toBeInTheDocument();
     expect(within(section).queryByRole('checkbox')).not.toBeInTheDocument();
     expect(
       within(section).queryByRole('button', { name: /complete|done/i }),
     ).not.toBeInTheDocument();
-    expect(within(section).queryByText(/goal|streak|target|completed/i)).not.toBeInTheDocument();
 
-    await user.keyboard('{Enter}'); // opens the editor from the focused Edit button
+    // Edit and move it to tomorrow through the same form.
+    await user.keyboard('{Enter}');
     const editor = within(section).getByRole('form', {
-      name: 'Edit protected time: Dinner together',
+      name: 'Edit protected time: Dinner with friends',
     });
     await user.clear(within(editor).getByLabelText('What’s it for?'));
     await user.type(within(editor).getByLabelText('What’s it for?'), 'Movie night');
-    await user.selectOptions(within(editor).getByLabelText('Kind'), 'friends');
+    await user.selectOptions(within(editor).getByLabelText('Day'), addDays(today(), 1));
     await user.click(within(editor).getByRole('button', { name: 'Save' }));
-    expect(await within(section).findByText('Movie night')).toBeInTheDocument();
-    const [entry] = await new Promise<{ title: string; kind: string; date: string }[]>(
-      (resolve) => {
-        const stop = repositories.protectedTime.watchForDate(today())((l) => {
-          stop();
-          resolve(l);
-        });
-      },
-    );
-    expect(entry).toMatchObject({
+    const moved = await within(section).findByRole('button', {
+      name: 'Edit Movie night (tomorrow)',
+    });
+    expect(moved).toHaveFocus();
+    expect(within(dayRow(/^Tomorrow/)).getByText('Movie night')).toBeInTheDocument();
+    const [stored] = await new Promise<
+      { title: string; kind: string; date: string; notes?: string }[]
+    >((resolve) => {
+      const stop = repositories.protectedTime.watchRange(
+        today(),
+        addDays(today(), 6),
+      )((l) => {
+        stop();
+        resolve(l);
+      });
+    });
+    expect(stored).toMatchObject({
       title: 'Movie night',
       kind: 'friends',
-      date: today(),
-      notes: 'no phones',
+      date: addDays(today(), 1),
+      notes: 'the usual place',
     });
 
-    await user.click(within(section).getByRole('button', { name: 'Remove: Movie night' }));
-    expect(await within(section).findByText('Nothing protected yet.')).toBeInTheDocument();
-    expect(within(section).getByRole('button', { name: 'Protect time' })).toHaveFocus();
+    await user.click(
+      within(section).getByRole('button', { name: 'Remove Movie night (tomorrow)' }),
+    );
+    await vi.waitFor(() =>
+      expect(
+        within(dayRow(/^Tomorrow/)).getByText('Nothing planned here yet.'),
+      ).toBeInTheDocument(),
+    );
+    expect(
+      within(section).getByRole('button', { name: 'Add protected time for tomorrow' }),
+    ).toHaveFocus();
   });
 
-  it('requires a title and cancels with Escape', async () => {
+  it('requires a title and cancels with Escape, returning focus to that day', async () => {
     const { user } = await setup();
     const section = region('Protected time');
-    await user.click(within(section).getByRole('button', { name: 'Protect time' }));
+    await user.click(
+      await within(section).findByRole('button', { name: 'Add protected time for today' }),
+    );
     await user.click(within(section).getByRole('button', { name: 'Add' }));
     expect(await within(section).findByRole('alert')).toHaveTextContent('Give it a short title.');
     expect(within(section).getByLabelText('What’s it for?')).toHaveAccessibleDescription(
@@ -238,16 +291,44 @@ describe('Protected time on Today', () => {
     );
     await user.keyboard('{Escape}');
     expect(within(section).queryByRole('form')).not.toBeInTheDocument();
+    await vi.waitFor(() =>
+      expect(
+        within(section).getByRole('button', { name: 'Add protected time for today' }),
+      ).toHaveFocus(),
+    );
   });
 
-  it('shows only today’s entries', async () => {
+  it('shows entries across the week and nothing beyond it; each kind stays protected time', async () => {
     await setup(async ({ protectedTime }) => {
       await protectedTime.create({ title: 'Call home', date: today(), kind: 'family' });
-      await protectedTime.create({ title: 'Tomorrow’s walk', date: inDays(1), kind: 'rest' });
+      await protectedTime.create({
+        title: 'Evening together',
+        date: today(),
+        kind: 'relationship',
+      });
+      await protectedTime.create({
+        title: 'Lunch with friends',
+        date: addDays(today(), 6),
+        kind: 'friends',
+      });
+      await protectedTime.create({
+        title: 'Too far ahead',
+        date: addDays(today(), 7),
+        kind: 'rest',
+      });
+      await protectedTime.create({ title: 'Yesterday', date: addDays(today(), -1), kind: 'rest' });
     });
     const section = region('Protected time');
-    expect(await within(section).findByText('Call home')).toBeInTheDocument();
-    expect(within(section).queryByText('Tomorrow’s walk')).not.toBeInTheDocument();
+    const todayRow = await waitForRow(/^Today/, 'Call home');
+    expect(
+      within(todayRow)
+        .getAllByRole('listitem')
+        .map((li) => li.querySelector('p')?.textContent),
+    ).toEqual(['Call home', 'Evening together']);
+    expect(within(section).getByText('Lunch with friends')).toBeInTheDocument();
+    expect(within(section).queryByText('Too far ahead')).not.toBeInTheDocument();
+    expect(within(section).queryByText('Yesterday')).not.toBeInTheDocument();
+    expect(within(section).getAllByText('Nothing planned here yet.')).toHaveLength(5);
   });
 
   it('keeps the form open with an error when saving fails', async () => {
@@ -256,9 +337,16 @@ describe('Protected time on Today', () => {
       protectedTime: { ...r.protectedTime, create: vi.fn().mockRejectedValue(new Error('x')) },
     }));
     const section = region('Protected time');
-    await user.click(within(section).getByRole('button', { name: 'Protect time' }));
+    await user.click(
+      await within(section).findByRole('button', { name: 'Add protected time for today' }),
+    );
     await user.type(within(section).getByLabelText('What’s it for?'), 'Nap{Enter}');
     expect(await within(section).findByRole('alert')).toHaveTextContent('Couldn’t save that');
     expect(within(section).getByLabelText('What’s it for?')).toHaveValue('Nap');
   });
+
+  async function waitForRow(heading: RegExp, text: string) {
+    await within(region('Protected time')).findByText(text);
+    return dayRow(heading);
+  }
 });

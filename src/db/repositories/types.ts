@@ -154,6 +154,11 @@ export interface ProtectedTimeRepository {
   remove(id: Id): Promise<void>;
   /** Entries on local day `date`, ordered by title. */
   watchForDate(date: LocalDate): Watch<ProtectedTime[]>;
+  /**
+   * Entries with `start <= date <= end` (inclusive LocalDates), ordered by
+   * date, then title, then id. One indexed range query.
+   */
+  watchRange(start: LocalDate, end: LocalDate): Watch<ProtectedTime[]>;
 }
 
 export interface NewHabit {
