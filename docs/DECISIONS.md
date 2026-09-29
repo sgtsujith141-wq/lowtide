@@ -989,3 +989,38 @@ is the type, minutes are the duration, and the entry note is the note.
   - **College:** today's classes and labs (attended or missed), coursework coming up
     (done), study time this week, and Start study (a college work session).
 - Desktop navigation gains Life; on phones it's under More.
+
+## ADR-053 — Hackathon stages widened; a combined calendar (v2)
+
+**Hackathon stages (amends ADR-039's list).** Seven stages, still derived only from each
+sheet's own fields, with no percentage:
+
+1. **Registration:** done when registered, in progress when waitlisted.
+2. **Problem:** done when a problem statement is recorded.
+3. **Research:** positional, because it has no status of its own. It's in progress
+   between knowing the problem and starting the PPT or build, and done once either has
+   begun.
+4. **PPT:** omitted when not needed.
+5. **Prototype / build:** in progress while building, done from demo-ready.
+6. **Testing:** in progress at demo-ready, done once submitted.
+7. **Submission:** done once the build is submitted.
+
+"Track the build as a project" (`projects.createFromHackathon`) creates a technical
+project and links it in one transaction, only when asked. Unlinking keeps the project.
+
+**Calendar (`/calendar`).** A calm month view (Monday-first, six weeks) with the
+selected day's agenda below. It's built from records only (`buildCalendar`, pure):
+
+- college items;
+- hackathon registration deadlines (while unregistered) and event days;
+- open milestones' due dates;
+- open tasks' deadlines and plans;
+- a day's finished work ("Worked 2 h");
+- declared days off;
+- protected time, shown as your own plan and never sent to AI context (ADR-041).
+
+On phones each day shows coloured dots, and on wider screens up to three titles. Every
+day is a button named with its date and item count.
+
+**Integration.** Needs you on Home also lists planned college coursework due today or
+overdue (never classes).

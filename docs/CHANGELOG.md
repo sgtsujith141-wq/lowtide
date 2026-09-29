@@ -5,6 +5,14 @@ app's `package.json` version.
 
 ## [Unreleased]
 
+### Added (v2 PHASE 007 — Hackathons + Calendar)
+
+- A stage rail on each hackathon (seven stages from its own statuses) and "Track the
+  build as a project" (explicit, one transaction; Unlink keeps the project).
+- **Calendar** (`/calendar`): month grid plus day agenda for college, hackathons,
+  milestones, deadlines, plans, work, days off and protected time.
+- Needs you lists college coursework that's due or overdue.
+
 ### Added (v2 PHASE 006 — Life + Rhythm)
 
 - **Life** (`/life`): Personal routines, Sleep & off time (start windows, recent marked
