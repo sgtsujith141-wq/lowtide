@@ -1,4 +1,4 @@
-import { cleanup } from '@testing-library/react';
+import { act, cleanup } from '@testing-library/react';
 import { afterEach, expect, vi } from 'vitest';
 import { openDatabase, type LowtideDatabase } from '../db/database';
 import type { Watch } from '../db/repositories';
@@ -63,10 +63,31 @@ export function recordWatch<T>(watch: Watch<T>) {
 export async function expectFocus(
   target: Element | Promise<Element> | (() => Element | null),
 ): Promise<void> {
+  // Same allowance as Testing Library's waits (setup.ts): resolves as soon as focus lands.
+  const options = { timeout: 3000 };
   if (typeof target === 'function') {
-    await vi.waitFor(() => expect(target()).toHaveFocus());
+    await vi.waitFor(() => expect(target()).toHaveFocus(), options);
     return;
   }
   const element = await target;
-  await vi.waitFor(() => expect(element).toHaveFocus());
+  await vi.waitFor(() => expect(element).toHaveFocus(), options);
+}
+
+/** Scrolls every lazily rendered section "into view" (see the stub in setup.ts). */
+export function revealLazyContent() {
+  const observers = (
+    globalThis as {
+      __lowtideObservers?: Set<{ callback: IntersectionObserverCallback; elements: Set<Element> }>;
+    }
+  ).__lowtideObservers;
+  act(() => {
+    for (const { callback, elements } of [...(observers ?? [])]) {
+      callback(
+        [...elements].map(
+          (target) => ({ target, isIntersecting: true }) as IntersectionObserverEntry,
+        ),
+        {} as IntersectionObserver,
+      );
+    }
+  });
 }
