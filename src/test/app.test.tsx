@@ -91,6 +91,7 @@ describe('route-level code splitting', () => {
 
   it('prefetches every screen chunk without rendering anything', async () => {
     const { prefetchScreens } = await import('../app/routes');
-    expect(() => prefetchScreens()).not.toThrow();
+    // Awaited, so no import is still running when the test environment closes.
+    await expect(prefetchScreens()).resolves.toBeUndefined();
   });
 });

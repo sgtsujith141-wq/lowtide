@@ -22,4 +22,4 @@ createRoot(root).render(
 
 // Warm the other screens once the first one is up, so switching is instant.
 const idle = window.requestIdleCallback ?? ((callback: () => void) => setTimeout(callback, 200));
-idle(() => prefetchScreens());
+idle(() => void prefetchScreens());

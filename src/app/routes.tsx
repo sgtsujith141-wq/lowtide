@@ -25,9 +25,9 @@ const screens = {
   ai: () => import('../features/context/AiPage'),
 };
 
-/** Warms every screen chunk. Safe to call more than once. */
-export function prefetchScreens(): void {
-  for (const load of Object.values(screens)) void load();
+/** Warms every screen chunk. Safe to call more than once; resolves when all have loaded. */
+export async function prefetchScreens(): Promise<void> {
+  await Promise.all(Object.values(screens).map((load) => load()));
 }
 
 /** v0.1 screens keep their reading width inside the wider v2 frame. */
