@@ -1024,3 +1024,59 @@ day is a button named with its date and item count.
 
 **Integration.** Needs you on Home also lists planned college coursework due today or
 overdue (never classes).
+
+## ADR-054 — Context engine and technical workspace export (v2)
+
+**Decision.**
+
+- `buildContextPack(snapshot, scope)` (pure, `features/context/pack.ts`) builds scoped
+  packs:
+  - **PROJECT** (the default): objective, state and phase, milestone progress, the
+    seven lanes, time, recent decisions (superseded ones marked), recent public
+    activity and document paths. It can narrow further: GLOBAL → PROJECT → SUBAREA (a
+    milestone) → CURRENT TASK.
+  - **WORKSPACE:** live projects, what needs the owner, and hackathons.
+  - **GLOBAL:** WORKSPACE plus private summaries **only for explicit grants** (routines,
+    off time, college, inbox). There is no grant for protected time.
+
+  Every pack lists its sources. `renderContextMarkdown` produces CONTEXT.md.
+
+- `buildWorkspace(snapshot)` (pure) produces the file hierarchy of ADR-044, plus:
+  - `projects/<slug>/.lowtide/summary.json` and `.lowtide/manifest.json` for the
+    companion;
+  - `daily/YYYY-MM.md`, a log of project work sessions only;
+  - `hackathons/<slug>-<id>.md`;
+  - archived projects under `archive/projects/`.
+- The snapshot is the backup export (one read-only transaction).
+- The **AI & workspace** page (`/ai`) previews, copies or downloads packs, and exports
+  the workspace as a stored ZIP (`lib/zip.ts`, no dependency). The Command Room's AI tab
+  shows the project pack.
+
+**Tested:** a snapshot seeded with distinctive private strings (protected time, a sleep
+note, a medication routine, an inbox thought, a college exam). None of them appears in
+any project or workspace pack, in any exported file, or in any path. They appear in a
+GLOBAL pack only when granted, and protected time never does.
+
+## ADR-055 — Companion stage 1: an MCP server over stdio for the exported workspace (v2)
+
+**Context.** ADR-040 targets a local companion with SQLite, a context service and
+MCP/API. Moving canonical storage is its own later phase. Meanwhile, AI clients need
+LOWTIDE context now, safely.
+**Decision.** `companion/lowtide-mcp.ts` is a dependency-free Node script, run with
+Node's TypeScript type stripping. It's an MCP server over **stdio**, serving an
+exported workspace:
+
+- **Transport:** newline-delimited JSON-RPC 2.0 (`initialize`, `ping`, `tools/list`,
+  `tools/call`). It opens no network port; the client launches it.
+- **Scope:** `--project <slug>` by default; `--scope workspace` is an explicit opt-in.
+- **Reads:** `get_context`, `get_project`, `get_project_summary`, `get_recent_activity`,
+  `get_waiting`, `get_approval_requests`, `search_workspace`, `get_document`. All are
+  bounded to the scope, with realpath-checked paths and a 256 KB limit per file.
+- **Writes:** `create_note` and `log_ai_session` only add new files (never overwrite,
+  64 KB limit). Each write is appended to `.lowtide/audit.log`.
+- **Pending, listed as "Not available yet":** `record_decision`, `update_project`,
+  `complete_task`, `request_approval`, `park_item`. They return an error, change
+  nothing, and are logged as refused.
+
+**Not built:** an HTTP API (127.0.0.1, token, origin allow-list), GitHub, the SQLite
+migration, and importing workspace AI sessions into LOWTIDE. Each is a later phase.

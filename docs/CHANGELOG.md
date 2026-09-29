@@ -5,6 +5,16 @@ app's `package.json` version.
 
 ## [Unreleased]
 
+### Added (v2 PHASE 008 — shared AI context, companion stage 1)
+
+- **AI & workspace** (`/ai`): scoped context packs (Project, Workspace, Global with
+  explicit grants; never protected time), copy/download, and a technical workspace ZIP
+  export.
+- The Command Room's AI tab shows the project's CONTEXT.md.
+- `companion/lowtide-mcp.ts`: a local MCP server over stdio for the exported workspace,
+  project-scoped by default. Read tools plus add-only, audit-logged notes and AI session
+  records. See `docs/COMPANION.md`.
+
 ### Added (v2 PHASE 007 — Hackathons + Calendar)
 
 - A stage rail on each hackathon (seven stages from its own statuses) and "Track the

@@ -97,6 +97,70 @@ protected. It does not claim more than is true.
 - **Encryption** (a password-protected backup) isn't implemented. It could be evaluated
   later.
 
+## LOWTIDE v2: workspace export and the companion (PHASE 008)
+
+**The app still makes no network requests.** v2 adds no fetch, no WebSocket, no
+analytics and no AI API. "Ask LOWTIDE" is a local search.
+
+**Workspace export (ADR-044, ADR-054)** is a ZIP you download, like a backup, but:
+
+- It holds **technical project knowledge only**:
+  - projects, milestones, board items and decisions;
+  - reported AI sessions;
+  - hackathon sheets (including team names and next steps);
+  - a daily log of project work sessions (intent, outcome, minutes).
+- It **never** holds:
+  - protected time, with no option to include it;
+  - sleep or off-time windows;
+  - routines or habit entries (medication included);
+  - health-type records;
+  - college records;
+  - raw inbox thoughts.
+
+  A test seeds each of these with a distinctive string and checks that no exported path
+  or file contains any of them.
+
+- It's still **plaintext**. Treat it like source documentation: it may reveal project
+  plans, hackathon strategy and teammates' names. It's safe to keep in a Git repository
+  of your choosing, because it contains no life logs.
+
+**Context packs (ADR-041, ADR-054)** are Markdown you copy or download yourself:
+
+- Project scope (the default) contains one project's technical context.
+- Workspace scope lists every live project and hackathon.
+- Global scope adds private summaries (routines, off-time windows, college, inbox)
+  **only for the areas you tick**. Protected time can't be ticked; it's excluded by
+  construction.
+
+**The companion (ADR-055)** is a local MCP server (`companion/lowtide-mcp.ts`) that an AI
+client starts as a child process:
+
+- **No network at all.** It speaks JSON-RPC over stdin/stdout and opens no port, so the
+  localhost-only, authentication and CORS rules of ADR-041 have nothing to attach to.
+  Access control is that only the client that started it can talk to it.
+- **Workspace only.** It reads and writes only inside the exported workspace folder.
+  Paths are resolved and realpath-checked, so `..`, absolute paths and symlinks
+  pointing outside are refused (tested).
+- **Scoped.** It's project-scoped by default: other projects, the root README and the
+  manifest are invisible. The workspace scope must be chosen explicitly with
+  `--scope workspace`.
+- **Auditable writes.** It can only _add_ files: a note, or an AI session record. It
+  never overwrites or deletes. Every write, and every refused record-change attempt, is
+  appended to `.lowtide/audit.log` in the workspace.
+- **No record changes yet.** Tools that would change LOWTIDE's own data
+  (`record_decision`, `update_project`, `complete_task`, `request_approval`,
+  `park_item`) refuse and change nothing, until the companion owns storage (ADR-040
+  stage 2).
+- **No secrets.** It needs no token and reads no environment variables.
+
+**Not built yet (each needs its own security review):**
+
+- an HTTP API for clients that can't start a process (127.0.0.1 only, a per-install
+  bearer token, no wildcard CORS);
+- GitHub access (a read-only, repository-scoped token held by the companion or the OS
+  keychain);
+- the move of canonical storage from IndexedDB to a companion-owned SQLite database.
+
 ## Future risks to design for
 
 - **Backup encryption.** If added, be clear that a forgotten password makes the backup
