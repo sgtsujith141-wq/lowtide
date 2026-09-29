@@ -54,6 +54,7 @@ export function ProjectsPage() {
                 key={s.project.id}
                 summary={s}
                 spark={dailyMinutes(data.sessions, s.project.id, fortnight)}
+                headingLevel={2}
               />
             ))}
           </ul>

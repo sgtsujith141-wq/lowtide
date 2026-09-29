@@ -97,6 +97,25 @@ describe('Project Command Room', () => {
     expect(await within(lane('Done')).findByText('Sign off copy')).toBeInTheDocument();
   });
 
+  it('keeps a valid heading outline: page h1, section h2, lane h3', async () => {
+    await room(engine);
+    expect(screen.getByRole('heading', { level: 2, name: 'Command board' })).toBeInTheDocument();
+    const lanes = screen
+      .getAllByRole('heading', { level: 3 })
+      .map((h) => h.textContent?.replace(/\d+$/, ''));
+    expect(lanes).toEqual(
+      expect.arrayContaining([
+        'Working now',
+        'Next',
+        'Waiting',
+        'Needs approval',
+        'Blocked',
+        'Parked',
+        'Done',
+      ]),
+    );
+  });
+
   it('adds a waiting item that says who it waits on', async () => {
     const { user } = await room(engine);
     await user.click(screen.getByRole('button', { name: 'Add to the board' }));

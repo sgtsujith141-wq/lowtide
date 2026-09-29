@@ -376,10 +376,10 @@ function ProjectSummaryCard({ project }: { project: Project }) {
       <div className="text-sm">
         <dl className="grid gap-x-4 gap-y-1 sm:grid-cols-[7rem_1fr]">
           <dt className="text-ink-muted">Objective</dt>
-          <dd>{project.objective ?? <span className="text-ink-faint">Not set</span>}</dd>
+          <dd>{project.objective ?? <span className="text-ink-muted">Not set</span>}</dd>
           <dt className="text-ink-muted">Next action</dt>
           <dd className="font-medium">
-            {project.nextAction ?? <span className="font-normal text-ink-faint">Not set</span>}
+            {project.nextAction ?? <span className="font-normal text-ink-muted">Not set</span>}
           </dd>
         </dl>
         <button

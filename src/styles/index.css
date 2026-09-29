@@ -294,8 +294,13 @@
     filter: saturate(0.45) brightness(0.82);
     transition: filter 600ms var(--ease-tide);
   }
+  /* Faded, but text keeps AA contrast: full-ink text at 75% opacity (≈5:1). */
   [data-mode='sleep'] [data-nonessential] {
-    opacity: 0.45;
+    opacity: 0.75;
+  }
+  [data-mode='sleep'] [data-nonessential],
+  [data-mode='sleep'] [data-nonessential] * {
+    color: var(--lt-ink) !important;
   }
   [data-mode='sleep'] *,
   [data-mode='sleep'] *::before,

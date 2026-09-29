@@ -224,12 +224,12 @@ function DayCell({
         aria-pressed={isSelected}
         aria-current={isToday ? 'date' : undefined}
         className={`flex size-full flex-col items-stretch gap-0.5 p-1 text-left ${
-          isSelected ? 'bg-accent-soft' : 'hover:bg-paper-raised'
-        } ${inMonth ? '' : 'opacity-45'}`}
+          isSelected ? 'bg-accent-soft' : inMonth ? 'hover:bg-paper-raised' : 'bg-paper-sunken/50'
+        } ${inMonth ? '' : 'text-ink-muted'}`}
       >
         <span
           className={`self-start rounded-full px-1 text-xs tabular-nums ${
-            isToday ? 'bg-ink font-semibold text-paper' : ''
+            isToday ? 'bg-ink font-semibold text-paper' : inMonth ? '' : 'text-ink-muted'
           }`}
         >
           {Number(date.slice(8, 10))}

@@ -111,6 +111,8 @@ describe('Home (ADR-043)', () => {
       '/projects/engine',
     );
     expect(cards.queryByText('Old thing')).not.toBeInTheDocument();
+    // Under Home's "Projects" h2, each card is an h3.
+    expect(cards.getByRole('heading', { level: 3, name: 'Engine' })).toBeInTheDocument();
     expect(
       cards.getByRole('progressbar', { name: 'Engine: 50% of milestones' }),
     ).toBeInTheDocument();

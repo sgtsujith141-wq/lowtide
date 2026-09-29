@@ -80,15 +80,15 @@ export function Lanes({
               key={lane}
               aria-label={LANE_LABEL[lane]}
               className={`rounded-lg border border-t-4 border-line bg-paper-raised p-2.5 ${LANE_STYLE[lane]} ${
-                entries.length === 0 ? 'opacity-70' : ''
+                entries.length === 0 ? 'border-dashed' : ''
               }`}
             >
-              <h4 className="flex items-baseline justify-between text-xs font-semibold tracking-wide text-ink-muted uppercase">
+              <h3 className="flex items-baseline justify-between text-xs font-semibold tracking-wide text-ink-muted uppercase">
                 {LANE_LABEL[lane]}
                 <span className="font-normal tabular-nums">{lanes[lane].length}</span>
-              </h4>
+              </h3>
               {entries.length === 0 ? (
-                <p className="mt-1 text-xs text-ink-faint">—</p>
+                <p className="mt-1 text-xs text-ink-muted">Empty</p>
               ) : (
                 <ul className="mt-1.5 space-y-1.5">
                   {entries.map((entry) => {
@@ -111,7 +111,7 @@ export function Lanes({
                           <p className="text-xs text-ink-muted">on {entry.detail}</p>
                         )}
                         {entry.kind === 'task' && (
-                          <p className="text-[10px] text-ink-faint uppercase">task</p>
+                          <p className="text-[10px] text-ink-muted uppercase">task</p>
                         )}
                         {item && (
                           <ItemControls

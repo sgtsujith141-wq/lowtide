@@ -52,7 +52,8 @@ export function MilestonePipeline({ milestones }: { milestones: readonly Milesto
   if (milestones.length === 0) return null;
   const current = milestones.find((m) => !m.completedAt)?.id;
   return (
-    <div className="relative overflow-x-auto pb-1">
+    // Focusable so keyboard users can scroll a long pipeline.
+    <div tabIndex={0} className="relative overflow-x-auto pb-1 outline-offset-2">
       <ol aria-label="Milestone pipeline" className="flex min-w-max items-start">
         {milestones.map((m, i) => {
           const done = m.completedAt !== undefined;
@@ -90,7 +91,7 @@ export function MilestonePipeline({ milestones }: { milestones: readonly Milesto
                   </span>
                 </span>
                 {m.weight !== 1 && (
-                  <span className="text-[10px] text-ink-faint">weight {m.weight}</span>
+                  <span className="text-[10px] text-ink-muted">weight {m.weight}</span>
                 )}
               </span>
             </li>

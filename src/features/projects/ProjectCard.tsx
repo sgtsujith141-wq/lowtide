@@ -7,7 +7,17 @@ import { formatWhen } from '../../lib/when';
 import { STATE_LABEL, STATE_TONE, type ProjectSummary } from './summary';
 
 /** One live project as a compact, visual command card (Home and Projects). */
-export function ProjectCard({ summary: s, spark }: { summary: ProjectSummary; spark: number[] }) {
+export function ProjectCard({
+  summary: s,
+  spark,
+  headingLevel = 3,
+}: {
+  summary: ProjectSummary;
+  spark: number[];
+  /** 3 under a section heading (Home), 2 directly under the page title (Projects). */
+  headingLevel?: 2 | 3;
+}) {
+  const Heading = headingLevel === 2 ? 'h2' : 'h3';
   const focus = s.lanes.working_now[0];
   const next = s.project.nextAction ?? s.lanes.next[0]?.title;
   const waiting = s.lanes.waiting;
@@ -16,11 +26,11 @@ export function ProjectCard({ summary: s, spark }: { summary: ProjectSummary; sp
   return (
     <li className="flex min-w-0 flex-col gap-3 rounded-xl border border-line bg-paper-raised p-4">
       <div className="flex items-start justify-between gap-2">
-        <h3 className="min-w-0 font-medium leading-snug">
+        <Heading className="min-w-0 font-medium leading-snug">
           <Link to={`/projects/${s.project.slug}`} className="hover:underline">
             {s.project.name}
           </Link>
-        </h3>
+        </Heading>
         <Chip tone={STATE_TONE[s.project.state]}>{STATE_LABEL[s.project.state]}</Chip>
       </div>
 
@@ -94,10 +104,12 @@ export function ProjectCard({ summary: s, spark }: { summary: ProjectSummary; sp
 
 function Row({ icon, term, children }: { icon: ReactNode; term: string; children: ReactNode }) {
   return (
-    <div className="flex items-start gap-2">
-      <span className="mt-1 grid w-3.5 shrink-0 place-items-center">{icon}</span>
+    <div>
       <dt className="sr-only">{term}</dt>
-      <dd className="min-w-0 leading-snug">{children}</dd>
+      <dd className="flex min-w-0 items-start gap-2 leading-snug">
+        <span className="mt-1 grid w-3.5 shrink-0 place-items-center">{icon}</span>
+        <span className="min-w-0">{children}</span>
+      </dd>
     </div>
   );
 }

@@ -127,12 +127,12 @@ function OffTimeStrip({ session }: { session: OffTimeSession }) {
         <Moon aria-hidden className="size-5 text-sleep-4" />
         <p className="min-w-0 flex-1">
           <span className="font-medium">{session.kind === 'sleep' ? 'Sleep Mode' : 'Resting'}</span>
-          <span className="text-ink-muted">
+          <span>
             {' '}
             · off for {h ? `${h} h ` : ''}
             {minutes % 60} m
           </span>
-          <span className="block text-xs text-ink-muted">
+          <span className="block text-xs">
             A marked window, not a sleep measurement. Everything still works.
           </span>
         </p>
