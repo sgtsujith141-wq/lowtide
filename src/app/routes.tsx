@@ -21,6 +21,7 @@ const screens = {
   data: () => import('../features/backup/DataPage'),
   more: () => import('../features/home/MorePage'),
   life: () => import('../features/life/LifePage'),
+  calendar: () => import('../features/calendar/CalendarPage'),
 };
 
 /** Warms every screen chunk. Safe to call more than once. */
@@ -80,6 +81,10 @@ export const routes: RouteObject[] = [
       },
       { path: 'more', lazy: async () => ({ Component: (await screens.more()).MorePage }) },
       { path: 'life', lazy: async () => ({ Component: (await screens.life()).LifePage }) },
+      {
+        path: 'calendar',
+        lazy: async () => ({ Component: (await screens.calendar()).CalendarPage }),
+      },
       { path: '*', element: <NotFound /> },
     ],
   },

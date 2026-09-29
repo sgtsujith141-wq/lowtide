@@ -124,6 +124,19 @@ describe('Home (ADR-043)', () => {
     expect(needs.getByRole('link', { name: /No fixtures/ })).toBeInTheDocument();
   });
 
+  it('lists college coursework due today under Needs you, but not classes', async () => {
+    await setup(async (r) => {
+      const today = toLocalDate(new Date());
+      await r.college.create({ kind: 'assignment', title: 'Lab report', date: today });
+      await r.college.create({ kind: 'class', title: 'Lecture', date: today });
+    });
+    const needs = within(screen.getByRole('region', { name: /Needs you/ }));
+    expect(await needs.findByRole('link', { name: /Lab report/ })).toHaveTextContent(
+      'College assignment · due today',
+    );
+    expect(needs.queryByText('Lecture')).not.toBeInTheDocument();
+  });
+
   it('says plainly when nothing needs you', async () => {
     await setup();
     expect(await screen.findByText('Nothing is waiting on you.')).toBeInTheDocument();

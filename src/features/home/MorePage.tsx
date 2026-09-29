@@ -1,4 +1,5 @@
 import {
+  CalendarDays,
   ChevronRight,
   Database,
   HeartPulse,
@@ -16,6 +17,7 @@ const MORE_LINKS: { to: string; label: string; hint: string; icon: LucideIcon }[
   { to: '/inbox', label: 'Inbox', hint: 'Sort captured thoughts', icon: Inbox },
   { to: '/tasks', label: 'Tasks', hint: 'Everything open', icon: ListTodo },
   { to: '/life', label: 'Life', hint: 'Routines, sleep, gym, college', icon: HeartPulse },
+  { to: '/calendar', label: 'Calendar', hint: 'Everything by date', icon: CalendarDays },
   { to: '/data', label: 'Data & backup', hint: 'Export, restore, storage', icon: Database },
 ];
 

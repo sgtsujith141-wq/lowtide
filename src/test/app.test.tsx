@@ -32,6 +32,7 @@ describe('App shell', () => {
       'Hackathons',
       'Rhythm',
       'Life',
+      'Calendar',
     ]);
     expect(screen.getByRole('heading', { level: 1, name: 'Home' })).toBeInTheDocument();
     for (const name of ['Start Work', 'Sleep Mode', 'Ask LOWTIDE'])
@@ -76,6 +77,7 @@ describe('route-level code splitting', () => {
     ['/projects', 'Projects'],
     ['/more', 'More'],
     ['/life', 'Life'],
+    ['/calendar', 'Calendar'],
     ['/inbox', 'Inbox'],
     ['/tasks', 'Tasks'],
     ['/rhythm', 'Rhythm'],

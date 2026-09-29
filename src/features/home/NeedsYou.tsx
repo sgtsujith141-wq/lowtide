@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { Link } from 'react-router';
 import { useRepositories } from '../../hooks/useRepositories';
 import { useWatch } from '../../hooks/useWatch';
+import { addDays } from '../../lib/calendar';
 import { localDateOfDeadline } from '../../lib/time';
 import type { LocalDate } from '../../types/domain';
 import { hackathonsForToday } from '../hackathons/schedule';
@@ -29,7 +30,12 @@ const TONE = {
  * hackathon deadlines this week. Empty is good news, said plainly.
  */
 export function NeedsYou({ today }: { today: LocalDate }) {
-  const { projects, tasks, hackathons } = useRepositories();
+  const { projects, tasks, hackathons, college } = useRepositories();
+  const watchCollege = useMemo(
+    () => college.watchRange(addDays(today, -14), today),
+    [college, today],
+  );
+  const coursework = useWatch(watchCollege);
   const all = useWatch(projects.watchAll);
   const items = useWatch(projects.watchAllItems);
   const watchDay = useMemo(() => tasks.watchForDay(today), [tasks, today]);
@@ -41,7 +47,8 @@ export function NeedsYou({ today }: { today: LocalDate }) {
       all.status !== 'ready' ||
       items.status !== 'ready' ||
       day.status !== 'ready' ||
-      hacks.status !== 'ready'
+      hacks.status !== 'ready' ||
+      coursework.status !== 'ready'
     )
       return null;
     const byId = new Map(all.data.map((p) => [p.id, p]));
@@ -82,6 +89,16 @@ export function NeedsYou({ today }: { today: LocalDate }) {
         to: '/today',
       });
     }
+    for (const item of coursework.data) {
+      if (item.status !== 'planned' || item.kind === 'class' || item.kind === 'lab') continue;
+      list.push({
+        key: item.id,
+        tone: 'due',
+        title: item.title,
+        context: `College ${item.kind} · ${item.date < today ? 'overdue' : 'due today'}`,
+        to: '/life',
+      });
+    }
     for (const row of hackathonsForToday(hacks.data, today).rows) {
       list.push({
         key: row.hackathon.id,
@@ -92,7 +109,7 @@ export function NeedsYou({ today }: { today: LocalDate }) {
       });
     }
     return list;
-  }, [all, items, day, hacks, today]);
+  }, [all, items, day, hacks, coursework, today]);
 
   if (!needs) return null;
   return (
