@@ -73,9 +73,8 @@ describe('Data & backup page', () => {
     const links = screen.getAllByRole('link', { name: 'Data & backup' });
     expect(links.length).toBeGreaterThanOrEqual(1);
     await user.click(links[0]!);
-    // Home's year grids make role queries slow while the next screen loads.
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'Data & backup' }, { timeout: 5000 }),
+      await screen.findByRole('heading', { level: 1, name: 'Data & backup' }),
     ).toBeInTheDocument();
   });
 

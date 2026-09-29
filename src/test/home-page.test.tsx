@@ -2,7 +2,7 @@ import { screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { createDexieRepositories, type Repositories } from '../db/repositories';
 import { toLocalDate } from '../lib/time';
-import { setupTestDatabase } from './helpers';
+import { revealLazyContent, setupTestDatabase } from './helpers';
 import { renderApp } from './render';
 
 const newDb = setupTestDatabase();
@@ -47,8 +47,11 @@ describe('Home (ADR-043)', () => {
     expect(screen.getByText(/Nothing has happened here yet/)).toBeInTheDocument();
   });
 
-  it('has secondary grids but no gym grid or gym card on Home', async () => {
+  it('renders the secondary grids when scrolled to, with no gym grid or gym card', async () => {
     await setup();
+    expect(screen.getAllByRole('grid')).toHaveLength(1);
+    revealLazyContent();
+    await screen.findByRole('grid', { name: 'Work, last 12 months' });
     const names = screen.getAllByRole('grid').map((g) => g.getAttribute('aria-label'));
     expect(names).toEqual([
       'Daily Pulse, last 12 months',

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useNearViewport } from '../../hooks/useNearViewport';
 import { ContributionGrid } from '../../components/shared/ContributionGrid';
 import { gridStart, longDay, YEAR_WEEKS } from '../../components/shared/contribution-grid';
 import { formatDuration } from '../../lib/duration';
@@ -123,19 +124,31 @@ const SECONDARY: { grid: ThemedGrid; title: string; palette: ThemedGrid }[] = [
  * lives in Life/Rhythm, never on Home (ADR-043).
  */
 export function SecondaryGrids({ today }: { today: LocalDate }) {
-  const start = gridStart(today, YEAR_WEEKS);
-  const { days } = useDaySummaries(start, today);
+  // Rendered when scrolled near: five year grids are heavy and secondary.
+  const { ref, near } = useNearViewport<HTMLElement>();
   return (
-    <section aria-labelledby="rhythms-heading" className="mt-10">
+    <section ref={ref} aria-labelledby="rhythms-heading" className="mt-10">
       <h2 id="rhythms-heading" className="text-sm font-medium text-ink-muted">
         Individual rhythms
       </h2>
-      <div className="mt-2 grid gap-4 xl:grid-cols-2">
-        {SECONDARY.map(({ grid, title }) => (
-          <SecondaryGrid key={grid} grid={grid} title={title} today={today} days={days} />
-        ))}
-      </div>
+      {near ? (
+        <SecondaryGridList today={today} />
+      ) : (
+        <div aria-hidden className="mt-2 h-96 rounded-lg border border-dashed border-line" />
+      )}
     </section>
+  );
+}
+
+function SecondaryGridList({ today }: { today: LocalDate }) {
+  const start = gridStart(today, YEAR_WEEKS);
+  const { days } = useDaySummaries(start, today);
+  return (
+    <div className="mt-2 grid gap-4 xl:grid-cols-2">
+      {SECONDARY.map(({ grid, title }) => (
+        <SecondaryGrid key={grid} grid={grid} title={title} today={today} days={days} />
+      ))}
+    </div>
   );
 }
 

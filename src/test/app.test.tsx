@@ -44,11 +44,7 @@ describe('App shell', () => {
     expect(within(nav).getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
 
     await user.click(within(nav).getByRole('link', { name: 'Tasks' }));
-    // Role queries scan every labelled square of Home's year grids while the
-    // next screen loads, so allow the same wait as the first screen (renderApp).
-    expect(
-      await screen.findByRole('heading', { level: 1, name: 'Tasks' }, { timeout: 5000 }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Tasks' })).toBeInTheDocument();
     expect(within(nav).getByRole('link', { name: 'Tasks' })).toHaveAttribute(
       'aria-current',
       'page',
