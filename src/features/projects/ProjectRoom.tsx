@@ -17,6 +17,7 @@ import { Timeline } from '../activity/Timeline';
 import { consumeModeFocus, requestModeFocus } from '../modes/focus-intent';
 import { useModes } from '../modes/useModes';
 import { progressSeries, projectCalendar, weeklyMinutes } from './charts';
+import { ContextPanel } from './room/ContextPanel';
 import { Lanes } from './room/Lanes';
 import {
   AiSessionsList,
@@ -269,6 +270,7 @@ function Room({ project }: { project: Project }) {
           <DocsTab project={project} />
         ) : tab === 'AI' ? (
           <div className="space-y-6">
+            <ContextPanel project={project} />
             <section aria-label="AI sessions">
               <h3 className="mb-2 text-sm font-semibold">AI sessions</h3>
               <AiSessionsList project={project} />

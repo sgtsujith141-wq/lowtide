@@ -1,5 +1,6 @@
 import {
   AudioWaveform,
+  Bot,
   CalendarDays,
   Ellipsis,
   FolderKanban,
@@ -37,6 +38,7 @@ const NAV: {
   { to: '/rhythm', label: 'Rhythm', icon: AudioWaveform },
   { to: '/life', label: 'Life', icon: HeartPulse, only: 'desktop' },
   { to: '/calendar', label: 'Calendar', icon: CalendarDays, only: 'desktop' },
+  { to: '/ai', label: 'AI', icon: Bot, only: 'desktop' },
   { to: '/more', label: 'More', icon: Ellipsis, only: 'phone' },
 ];
 

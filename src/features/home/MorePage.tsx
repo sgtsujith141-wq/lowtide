@@ -1,4 +1,5 @@
 import {
+  Bot,
   CalendarDays,
   ChevronRight,
   Database,
@@ -18,6 +19,7 @@ const MORE_LINKS: { to: string; label: string; hint: string; icon: LucideIcon }[
   { to: '/tasks', label: 'Tasks', hint: 'Everything open', icon: ListTodo },
   { to: '/life', label: 'Life', hint: 'Routines, sleep, gym, college', icon: HeartPulse },
   { to: '/calendar', label: 'Calendar', hint: 'Everything by date', icon: CalendarDays },
+  { to: '/ai', label: 'AI & workspace', hint: 'Context packs, workspace export', icon: Bot },
   { to: '/data', label: 'Data & backup', hint: 'Export, restore, storage', icon: Database },
 ];
 
