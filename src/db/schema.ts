@@ -1,5 +1,25 @@
 import { z } from 'zod/mini';
 import {
+  AI_SCOPES,
+  DECISION_ORIGINS,
+  ENTITY_TYPES,
+  EVENT_SOURCES,
+  EVENT_TYPES,
+  OFFTIME_KINDS,
+  PROJECT_ITEM_KINDS,
+  PROJECT_KINDS,
+  PROJECT_LANES,
+  PROJECT_STATES,
+  WORK_KINDS,
+  type AiSession,
+  type Decision,
+  type LedgerEvent,
+  type Milestone,
+  type OffTimeSession,
+  type ProgressSnapshot,
+  type Project,
+  type ProjectItem,
+  type WorkSession,
   BUILD_STATUSES,
   HABIT_CATEGORIES,
   HABIT_UNITS,
@@ -39,6 +59,8 @@ export const taskSchema = z.object({
   dueAt: z.exactOptional(timestamp),
   project: z.exactOptional(text),
   plannedFor: z.exactOptional(localDate),
+  projectId: z.exactOptional(id),
+  milestoneId: z.exactOptional(id),
   createdAt: timestamp,
   completedAt: z.exactOptional(timestamp),
   updatedAt: timestamp,
@@ -86,6 +108,7 @@ export const hackathonSchema = z.object({
   nextAction: z.exactOptional(z.string()),
   status: z.enum(HACKATHON_STATUSES),
   notes: z.exactOptional(z.string()),
+  projectId: z.exactOptional(id),
   createdAt: timestamp,
   updatedAt: timestamp,
 }) satisfies z.ZodMiniType<Hackathon>;
@@ -98,6 +121,133 @@ export const protectedTimeSchema = z.object({
   notes: z.exactOptional(z.string()),
 }) satisfies z.ZodMiniType<ProtectedTime>;
 
+/* Schema V4 (ADR-046). */
+
+const count = z.number().check(z.int(), z.nonnegative());
+const weight = z.number().check(z.positive());
+export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+export const projectSchema = z.object({
+  id,
+  name: text.check(z.maxLength(120)),
+  slug: z.string().check(z.regex(SLUG_PATTERN), z.maxLength(64)),
+  kind: z.enum(PROJECT_KINDS),
+  state: z.enum(PROJECT_STATES),
+  objective: z.exactOptional(text),
+  phase: z.exactOptional(text),
+  nextAction: z.exactOptional(text),
+  repoUrl: z.exactOptional(text),
+  createdAt: timestamp,
+  updatedAt: timestamp,
+  stateChangedAt: timestamp,
+}) satisfies z.ZodMiniType<Project>;
+
+export const milestoneSchema = z.object({
+  id,
+  projectId: id,
+  title: text,
+  notes: z.exactOptional(text),
+  order: count,
+  weight,
+  dueOn: z.exactOptional(localDate),
+  completedAt: z.exactOptional(timestamp),
+  createdAt: timestamp,
+  updatedAt: timestamp,
+}) satisfies z.ZodMiniType<Milestone>;
+
+export const projectItemSchema = z.object({
+  id,
+  projectId: id,
+  kind: z.enum(PROJECT_ITEM_KINDS),
+  lane: z.enum(PROJECT_LANES),
+  title: text,
+  body: z.exactOptional(text),
+  waitingOn: z.exactOptional(text),
+  taskId: z.exactOptional(id),
+  milestoneId: z.exactOptional(id),
+  order: count,
+  createdAt: timestamp,
+  updatedAt: timestamp,
+  laneChangedAt: timestamp,
+  resolvedAt: z.exactOptional(timestamp),
+}) satisfies z.ZodMiniType<ProjectItem>;
+
+export const decisionSchema = z.object({
+  id,
+  projectId: id,
+  title: text,
+  context: z.exactOptional(text),
+  decision: text,
+  consequences: z.exactOptional(text),
+  decidedAt: timestamp,
+  supersedesId: z.exactOptional(id),
+  origin: z.enum(DECISION_ORIGINS),
+  createdAt: timestamp,
+}) satisfies z.ZodMiniType<Decision>;
+
+export const workSessionSchema = z.object({
+  id,
+  kind: z.enum(WORK_KINDS),
+  projectId: z.exactOptional(id),
+  taskId: z.exactOptional(id),
+  intent: z.exactOptional(text),
+  startedAt: timestamp,
+  endedAt: z.exactOptional(timestamp),
+  pauses: z.array(z.object({ at: timestamp, resumedAt: z.exactOptional(timestamp) })),
+  localDate,
+  outcome: z.exactOptional(text),
+  createdAt: timestamp,
+  updatedAt: timestamp,
+}) satisfies z.ZodMiniType<WorkSession>;
+
+export const offTimeSessionSchema = z.object({
+  id,
+  kind: z.enum(OFFTIME_KINDS),
+  localDate,
+  startedAt: z.exactOptional(timestamp),
+  endedAt: z.exactOptional(timestamp),
+  note: z.exactOptional(text),
+  createdAt: timestamp,
+  updatedAt: timestamp,
+}) satisfies z.ZodMiniType<OffTimeSession>;
+
+export const ledgerEventSchema = z.object({
+  id,
+  type: z.enum(EVENT_TYPES),
+  at: timestamp,
+  localDate,
+  entityType: z.enum(ENTITY_TYPES),
+  entityId: id,
+  projectId: z.exactOptional(id),
+  data: z.record(z.string(), z.string()),
+  source: z.enum(EVENT_SOURCES),
+}) satisfies z.ZodMiniType<LedgerEvent>;
+
+export const progressSnapshotSchema = z.object({
+  id,
+  projectId: id,
+  localDate,
+  completedWeight: z.number().check(z.nonnegative()),
+  totalWeight: z.number().check(z.nonnegative()),
+  milestoneCount: count,
+  completedCount: count,
+  state: z.enum(PROJECT_STATES),
+  laneCounts: z.record(z.enum(PROJECT_LANES), count),
+  updatedAt: timestamp,
+}) satisfies z.ZodMiniType<ProgressSnapshot>;
+
+export const aiSessionSchema = z.object({
+  id,
+  client: text,
+  scope: z.enum(AI_SCOPES),
+  projectId: z.exactOptional(id),
+  startedAt: timestamp,
+  endedAt: timestamp,
+  summary: text,
+  filesTouched: z.exactOptional(z.array(text)),
+  createdAt: timestamp,
+}) satisfies z.ZodMiniType<AiSession>;
+
 /**
  * IndexedDB name. Changing it abandons existing user data; don't.
  */
@@ -107,7 +257,7 @@ export const DATABASE_NAME = 'lowtide';
  * Current schema version. Bump it (never edit a shipped version) when the
  * store layout or record shape changes; see docs/DATA-MODEL.md#migrations.
  */
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 /**
  * Dexie store definitions for version 1. First entry is the primary key;
@@ -141,4 +291,23 @@ export const STORES_V2 = {
  */
 export const STORES_V3 = {
   hackathons: 'id, status, registrationDeadline, eventStart',
+} as const;
+
+/**
+ * Version 4 (v2 PHASE 002, ADR-046): nine new stores and two new indexes.
+ * Additive only: the upgrade writes nothing to existing records, derives no
+ * projects from task labels and converts no hackathons.
+ */
+export const STORES_V4 = {
+  tasks: 'id, status, dueAt, createdAt, plannedFor, projectId',
+  hackathons: 'id, status, registrationDeadline, eventStart, projectId',
+  projects: 'id, &slug, state, updatedAt',
+  milestones: 'id, projectId, [projectId+order]',
+  projectItems: 'id, projectId, [projectId+lane], taskId',
+  decisions: 'id, projectId, decidedAt',
+  workSessions: 'id, kind, projectId, taskId, localDate, startedAt',
+  offTimeSessions: 'id, kind, localDate, startedAt',
+  events: 'id, at, localDate, type, projectId, [entityType+entityId]',
+  progressSnapshots: 'id, projectId, &[projectId+localDate]',
+  aiSessions: 'id, projectId, startedAt',
 } as const;

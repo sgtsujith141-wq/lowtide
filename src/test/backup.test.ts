@@ -8,6 +8,7 @@ import {
   type Repositories,
   type ValidatedBackup,
 } from '../db/repositories';
+import { STORE_NAMES } from '../db/migrations';
 import { SCHEMA_VERSION } from '../db/schema';
 import { recordWatch, setupTestDatabase, steppingClock } from './helpers';
 
@@ -55,14 +56,9 @@ async function seed(r: Repositories) {
 }
 
 async function readAll(db: LowtideDatabase): Promise<BackupData> {
-  return {
-    tasks: await db.tasks.toArray(),
-    inbox: await db.inbox.toArray(),
-    habits: await db.habits.toArray(),
-    habitEntries: await db.habitEntries.toArray(),
-    hackathons: await db.hackathons.toArray(),
-    protectedTime: await db.protectedTime.toArray(),
-  };
+  const data: Record<string, unknown[]> = {};
+  for (const store of STORE_NAMES) data[store] = await db.table(store).toArray();
+  return data as unknown as BackupData;
 }
 
 /** Same content, order-insensitive. */
@@ -93,13 +89,12 @@ describe('export', () => {
   it('writes the envelope and every store', async () => {
     const { db, r } = await setupSeeded();
     const doc = await r.backup.exportBackup();
-    expect(doc).toMatchObject({ format: 'lowtide-backup', formatVersion: 1, schemaVersion: 3 });
+    expect(doc).toMatchObject({ format: 'lowtide-backup', formatVersion: 1, schemaVersion: 4 });
     expect(BACKUP_FORMAT_VERSION).toBe(1);
     expect(doc.schemaVersion).toBe(SCHEMA_VERSION);
     expect(new Date(doc.exportedAt).toISOString()).toBe(doc.exportedAt);
-    expect(Object.keys(doc.data).sort()).toEqual(
-      ['habitEntries', 'habits', 'hackathons', 'inbox', 'protectedTime', 'tasks'].sort(),
-    );
+    expect(Object.keys(doc.data).sort()).toEqual([...STORE_NAMES].sort());
+    expect(STORE_NAMES).toHaveLength(15);
     expect(Object.fromEntries(Object.entries(doc.data).map(([k, v]) => [k, v.length]))).toEqual({
       tasks: 3,
       inbox: 3,
@@ -107,6 +102,16 @@ describe('export', () => {
       habitEntries: 3,
       hackathons: 1,
       protectedTime: 1,
+      projects: 0,
+      milestones: 0,
+      projectItems: 0,
+      decisions: 0,
+      workSessions: 0,
+      offTimeSessions: 0,
+      // One task completion and three habit logs, written with their records.
+      events: 4,
+      progressSnapshots: 0,
+      aiSessions: 0,
     });
     expect(normalise(doc.data)).toEqual(normalise(await readAll(db)));
   });
@@ -127,9 +132,7 @@ describe('export', () => {
     expect(spy).toHaveBeenCalledTimes(1);
     const [mode, tables] = spy.mock.calls[0] as unknown as [string, { name: string }[]];
     expect(mode).toBe('r');
-    expect(tables.map((t) => t.name).sort()).toEqual(
-      ['habitEntries', 'habits', 'hackathons', 'inbox', 'protectedTime', 'tasks'].sort(),
-    );
+    expect(tables.map((t) => t.name).sort()).toEqual([...STORE_NAMES].sort());
   });
 });
 

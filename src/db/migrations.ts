@@ -61,8 +61,8 @@ export function migrateHackathonToV3(record: Record<string, unknown>): Record<st
   return next;
 }
 
-/** Persisted stores, in the order backups list them. */
-export const STORE_NAMES = [
+/** Stores that exist since schema V1 (and are all a V1–V3 backup has). */
+export const LEGACY_STORE_NAMES = [
   'tasks',
   'inbox',
   'habits',
@@ -70,7 +70,28 @@ export const STORE_NAMES = [
   'hackathons',
   'protectedTime',
 ] as const;
+
+/** Stores added by schema V4 (ADR-046). */
+export const V4_STORE_NAMES = [
+  'projects',
+  'milestones',
+  'projectItems',
+  'decisions',
+  'workSessions',
+  'offTimeSessions',
+  'events',
+  'progressSnapshots',
+  'aiSessions',
+] as const;
+
+/** Persisted stores, in the order backups list them. */
+export const STORE_NAMES = [...LEGACY_STORE_NAMES, ...V4_STORE_NAMES] as const;
 export type StoreName = (typeof STORE_NAMES)[number];
+
+/** The stores a backup written under `schemaVersion` must contain. */
+export function storesForSchema(schemaVersion: number): readonly StoreName[] {
+  return schemaVersion >= 4 ? STORE_NAMES : LEGACY_STORE_NAMES;
+}
 
 export type RawSnapshot = Record<StoreName, Record<string, unknown>[]>;
 
@@ -78,10 +99,16 @@ export type RawSnapshot = Record<StoreName, Record<string, unknown>[]>;
  * Upgrades a snapshot's records from database schema `from` to the current
  * one, in memory, with the very same functions the database upgrade steps
  * use. V1 → V2 changed no record data (only added an index); V2 → V3 runs
- * `migrateHackathonToV3` on every hackathon. Returns new arrays.
+ * `migrateHackathonToV3` on every hackathon; V3 → V4 adds the nine new
+ * stores empty and changes nothing else (no projects are derived from task
+ * labels, no hackathons converted, no history synthesized). Returns new arrays.
  */
-export function migrateSnapshot(snapshot: RawSnapshot, from: number): RawSnapshot {
-  const next = { ...snapshot };
+export function migrateSnapshot(
+  snapshot: Partial<RawSnapshot> & Pick<RawSnapshot, (typeof LEGACY_STORE_NAMES)[number]>,
+  from: number,
+): RawSnapshot {
+  const next = { ...snapshot } as RawSnapshot;
   if (from < 3) next.hackathons = snapshot.hackathons.map(migrateHackathonToV3);
+  if (from < 4) for (const store of V4_STORE_NAMES) next[store] = [];
   return next;
 }

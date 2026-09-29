@@ -15,12 +15,21 @@ describe('LowtideDatabase', () => {
     await db.open();
     expect(db.verno).toBe(SCHEMA_VERSION);
     expect(db.tables.map((t) => t.name).sort()).toEqual([
+      'aiSessions',
+      'decisions',
+      'events',
       'habitEntries',
       'habits',
       'hackathons',
       'inbox',
+      'milestones',
+      'offTimeSessions',
+      'progressSnapshots',
+      'projectItems',
+      'projects',
       'protectedTime',
       'tasks',
+      'workSessions',
     ]);
   });
 

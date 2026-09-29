@@ -1,4 +1,16 @@
-import type { Hackathon, HabitUnit } from '../types/domain';
+import {
+  EVENT_ENTITY,
+  type AiSession,
+  type Hackathon,
+  type HabitUnit,
+  type LedgerEvent,
+  type OffTimeSession,
+  type ProjectItem,
+  type ProjectItemKind,
+  type ProjectLane,
+  type ProjectState,
+  type WorkSession,
+} from '../types/domain';
 import { InvalidInputError } from './repositories/errors';
 
 /*
@@ -42,4 +54,111 @@ export function checkHackathonDates(h: Pick<Hackathon, 'eventStart' | 'eventEnd'
   if (h.eventStart === undefined) throw new InvalidInputError('An end date needs a start date');
   if (h.eventEnd < h.eventStart)
     throw new InvalidInputError('The event can’t end before it starts');
+}
+
+/* ---------------------------- Schema V4 rules ---------------------------- */
+
+const LANE_BY_KIND: Record<ProjectItemKind, ProjectLane> = {
+  focus: 'working_now',
+  step: 'next',
+  dependency: 'waiting',
+  approval: 'needs_approval',
+  blocker: 'blocked',
+  idea: 'parked',
+  note: 'next',
+};
+
+/** Where a new (or reopened) item of this kind starts. */
+export function defaultLane(kind: ProjectItemKind): ProjectLane {
+  return LANE_BY_KIND[kind];
+}
+
+/**
+ * Project item lanes (ADR-046): `resolvedAt` exactly when in `done`; an open
+ * approval sits in `needs_approval` and an open blocker in `blocked`;
+ * `waitingOn` only in `waiting`.
+ */
+export function checkProjectItem(item: ProjectItem) {
+  if ((item.lane === 'done') !== (item.resolvedAt !== undefined)) {
+    throw new InvalidInputError('An item is resolved exactly when it is in Done');
+  }
+  if (item.lane !== 'done') {
+    if (item.kind === 'approval' && item.lane !== 'needs_approval') {
+      throw new InvalidInputError('An open approval stays in Needs approval');
+    }
+    if (item.kind === 'blocker' && item.lane !== 'blocked') {
+      throw new InvalidInputError('An open blocker stays in Blocked');
+    }
+  }
+  if (item.waitingOn !== undefined && item.lane !== 'waiting') {
+    throw new InvalidInputError('Only a waiting item says what it waits on');
+  }
+}
+
+/** `archived` can only be left for `parked` (unarchive). */
+export function checkProjectTransition(from: ProjectState, to: ProjectState) {
+  if (from === 'archived' && to !== 'parked' && to !== 'archived') {
+    throw new InvalidInputError('An archived project can only be unarchived to Parked');
+  }
+}
+
+/** Work sessions (ADR-046 §7). */
+export function checkWorkSession(session: WorkSession) {
+  if (session.kind === 'project' && !session.projectId) {
+    throw new InvalidInputError('Project work needs a project');
+  }
+  if (session.kind === 'task' && !session.taskId) {
+    throw new InvalidInputError('Task work needs a task');
+  }
+  if (session.endedAt !== undefined && session.endedAt < session.startedAt) {
+    throw new InvalidInputError('A session can’t end before it starts');
+  }
+  let previous = session.startedAt;
+  session.pauses.forEach((pause, i) => {
+    const last = i === session.pauses.length - 1;
+    if (pause.at < previous) throw new InvalidInputError('Pauses must be in order');
+    if (pause.resumedAt === undefined) {
+      if (!last) throw new InvalidInputError('Only the last pause can be open');
+      if (session.endedAt !== undefined) {
+        throw new InvalidInputError('A finished session has no open pause');
+      }
+      previous = pause.at;
+      return;
+    }
+    if (pause.resumedAt < pause.at)
+      throw new InvalidInputError('A pause can’t end before it starts');
+    previous = pause.resumedAt;
+  });
+  if (session.endedAt !== undefined && session.endedAt < previous) {
+    throw new InvalidInputError('Pauses must fall within the session');
+  }
+}
+
+/** Off-time (ADR-046 §8): sleep/rest are started windows; a day off is a whole date. */
+export function checkOffTime(session: OffTimeSession) {
+  if (session.kind === 'day_off') {
+    if (session.startedAt !== undefined || session.endedAt !== undefined) {
+      throw new InvalidInputError('A day off has no start or end time');
+    }
+    return;
+  }
+  if (session.startedAt === undefined) throw new InvalidInputError('Off time needs a start');
+  if (session.endedAt !== undefined && session.endedAt < session.startedAt) {
+    throw new InvalidInputError('Off time can’t end before it starts');
+  }
+}
+
+export function checkLedgerEvent(event: LedgerEvent) {
+  if (EVENT_ENTITY[event.type] !== event.entityType) {
+    throw new InvalidInputError(`${event.type} can’t be about a ${event.entityType}`);
+  }
+}
+
+export function checkAiSession(session: AiSession) {
+  if (session.scope === 'project' && !session.projectId) {
+    throw new InvalidInputError('A project-scoped AI session needs a project');
+  }
+  if (session.endedAt < session.startedAt) {
+    throw new InvalidInputError('An AI session can’t end before it starts');
+  }
 }

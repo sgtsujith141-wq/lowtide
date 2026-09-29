@@ -1,4 +1,19 @@
 import type {
+  AiScope,
+  ProjectItemKind,
+  ProjectKind,
+  ProjectLane,
+  ProjectState,
+  WorkKind,
+  AiSession,
+  Decision,
+  LedgerEvent,
+  Milestone,
+  OffTimeSession,
+  ProgressSnapshot,
+  Project,
+  ProjectItem,
+  WorkSession,
   BuildStatus,
   Hackathon,
   HackathonStatus,
@@ -58,6 +73,10 @@ export interface NewTask {
   priority?: TaskPriority;
   dueAt?: Timestamp;
   project?: string;
+  /** An existing project (schema V4). */
+  projectId?: Id;
+  /** A milestone of `projectId`. */
+  milestoneId?: Id;
 }
 
 /**
@@ -71,6 +90,9 @@ export interface TaskChanges {
   priority?: TaskPriority;
   dueAt?: Timestamp | null;
   project?: string | null;
+  /** Links or (null) unlinks a project; unlinking also clears the milestone. */
+  projectId?: Id | null;
+  milestoneId?: Id | null;
 }
 
 export interface TaskRepository {
@@ -223,8 +245,12 @@ export interface NewHackathon {
   notes?: string;
 }
 
-/** Omitted keys are left alone; `null` (or a blank string) removes an optional field. */
+/**
+ * Omitted keys are left alone; `null` (or a blank string) removes an optional
+ * field. `projectId` links a technical Project only on explicit request (ADR-039).
+ */
 export type HackathonChanges = {
+  projectId?: Id | null;
   name?: string;
   status?: HackathonStatus;
   registrationStatus?: RegistrationStatus;
@@ -256,7 +282,7 @@ export interface HackathonRepository {
   watchAll: Watch<Hackathon[]>;
 }
 
-/** The six persisted collections, as stored. */
+/** Every persisted collection, as stored (six since V1, nine more since V4). */
 export interface BackupData {
   tasks: Task[];
   inbox: InboxItem[];
@@ -264,6 +290,15 @@ export interface BackupData {
   habitEntries: HabitEntry[];
   hackathons: Hackathon[];
   protectedTime: ProtectedTime[];
+  projects: Project[];
+  milestones: Milestone[];
+  projectItems: ProjectItem[];
+  decisions: Decision[];
+  workSessions: WorkSession[];
+  offTimeSessions: OffTimeSession[];
+  events: LedgerEvent[];
+  progressSnapshots: ProgressSnapshot[];
+  aiSessions: AiSession[];
 }
 
 export type BackupCounts = Record<keyof BackupData, number>;
@@ -321,6 +356,213 @@ export interface BackupRepository {
   restore(backup: ValidatedBackup): Promise<void>;
 }
 
+/* ----------------------------- Schema V4 ----------------------------- */
+
+export interface NewProject {
+  name: string;
+  kind?: ProjectKind;
+  state?: ProjectState;
+  objective?: string;
+  phase?: string;
+  nextAction?: string;
+  repoUrl?: string;
+}
+
+/** Omitted keys are left alone; `null` or blank removes an optional field. State has its own method. */
+export type ProjectChanges = { name?: string; kind?: ProjectKind } & {
+  [K in 'objective' | 'phase' | 'nextAction' | 'repoUrl']?: string | null;
+};
+
+export interface NewMilestone {
+  title: string;
+  /** Defaults to 1 (ADR-038). */
+  weight?: number;
+  dueOn?: LocalDate;
+  notes?: string;
+}
+
+export type MilestoneChanges = { title?: string; weight?: number } & {
+  [K in 'dueOn' | 'notes']?: string | null;
+};
+
+export interface NewProjectItem {
+  kind: ProjectItemKind;
+  title: string;
+  /** Defaults by kind (`approval` → needs_approval, `blocker` → blocked, …). */
+  lane?: Exclude<ProjectLane, 'done'>;
+  body?: string;
+  waitingOn?: string;
+  taskId?: Id;
+  milestoneId?: Id;
+}
+
+export type ProjectItemChanges = { title?: string } & {
+  [K in 'body' | 'waitingOn']?: string | null;
+};
+
+export interface NewDecision {
+  title: string;
+  decision: string;
+  context?: string;
+  consequences?: string;
+  supersedesId?: Id;
+}
+
+/**
+ * Projects and their command model (ADR-038, ADR-046). Every change that
+ * moves a project also upserts today's progress snapshot and appends its
+ * ledger event in the same transaction. Projects are archived, never deleted.
+ */
+export interface ProjectRepository {
+  create(input: NewProject): Promise<Project>;
+  update(id: Id, changes: ProjectChanges): Promise<Project>;
+  /**
+   * Moves the project to `state`. Leaving `archived` only goes to `parked`.
+   * `done` needs every milestone complete, unless `overrideDecisionId` names a
+   * decision of this project that records why.
+   */
+  setState(id: Id, state: ProjectState, options?: { overrideDecisionId?: Id }): Promise<Project>;
+  get(id: Id): Promise<Project | undefined>;
+  /** Every project, most recently updated first. */
+  watchAll: Watch<Project[]>;
+  watchBySlug(slug: string): Watch<Project | undefined>;
+
+  addMilestone(projectId: Id, input: NewMilestone): Promise<Milestone>;
+  updateMilestone(id: Id, changes: MilestoneChanges): Promise<Milestone>;
+  completeMilestone(id: Id): Promise<Milestone>;
+  reopenMilestone(id: Id): Promise<Milestone>;
+  /** Swaps order with the neighbour before (-1) or after (+1). */
+  moveMilestone(id: Id, direction: -1 | 1): Promise<void>;
+  /** Rejects with `RecordStateError` while a task or item still refers to it. */
+  removeMilestone(id: Id): Promise<void>;
+  /** In pipeline order. */
+  watchMilestones(projectId: Id): Watch<Milestone[]>;
+  /** Every project's milestones (for summaries). */
+  watchAllMilestones: Watch<Milestone[]>;
+
+  addItem(projectId: Id, input: NewProjectItem): Promise<ProjectItem>;
+  updateItem(id: Id, changes: ProjectItemChanges): Promise<ProjectItem>;
+  /**
+   * Moves an open item to another lane (not `done`: use `resolveItem`). Open
+   * approvals and blockers can't leave their lane except by being resolved.
+   */
+  moveItem(id: Id, lane: Exclude<ProjectLane, 'done'>, waitingOn?: string): Promise<ProjectItem>;
+  resolveItem(id: Id): Promise<ProjectItem>;
+  /** Back to its kind's default lane. */
+  reopenItem(id: Id): Promise<ProjectItem>;
+  removeItem(id: Id): Promise<void>;
+  watchItems(projectId: Id): Watch<ProjectItem[]>;
+  watchAllItems: Watch<ProjectItem[]>;
+
+  /** Immutable once recorded. */
+  recordDecision(projectId: Id, input: NewDecision): Promise<Decision>;
+  /** Newest first. */
+  watchDecisions(projectId: Id): Watch<Decision[]>;
+  /** Oldest first. */
+  watchSnapshots(projectId: Id): Watch<ProgressSnapshot[]>;
+  /** A project's tasks (any status), oldest first. */
+  watchTasks(projectId: Id): Watch<Task[]>;
+}
+
+export interface StartWork {
+  kind: WorkKind;
+  projectId?: Id;
+  taskId?: Id;
+  intent?: string;
+}
+
+/**
+ * Work sessions (Start Work, architecture §7). At most one is open. A task's
+ * project always becomes the session's project; a mismatch is rejected.
+ * Starting is refused while an off-time window is open.
+ */
+export interface WorkRepository {
+  start(input: StartWork): Promise<WorkSession>;
+  pause(id: Id): Promise<WorkSession>;
+  resume(id: Id): Promise<WorkSession>;
+  finish(id: Id, outcome?: string): Promise<WorkSession>;
+  /** Deletes a session started by mistake, with its events. */
+  discard(id: Id): Promise<void>;
+  /** The open session, if any. */
+  watchActive: Watch<WorkSession | undefined>;
+  /** Sessions that started on `start <= localDate <= end`. */
+  watchRange(start: LocalDate, end: LocalDate): Watch<WorkSession[]>;
+  watchForProject(projectId: Id): Watch<WorkSession[]>;
+}
+
+/**
+ * Off time (Sleep Mode, architecture §8): manually started and ended windows,
+ * never a claim about sleep itself; and declared days off. Starting a window
+ * is refused while work is running.
+ */
+export interface OffTimeRepository {
+  start(kind: 'sleep' | 'rest', note?: string): Promise<OffTimeSession>;
+  end(id: Id): Promise<OffTimeSession>;
+  /** Deletes a window started by mistake, with its events. */
+  discard(id: Id): Promise<void>;
+  /** At most one per date. */
+  declareDayOff(date: LocalDate, note?: string): Promise<OffTimeSession>;
+  removeDayOff(date: LocalDate): Promise<void>;
+  watchActive: Watch<OffTimeSession | undefined>;
+  watchRange(start: LocalDate, end: LocalDate): Watch<OffTimeSession[]>;
+}
+
+export interface EventQuery {
+  projectId?: Id;
+  /** Private life events (off time, habit logs) are left out unless asked for. */
+  includePrivate?: boolean;
+  limit?: number;
+}
+
+/** The ledger, read-only: events are written by the repositories that change records. */
+export interface EventRepository {
+  /** Newest first. */
+  watchRecent(query?: EventQuery): Watch<LedgerEvent[]>;
+  watchRange(start: LocalDate, end: LocalDate, query?: EventQuery): Watch<LedgerEvent[]>;
+}
+
+export interface NewAiSession {
+  client: string;
+  scope: AiScope;
+  projectId?: Id;
+  startedAt: Timestamp;
+  endedAt: Timestamp;
+  summary: string;
+  filesTouched?: string[];
+}
+
+/**
+ * AI session records. Only a real, authenticated client may call `record`
+ * (ADR-041); the app itself never invents one.
+ */
+export interface AiSessionRepository {
+  record(input: NewAiSession): Promise<AiSession>;
+  watchForProject(projectId: Id): Watch<AiSession[]>;
+}
+
+/** Raw records behind activity grids and the Daily Pulse, for a date range. */
+export interface ActivitySources {
+  habits: Habit[];
+  habitEntries: HabitEntry[];
+  workSessions: WorkSession[];
+  offTimeSessions: OffTimeSession[];
+  /** Tasks with a `completedAt` (status done). */
+  completedTasks: Task[];
+  milestones: Milestone[];
+  decisions: Decision[];
+  /** Resolved blocker and approval items. */
+  resolvedItems: ProjectItem[];
+}
+
+export interface ActivityRepository {
+  /**
+   * Everything dated within `start..end` (LocalDates, inclusive; instants
+   * compared by their local day), read in one live query. Protected time and
+   * inbox are deliberately not part of it.
+   */
+  watchSources(start: LocalDate, end: LocalDate): Watch<ActivitySources>;
+}
+
 export interface Repositories {
   tasks: TaskRepository;
   inbox: InboxRepository;
@@ -328,4 +570,10 @@ export interface Repositories {
   habits: HabitRepository;
   hackathons: HackathonRepository;
   backup: BackupRepository;
+  projects: ProjectRepository;
+  work: WorkRepository;
+  offTime: OffTimeRepository;
+  events: EventRepository;
+  aiSessions: AiSessionRepository;
+  activity: ActivityRepository;
 }

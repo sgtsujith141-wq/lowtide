@@ -12,7 +12,7 @@ import {
 } from '../../types/domain';
 import { BUILD_LABEL, PPT_LABEL, REGISTRATION_LABEL, STATUS_LABEL } from './labels';
 
-type Draft = Required<{ [K in keyof HackathonChanges]: string }>;
+type Draft = Required<{ [K in Exclude<keyof HackathonChanges, 'projectId'>]: string }>;
 
 function toDraft(h: Partial<Hackathon>): Draft {
   return {

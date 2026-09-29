@@ -1,7 +1,8 @@
 import { toTimestamp } from '../../lib/time';
 import type { Task, TaskStatus } from '../../types/domain';
 import { taskSchema } from '../schema';
-import { RecordNotFoundError, RecordStateError } from './errors';
+import { InvalidInputError, RecordNotFoundError, RecordStateError } from './errors';
+import { appendEvent } from './ledger';
 import { omitUndefined, resolveDeps, watchQuery, type RepositoryDeps } from './shared';
 import type { NewTask, TaskChanges, TaskRepository } from './types';
 
@@ -25,6 +26,8 @@ export function buildTask(input: NewTask, id: string, now: Date): Task {
       priority: input.priority ?? 'normal',
       dueAt: input.dueAt,
       project: optionalText(input.project),
+      projectId: input.projectId,
+      milestoneId: input.milestoneId,
       createdAt: at,
       updatedAt: at,
     }),
@@ -39,11 +42,32 @@ function applyChanges(task: Task, changes: TaskChanges): Record<string, unknown>
   if (changes.notes !== undefined) next.notes = optionalText(changes.notes);
   if (changes.project !== undefined) next.project = optionalText(changes.project);
   if (changes.dueAt !== undefined) next.dueAt = changes.dueAt ?? undefined;
+  if (changes.projectId !== undefined) {
+    next.projectId = changes.projectId ?? undefined;
+    // A milestone belongs to one project: moving or unlinking clears it.
+    if (changes.projectId !== task.projectId) next.milestoneId = undefined;
+  }
+  if (changes.milestoneId !== undefined) next.milestoneId = changes.milestoneId ?? undefined;
   return omitUndefined(next);
 }
 
 export function createDexieTaskRepository(deps: RepositoryDeps): TaskRepository {
   const { db, clock, newId } = resolveDeps(deps);
+  const tables = [db.tasks, db.projects, db.milestones, db.events];
+
+  /** A task's project must exist, and its milestone must be in that project. */
+  async function checkLinks(task: Task) {
+    if (task.projectId !== undefined && !(await db.projects.get(task.projectId))) {
+      throw new RecordNotFoundError('Project', task.projectId);
+    }
+    if (task.milestoneId !== undefined) {
+      const milestone = await db.milestones.get(task.milestoneId);
+      if (!milestone) throw new RecordNotFoundError('Milestone', task.milestoneId);
+      if (milestone.projectId !== task.projectId) {
+        throw new InvalidInputError('That milestone belongs to another project');
+      }
+    }
+  }
 
   const listOpen = () =>
     db.tasks
@@ -61,25 +85,32 @@ export function createDexieTaskRepository(deps: RepositoryDeps): TaskRepository 
     id: string,
     allowedFrom: readonly TaskStatus[] | 'any',
     change: (task: Task, at: string) => object,
+    after?: (task: Task, now: Date) => Promise<unknown>,
   ): Promise<Task> {
-    return db.transaction('rw', db.tasks, async () => {
+    return db.transaction('rw', tables, async () => {
       const existing = await db.tasks.get(id);
       if (!existing) throw new RecordNotFoundError('Task', id);
       if (allowedFrom !== 'any' && !allowedFrom.includes(existing.status)) {
         throw new RecordStateError(`Task ${id} is ${existing.status}`);
       }
-      const at = toTimestamp(clock());
+      const now = clock();
+      const at = toTimestamp(now);
       const task = taskSchema.parse({ ...change(existing, at), updatedAt: at });
+      await checkLinks(task);
       await db.tasks.put(task);
+      await after?.(task, now);
       return task;
     });
   }
 
   return {
-    async create(input) {
-      const task = buildTask(input, newId(), clock());
-      await db.tasks.add(task);
-      return task;
+    create(input) {
+      return db.transaction('rw', tables, async () => {
+        const task = buildTask(input, newId(), clock());
+        await checkLinks(task);
+        await db.tasks.add(task);
+        return task;
+      });
     },
 
     get(id) {
@@ -95,7 +126,17 @@ export function createDexieTaskRepository(deps: RepositoryDeps): TaskRepository 
     },
 
     complete(id) {
-      return modify(id, OPEN, (task, at) => ({ ...task, status: 'done', completedAt: at }));
+      return modify(
+        id,
+        OPEN,
+        (task, at) => ({ ...task, status: 'done', completedAt: at }),
+        (task, now) =>
+          appendEvent(db, newId, now, {
+            type: 'task.completed',
+            entityId: task.id,
+            projectId: task.projectId,
+          }),
+      );
     },
 
     reopen(id) {

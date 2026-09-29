@@ -7,24 +7,26 @@ import {
   sortBackupData,
 } from '../backup';
 import type { LowtideDatabase } from '../database';
+import type { Table } from 'dexie';
+import { STORE_NAMES, type StoreName } from '../migrations';
 import { SCHEMA_VERSION } from '../schema';
 import { resolveDeps, watchQuery, type RepositoryDeps } from './shared';
 import type { BackupData, BackupRepository } from './types';
 
+/** The typed table for a store (the same object as `db.tasks`, etc.). */
+function tableOf(db: LowtideDatabase, store: StoreName): Table {
+  return db[store] as unknown as Table;
+}
+
 function allTables(db: LowtideDatabase) {
-  return [db.tasks, db.inbox, db.habits, db.habitEntries, db.hackathons, db.protectedTime];
+  return STORE_NAMES.map((store) => tableOf(db, store));
 }
 
 async function readAll(db: LowtideDatabase): Promise<BackupData> {
-  const [tasks, inbox, habits, habitEntries, hackathons, protectedTime] = await Promise.all([
-    db.tasks.toArray(),
-    db.inbox.toArray(),
-    db.habits.toArray(),
-    db.habitEntries.toArray(),
-    db.hackathons.toArray(),
-    db.protectedTime.toArray(),
-  ]);
-  return { tasks, inbox, habits, habitEntries, hackathons, protectedTime };
+  const lists = await Promise.all(STORE_NAMES.map((store) => tableOf(db, store).toArray()));
+  return Object.fromEntries(
+    STORE_NAMES.map((store, i) => [store, lists[i]]),
+  ) as unknown as BackupData;
 }
 
 export function createDexieBackupRepository(deps: RepositoryDeps): BackupRepository {
@@ -53,13 +55,8 @@ export function createDexieBackupRepository(deps: RepositoryDeps): BackupReposit
       // read-write transaction. Any failure aborts it and nothing changes.
       return db.transaction('rw', allTables(db), async () => {
         await Promise.all(allTables(db).map((table) => table.clear()));
-        // Parents before children.
-        await db.habits.bulkAdd(data.habits);
-        await db.tasks.bulkAdd(data.tasks);
-        await db.hackathons.bulkAdd(data.hackathons);
-        await db.protectedTime.bulkAdd(data.protectedTime);
-        await db.inbox.bulkAdd(data.inbox);
-        await db.habitEntries.bulkAdd(data.habitEntries);
+        // Every store, in backup order (parents before children).
+        for (const store of STORE_NAMES) await tableOf(db, store).bulkAdd(data[store]);
       });
     },
   };

@@ -51,7 +51,7 @@ export function createDexieHackathonRepository(deps: RepositoryDeps): HackathonR
     },
 
     update(id, changes: HackathonChanges) {
-      return db.transaction('rw', db.hackathons, async () => {
+      return db.transaction('rw', db.hackathons, db.projects, async () => {
         const existing = await db.hackathons.get(id);
         if (!existing) throw new RecordNotFoundError('Hackathon', id);
         const next: Record<string, unknown> = { ...existing, updatedAt: toTimestamp(clock()) };
@@ -61,6 +61,12 @@ export function createDexieHackathonRepository(deps: RepositoryDeps): HackathonR
         }
         for (const field of OPTIONAL_FIELDS) {
           if (changes[field] !== undefined) next[field] = optionalText(changes[field]);
+        }
+        if (changes.projectId !== undefined) {
+          if (changes.projectId !== null && !(await db.projects.get(changes.projectId))) {
+            throw new RecordNotFoundError('Project', changes.projectId);
+          }
+          next.projectId = changes.projectId ?? undefined;
         }
         const hackathon = validate(next);
         await db.hackathons.put(hackathon);

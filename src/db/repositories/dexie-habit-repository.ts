@@ -3,6 +3,7 @@ import type { Habit } from '../../types/domain';
 import { checkEntryValue, checkHabitTarget } from '../rules';
 import { habitEntrySchema, habitSchema } from '../schema';
 import { RecordNotFoundError, RecordStateError } from './errors';
+import { appendEvent, deleteEventsFor } from './ledger';
 import { omitUndefined, resolveDeps, watchQuery, type RepositoryDeps } from './shared';
 import type { HabitRepository } from './types';
 
@@ -63,11 +64,12 @@ export function createDexieHabitRepository(deps: RepositoryDeps): HabitRepositor
     watchAll: watchQuery(() => db.habits.orderBy('createdAt').toArray()),
 
     setEntry(habitId, date, value, note) {
-      return db.transaction('rw', db.habits, db.habitEntries, async () => {
+      return db.transaction('rw', db.habits, db.habitEntries, db.events, async () => {
         const habit = await getHabit(habitId);
         if (habit.archived) throw new RecordStateError(`Habit ${habitId} is archived`);
         checkEntryValue(habit.unit, value);
-        const at = toTimestamp(clock());
+        const now = clock();
+        const at = toTimestamp(now);
         const existing = await db.habitEntries
           .where('[habitId+date]')
           .equals([habitId, date])
@@ -86,14 +88,22 @@ export function createDexieHabitRepository(deps: RepositoryDeps): HabitRepositor
         // put() replaces by primary key; the unique [habitId+date] index is the
         // final guard against a second entry for the same day.
         await db.habitEntries.put(entry);
+        await appendEvent(db, newId, now, {
+          type: 'habit.logged',
+          entityId: entry.id,
+          data: { habitId, date },
+        });
         return entry;
       });
     },
 
     clearEntry(habitId, date) {
-      return db.transaction('rw', db.habits, db.habitEntries, async () => {
+      return db.transaction('rw', db.habits, db.habitEntries, db.events, async () => {
         await getHabit(habitId);
-        await db.habitEntries.where('[habitId+date]').equals([habitId, date]).delete();
+        const entry = await db.habitEntries.where('[habitId+date]').equals([habitId, date]).first();
+        if (!entry) return;
+        await db.habitEntries.delete(entry.id);
+        await deleteEventsFor(db, 'habitEntry', entry.id);
       });
     },
 

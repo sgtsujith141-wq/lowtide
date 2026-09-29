@@ -6,16 +6,40 @@ import type {
   BackupProblem,
   ValidatedBackup,
 } from './repositories/types';
-import { migrateSnapshot, STORE_NAMES, type RawSnapshot, type StoreName } from './migrations';
-import { checkEntryValue, checkHabitTarget, checkHackathonDates } from './rules';
 import {
+  migrateSnapshot,
+  STORE_NAMES,
+  storesForSchema,
+  type RawSnapshot,
+  type StoreName,
+} from './migrations';
+import {
+  checkAiSession,
+  checkEntryValue,
+  checkHabitTarget,
+  checkHackathonDates,
+  checkLedgerEvent,
+  checkOffTime,
+  checkProjectItem,
+  checkWorkSession,
+} from './rules';
+import {
+  aiSessionSchema,
+  decisionSchema,
   habitEntrySchema,
   habitSchema,
   hackathonSchema,
   inboxItemSchema,
+  ledgerEventSchema,
+  milestoneSchema,
+  offTimeSessionSchema,
+  progressSnapshotSchema,
+  projectItemSchema,
+  projectSchema,
   protectedTimeSchema,
   SCHEMA_VERSION,
   taskSchema,
+  workSessionSchema,
 } from './schema';
 
 /*
@@ -36,6 +60,15 @@ const SCHEMAS = {
   habitEntries: habitEntrySchema,
   hackathons: hackathonSchema,
   protectedTime: protectedTimeSchema,
+  projects: projectSchema,
+  milestones: milestoneSchema,
+  projectItems: projectItemSchema,
+  decisions: decisionSchema,
+  workSessions: workSessionSchema,
+  offTimeSessions: offTimeSessionSchema,
+  events: ledgerEventSchema,
+  progressSnapshots: progressSnapshotSchema,
+  aiSessions: aiSessionSchema,
 } as const;
 
 const byKeys =
@@ -47,6 +80,9 @@ const byKeys =
     }
     return 0;
   };
+
+type Created = { createdAt: string; id: string };
+const CREATED = [(r: Created) => r.createdAt, (r: Created) => r.id] as const;
 
 /** Stable order per store, so identical data always serialises identically. */
 export function sortBackupData(data: BackupData): BackupData {
@@ -88,6 +124,26 @@ export function sortBackupData(data: BackupData): BackupData {
         (p) => p.id,
       ),
     ),
+    projects: [...data.projects].sort(byKeys(...CREATED)),
+    milestones: [...data.milestones].sort(byKeys(...CREATED)),
+    projectItems: [...data.projectItems].sort(byKeys(...CREATED)),
+    decisions: [...data.decisions].sort(byKeys(...CREATED)),
+    workSessions: [...data.workSessions].sort(byKeys(...CREATED)),
+    offTimeSessions: [...data.offTimeSessions].sort(byKeys(...CREATED)),
+    events: [...data.events].sort(
+      byKeys(
+        (e) => e.at,
+        (e) => e.id,
+      ),
+    ),
+    progressSnapshots: [...data.progressSnapshots].sort(
+      byKeys(
+        (p) => p.projectId,
+        (p) => p.localDate,
+        (p) => p.id,
+      ),
+    ),
+    aiSessions: [...data.aiSessions].sort(byKeys(...CREATED)),
   };
 }
 
@@ -112,7 +168,8 @@ const MAX_ISSUES = 25;
  * Import pipeline, in order:
  * 1. parse JSON;
  * 2. check the envelope: marker, format version (newer → reject), schema
- *    version (newer than this build → reject), export time, all six arrays;
+ *    version (newer than this build → reject), export time, and every store
+ *    that schema has (six before V4, fifteen from V4);
  * 3. migrate older-schema data in memory with the database's own migrations;
  * 4. validate every record against the current schemas and the domain rules
  *    the repositories enforce;
@@ -157,8 +214,14 @@ export function inspectBackup(text: string): BackupInspection {
   if (!isObject(data)) return fail('invalid-data', ['Missing data']);
 
   const issues: string[] = [];
+  const expected = storesForSchema(schemaVersion);
+  for (const key of Object.keys(data)) {
+    if (!(expected as readonly string[]).includes(key)) {
+      issues.push(`data.${key} is not a store of database version ${schemaVersion}`);
+    }
+  }
   const rawSnapshot = {} as RawSnapshot;
-  for (const store of STORE_NAMES) {
+  for (const store of expected) {
     const records = data[store];
     if (!Array.isArray(records)) {
       issues.push(`data.${store} is missing or not a list`);
@@ -239,5 +302,122 @@ function checkIntegrity(data: BackupData, issues: string[]) {
         `inbox[${i}]: converted to task ${item.convertedToTaskId}, which is not in the backup`,
       );
     }
+  });
+
+  checkV4Integrity(data, issues, attempt);
+}
+
+/** Cross-store rules for the V4 stores (ADR-046, architecture §15). */
+function checkV4Integrity(
+  data: BackupData,
+  issues: string[],
+  attempt: (label: string, check: () => void) => void,
+) {
+  const projects = new Set(data.projects.map((p) => p.id));
+  const needProject = (label: string, projectId: string | undefined) => {
+    if (projectId !== undefined && !projects.has(projectId)) {
+      issues.push(`${label}: project ${projectId} is not in the backup`);
+    }
+  };
+
+  const slugs = new Set<string>();
+  data.projects.forEach((p, i) => {
+    if (slugs.has(p.slug)) issues.push(`projects[${i}]: duplicate slug ${p.slug}`);
+    slugs.add(p.slug);
+  });
+
+  const milestones = new Map(data.milestones.map((m) => [m.id, m]));
+  const orders = new Set<string>();
+  data.milestones.forEach((m, i) => {
+    needProject(`milestones[${i}]`, m.projectId);
+    const key = `${m.projectId}|${m.order}`;
+    if (orders.has(key)) issues.push(`milestones[${i}]: duplicate order ${m.order}`);
+    orders.add(key);
+  });
+
+  const taskById = new Map(data.tasks.map((t) => [t.id, t]));
+  const milestoneOf = (label: string, milestoneId: string | undefined, projectId?: string) => {
+    if (milestoneId === undefined) return;
+    const milestone = milestones.get(milestoneId);
+    if (!milestone) return issues.push(`${label}: milestone ${milestoneId} is not in the backup`);
+    if (milestone.projectId !== projectId) {
+      issues.push(`${label}: milestone ${milestoneId} belongs to another project`);
+    }
+  };
+
+  data.tasks.forEach((t, i) => {
+    needProject(`tasks[${i}]`, t.projectId);
+    milestoneOf(`tasks[${i}]`, t.milestoneId, t.projectId);
+  });
+  data.hackathons.forEach((h, i) => needProject(`hackathons[${i}]`, h.projectId));
+
+  data.projectItems.forEach((item, i) => {
+    const label = `projectItems[${i}]`;
+    needProject(label, item.projectId);
+    attempt(label, () => checkProjectItem(item));
+    milestoneOf(label, item.milestoneId, item.projectId);
+    if (item.taskId !== undefined) {
+      const task = taskById.get(item.taskId);
+      if (!task) issues.push(`${label}: task ${item.taskId} is not in the backup`);
+      else if (task.projectId !== item.projectId) {
+        issues.push(`${label}: task ${item.taskId} belongs to another project`);
+      }
+    }
+  });
+
+  const decisions = new Map(data.decisions.map((d) => [d.id, d]));
+  data.decisions.forEach((d, i) => {
+    needProject(`decisions[${i}]`, d.projectId);
+    if (d.supersedesId === undefined) return;
+    const earlier = decisions.get(d.supersedesId);
+    if (!earlier || earlier.projectId !== d.projectId) {
+      issues.push(`decisions[${i}]: supersedes ${d.supersedesId}, not a decision of its project`);
+    }
+  });
+
+  let openWork = 0;
+  data.workSessions.forEach((w, i) => {
+    const label = `workSessions[${i}]`;
+    needProject(label, w.projectId);
+    attempt(label, () => checkWorkSession(w));
+    if (w.endedAt === undefined) openWork += 1;
+    if (w.taskId !== undefined) {
+      const task = taskById.get(w.taskId);
+      if (!task) issues.push(`${label}: task ${w.taskId} is not in the backup`);
+      else if (task.projectId !== undefined && task.projectId !== w.projectId) {
+        issues.push(`${label}: its task belongs to project ${task.projectId}`);
+      }
+    }
+  });
+  if (openWork > 1) issues.push(`workSessions: ${openWork} sessions are open; at most one may be`);
+
+  let openOff = 0;
+  const daysOff = new Set<string>();
+  data.offTimeSessions.forEach((o, i) => {
+    attempt(`offTimeSessions[${i}]`, () => checkOffTime(o));
+    if (o.kind !== 'day_off' && o.endedAt === undefined) openOff += 1;
+    if (o.kind === 'day_off') {
+      if (daysOff.has(o.localDate)) issues.push(`offTimeSessions[${i}]: second day off`);
+      daysOff.add(o.localDate);
+    }
+  });
+  if (openOff > 1) issues.push(`offTimeSessions: ${openOff} windows are open; at most one may be`);
+
+  data.events.forEach((e, i) => {
+    attempt(`events[${i}]`, () => checkLedgerEvent(e));
+    needProject(`events[${i}]`, e.projectId);
+  });
+
+  const snapshotDays = new Set<string>();
+  data.progressSnapshots.forEach((p, i) => {
+    needProject(`progressSnapshots[${i}]`, p.projectId);
+    const key = `${p.projectId}|${p.localDate}`;
+    if (snapshotDays.has(key)) issues.push(`progressSnapshots[${i}]: second snapshot that day`);
+    snapshotDays.add(key);
+  });
+
+  data.aiSessions.forEach((a, i) => {
+    attempt(`aiSessions[${i}]`, () => checkAiSession(a));
+    needProject(`aiSessions[${i}]`, a.projectId);
   });
 }
