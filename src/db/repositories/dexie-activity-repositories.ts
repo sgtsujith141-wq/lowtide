@@ -19,15 +19,60 @@ function visible(query: EventQuery | undefined) {
 
 export function createDexieEventRepository(deps: RepositoryDeps): EventRepository {
   const { db } = resolveDeps(deps);
+
+  async function titleOf(event: LedgerEvent): Promise<string | undefined> {
+    switch (event.entityType) {
+      case 'task':
+        return (await db.tasks.get(event.entityId))?.title;
+      case 'milestone':
+        return (await db.milestones.get(event.entityId))?.title;
+      case 'projectItem':
+        return (await db.projectItems.get(event.entityId))?.title;
+      case 'decision':
+        return (await db.decisions.get(event.entityId))?.title;
+      case 'project':
+        return (await db.projects.get(event.entityId))?.name;
+      case 'workSession':
+        return (await db.workSessions.get(event.entityId))?.intent;
+      case 'aiSession':
+        return (await db.aiSessions.get(event.entityId))?.summary;
+      case 'habitEntry': {
+        const entry = await db.habitEntries.get(event.entityId);
+        return entry ? (await db.habits.get(entry.habitId))?.name : undefined;
+      }
+      case 'offTimeSession':
+        return undefined;
+    }
+  }
+
+  async function recent(query: EventQuery | undefined) {
+    const source = query?.projectId
+      ? db.events.where('projectId').equals(query.projectId)
+      : db.events.toCollection();
+    const events = (await source.toArray()).filter(visible(query)).sort(newestFirst);
+    return query?.limit ? events.slice(0, query.limit) : events;
+  }
+
   return {
-    watchRecent(query) {
+    watchTimeline(query) {
       return watchQuery(async () => {
-        const source = query?.projectId
-          ? db.events.where('projectId').equals(query.projectId)
-          : db.events.toCollection();
-        const events = (await source.toArray()).filter(visible(query)).sort(newestFirst);
-        return query?.limit ? events.slice(0, query.limit) : events;
+        const events = await recent(query);
+        const names = new Map((await db.projects.toArray()).map((p) => [p.id, p.name]));
+        return Promise.all(
+          events.map(async (event) => {
+            const title = await titleOf(event);
+            const projectName = event.projectId ? names.get(event.projectId) : undefined;
+            return {
+              event,
+              ...(title !== undefined ? { title } : {}),
+              ...(projectName !== undefined ? { projectName } : {}),
+            };
+          }),
+        );
       });
+    },
+    watchRecent(query) {
+      return watchQuery(() => recent(query));
     },
     watchRange(start, end, query) {
       return watchQuery(async () => {

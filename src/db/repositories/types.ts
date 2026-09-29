@@ -514,11 +514,21 @@ export interface EventQuery {
   limit?: number;
 }
 
+/** An event with the current title of what it refers to (absent if deleted). */
+export interface TimelineEntry {
+  event: LedgerEvent;
+  /** Task title, milestone title, decision title, work intent… */
+  title?: string;
+  projectName?: string;
+}
+
 /** The ledger, read-only: events are written by the repositories that change records. */
 export interface EventRepository {
   /** Newest first. */
   watchRecent(query?: EventQuery): Watch<LedgerEvent[]>;
   watchRange(start: LocalDate, end: LocalDate, query?: EventQuery): Watch<LedgerEvent[]>;
+  /** Newest first, each joined with the current record's title (events never copy it). */
+  watchTimeline(query?: EventQuery): Watch<TimelineEntry[]>;
 }
 
 export interface NewAiSession {

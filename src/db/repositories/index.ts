@@ -33,6 +33,7 @@ export type {
   ProjectItemChanges,
   ProjectRepository,
   StartWork,
+  TimelineEntry,
   WorkRepository,
   BackupCounts,
   BackupData,
