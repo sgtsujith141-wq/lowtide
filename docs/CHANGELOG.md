@@ -5,6 +5,14 @@ app's `package.json` version.
 
 ## [Unreleased]
 
+### Added (v2 PHASE 006 — Life + Rhythm)
+
+- **Life** (`/life`): Personal routines, Sleep & off time (start windows, recent marked
+  windows, days off), Gym (type, duration, note), College (classes attended or missed,
+  coursework done, study time, Start study). Each area has its own grid.
+- **Schema V5:** college items (additive).
+- **Rhythm** now uses the shared GitHub-style grid with 7-day to 12-month ranges.
+
 ### Added (v2 PHASE 005 — Work Mode + Sleep Mode)
 
 - Focus follows mode changes (Pause after starting, Wake up after Sleep Mode, the page

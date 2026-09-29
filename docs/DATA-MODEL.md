@@ -214,7 +214,7 @@ hackathon touches habits or the activity grid.
 
 - IndexedDB database name: `lowtide` (`DATABASE_NAME`). Never rename it — that would
   orphan existing data.
-- `SCHEMA_VERSION = 4` (v2 PHASE 002). Version history:
+- `SCHEMA_VERSION = 5` (v2 PHASE 006). Version history:
 
 | Version | Phase  | Stores changed                                                          | Record changes                                                 | Upgrade function       |
 | ------- | ------ | ----------------------------------------------------------------------- | -------------------------------------------------------------- | ---------------------- |
@@ -309,7 +309,14 @@ in `src/db/rules.ts`:
 **Amendment to the locked design (recorded in ADR-046):** `Project.phase?` is an optional
 text field for the Command Room's "current phase". It's additive and has no index.
 
-**Backups:** `STORE_NAMES` lists all 15 stores. A schema-4 backup must contain all 15
+## Schema V5 (v2 PHASE 006, ADR-051)
+
+`collegeItems` (`id, date, kind`) holds classes, labs, assignments, exams and events,
+each with a `status`. Classes and labs are attended or missed; the others are done.
+The V4 → V5 upgrade only creates the store. Tested in `v5-college.test.ts` against a
+genuine V4 database.
+
+**Backups:** `STORE_NAMES` lists all 16 stores (15 in V4). A schema-4 backup must contain all 15
 and no others. A V1–V3 backup must contain the six legacy stores and no others; it
 imports with the nine new stores empty (`migrateSnapshot`). `BACKUP_FORMAT_VERSION`
 stays 1.

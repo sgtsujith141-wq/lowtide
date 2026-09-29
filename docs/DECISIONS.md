@@ -635,6 +635,9 @@ movement routine (so up to 4). Working on a day off never lowers the day.
 - no history is fabricated. Days before V4 score only from the records they already
   have (`habitEntries`, `tasks.completedAt`).
 
+**Amended by ADR-051:** attended classes and labs and done college coursework also count
+towards `collegeRoutines`. The function and the bands are unchanged.
+
 **Replaceable.** A new algorithm gets a new `PULSE_ALGORITHM_VERSION` and a new ADR.
 Because the pulse is derived, past days re-render under it without data changes.
 
@@ -934,3 +937,55 @@ It has seven tabs:
 | History    | the full project timeline                                         |
 
 No tab shows placeholder content as if it were real.
+
+## ADR-051 — Schema V5: college items (v2)
+
+**Context.** College needs to record classes and labs as attended or missed, and
+assignments, exams and events as done. None of these is a habit, a task or a work
+session.
+**Decision.** An additive V5 version adds one store, `collegeItems` (`id, date, kind`):
+
+- `kind`: class, lab, assignment, exam or event;
+- `title`, a `date` (`LocalDate`), and optional `course` and `note`;
+- `status`: planned, attended, missed, done or cancelled. Classes and labs are attended
+  or missed, the rest are done (`checkCollegeItem`, enforced on write and on import).
+
+The upgrade touches no existing record. Backups carry 16 stores; V1–V4 backups import
+with the store empty, and a schema-4 file can't carry it.
+
+**Daily Pulse (amends ADR-037's signal sources):**
+
+- Attended classes and labs and done coursework add to `collegeRoutines` on their date.
+  The signal list and the scoring are unchanged.
+- A missed class is recorded plainly and never lowers anything.
+- No new ledger event types: college items are records the pulse reads directly.
+
+**The gym needs no new store.** A gym session is a fitness routine's entry: the routine
+is the type, minutes are the duration, and the entry note is the note.
+
+## ADR-052 — One grid system everywhere, with range views; the Life page (v2)
+
+**Decision.**
+
+- Rhythm's v0.1 `ActivityGrid` (26 Monday-first weeks) is replaced by the shared
+  `ContributionGrid` (ADR-047). This supersedes ADR-026's geometry (Monday-first rows,
+  six months), not its accessibility model, which carries over.
+- `RangeGrid` adds a range switch below the grid:
+  - 7 and 30 days draw exactly those days;
+  - 90 days draws 13 whole weeks, six months 26, and 12 months 53.
+- Rhythm keeps its detail line under the grid, and its palette follows the view:
+  - overall: teal;
+  - Coding & learning: blue;
+  - Fitness & health: warm red;
+  - a single habit: its preset palette (ADR-045), with money in gold.
+- **Life (`/life`)** has four areas, each with its own grid and range switch:
+  - **Personal:** personal and health routines, logged today. Medication records only
+    whether you took it, with no dosage.
+  - **Sleep & off time:**
+    - start a sleep or rest window (refused while work runs);
+    - recent windows shown as "marked" lengths;
+    - days off declared ahead of time.
+  - **Gym:** log a session by type, duration and note, and add types.
+  - **College:** today's classes and labs (attended or missed), coursework coming up
+    (done), study time this week, and Start study (a college work session).
+- Desktop navigation gains Life; on phones it's under More.
