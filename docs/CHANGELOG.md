@@ -5,6 +5,16 @@ app's `package.json` version.
 
 ## [Unreleased]
 
+### Added (v2 PHASE 002 — V4 data foundation)
+
+- Schema V4 (additive): projects, milestones, project items in lanes, decisions, work
+  sessions, off-time sessions, a typed event ledger, progress snapshots and AI sessions;
+  optional `projectId`/`milestoneId` on tasks and `projectId` on hackathons. The upgrade
+  rewrites no existing record.
+- Repositories for all of it, with events and snapshots written in the same
+  transaction as their records.
+- Backups carry all 15 stores; V1–V3 backups still import.
+
 ### Added (v2 PHASE 001 — decisions locked, baseline green)
 
 - ADR-037 to ADR-046: Daily Pulse, project completion, hackathon stages, staged move to a

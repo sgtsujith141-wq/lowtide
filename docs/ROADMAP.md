@@ -28,7 +28,7 @@ Plan: [LOWTIDE-V2-ARCHITECTURE.md](LOWTIDE-V2-ARCHITECTURE.md); audit:
 | -------- | ----------------------------------------------------------------------------------------------------- | -------------------------- |
 | 000      | Audit, safeguards, migration plan                                                                     | Done                       |
 | 001      | Green baseline, decisions locked (ADR-037 to ADR-046), V4 design locked, pure rules tested            | Done (see V2-PHASE-001.md) |
-| 002      | Schema V4, repositories, rules, ledger, backup V4, with the preflight in the architecture doc §16     | Not started                |
+| 002      | Schema V4, repositories, rules, ledger, backup V4, with the preflight in the architecture doc §16     | Done (see V2-PHASE-002.md) |
 | 003+     | Grids and Daily Pulse; Home and navigation; Start Work and Sleep Mode; Project Command Room; later AI | Not started                |
 
 ## Optional future work

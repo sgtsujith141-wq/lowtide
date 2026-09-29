@@ -214,12 +214,14 @@ hackathon touches habits or the activity grid.
 
 - IndexedDB database name: `lowtide` (`DATABASE_NAME`). Never rename it — that would
   orphan existing data.
-- `SCHEMA_VERSION = 3` (PHASE 004). Version history:
+- `SCHEMA_VERSION = 4` (v2 PHASE 002). Version history:
 
-| Version | Phase | Stores changed                              | Record changes                           | Upgrade function |
-| ------- | ----- | ------------------------------------------- | ---------------------------------------- | ---------------- |
-| 1       | 000   | all six created (`STORES_V1`)               | —                                        | —                |
-| 2       | 002   | `tasks`: + `plannedFor` index (`STORES_V2`) | `Task.plannedFor?: LocalDate` (optional) | none needed      |
+| Version | Phase  | Stores changed                                                          | Record changes                                                 | Upgrade function       |
+| ------- | ------ | ----------------------------------------------------------------------- | -------------------------------------------------------------- | ---------------------- |
+| 1       | 000    | all six created (`STORES_V1`)                                           | —                                                              | —                      |
+| 2       | 002    | `tasks`: + `plannedFor` index (`STORES_V2`)                             | `Task.plannedFor?: LocalDate` (optional)                       | none needed            |
+| 3       | 004    | none (`STORES_V3`)                                                      | hackathon dates become `LocalDate`                             | `migrateHackathonToV3` |
+| 4       | v2 002 | nine new stores; `tasks`/`hackathons` + `projectId` index (`STORES_V4`) | optional `Task.projectId`/`milestoneId`, `Hackathon.projectId` | none (additive)        |
 
 **V1 → V2 migration, exactly.** When a V1 database is opened, Dexie runs the version-2
 schema step. It adds the `plannedFor` index to the `tasks` object store, and IndexedDB
@@ -278,12 +280,39 @@ time by date then id.
 Unknown extra fields in a record are dropped by the Zod parse. No schema change was
 needed for backups; the database stays at V3.
 
-## Planned: schema V4 (not implemented)
+## Schema V4 (v2 PHASE 002)
 
-The approved V4 design (nine new stores, `tasks.projectId`/`milestoneId`,
-`hackathons.projectId`, an upgrade that writes nothing to existing records) is in
-[LOWTIDE-V2-ARCHITECTURE.md](LOWTIDE-V2-ARCHITECTURE.md) §2–§9 and §15 (ADR-046). The
-store list above is still the running V3 schema.
+**V3 → V4 migration, exactly.** Dexie runs the version-4 schema step with no upgrade
+function. It creates nine empty stores and adds a `projectId` index to `tasks` and
+`hackathons`. No existing record is read or rewritten: no projects are derived from
+`Task.project` labels, no hackathon is converted, and no events, snapshots or sessions
+are synthesized. Tested in `src/test/migration-v4.test.ts` against a genuine V3
+database, where every V3 record is deep-equal afterwards and every new store is empty.
+
+The V4 entities are specified in
+[LOWTIDE-V2-ARCHITECTURE.md](LOWTIDE-V2-ARCHITECTURE.md) §3–§9 (ADR-046). Their types
+live in `src/types/domain.ts`, their Zod schemas in `src/db/schema.ts`, and their rules
+in `src/db/rules.ts`:
+
+| Store               | Entity             | Indexes                                                 |
+| ------------------- | ------------------ | ------------------------------------------------------- |
+| `projects`          | `Project`          | `&slug, state, updatedAt`                               |
+| `milestones`        | `Milestone`        | `projectId, [projectId+order]`                          |
+| `projectItems`      | `ProjectItem`      | `projectId, [projectId+lane], taskId`                   |
+| `decisions`         | `Decision`         | `projectId, decidedAt`                                  |
+| `workSessions`      | `WorkSession`      | `kind, projectId, taskId, localDate, startedAt`         |
+| `offTimeSessions`   | `OffTimeSession`   | `kind, localDate, startedAt`                            |
+| `events`            | `LedgerEvent`      | `at, localDate, type, projectId, [entityType+entityId]` |
+| `progressSnapshots` | `ProgressSnapshot` | `projectId, &[projectId+localDate]`                     |
+| `aiSessions`        | `AiSession`        | `projectId, startedAt`                                  |
+
+**Amendment to the locked design (recorded in ADR-046):** `Project.phase?` is an optional
+text field for the Command Room's "current phase". It's additive and has no index.
+
+**Backups:** `STORE_NAMES` lists all 15 stores. A schema-4 backup must contain all 15
+and no others. A V1–V3 backup must contain the six legacy stores and no others; it
+imports with the nine new stores empty (`migrateSnapshot`). `BACKUP_FORMAT_VERSION`
+stays 1.
 
 ## Migrations
 

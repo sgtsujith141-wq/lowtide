@@ -818,3 +818,7 @@ routine signals (ADR-037).
   domain truth.
 
 - **Backup:** envelope `formatVersion` stays 1, and `schemaVersion` becomes 4.
+
+**Amendment (v2 PHASE 002, implementation):** `Project` gains an optional `phase` text
+field ("current phase" in the Command Room). Additive, unindexed, and in the backup
+schema. Nothing else in the locked design changed.
