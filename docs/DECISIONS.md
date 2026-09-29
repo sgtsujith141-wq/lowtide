@@ -901,6 +901,13 @@ becomes an assistant only when a real client is connected under ADR-041.
 
   Navigation stays usable. The bar says "A marked window, not a sleep measurement."
 
+**Focus (PHASE 005):**
+
+- Starting work moves focus to Pause, and starting Sleep Mode to Wake up.
+- Finishing or waking moves focus to `<main>`.
+- This happens only when the change came from this tab (`focus-intent.ts`); a reload or
+  another tab never moves focus.
+
 ## ADR-050 — The Project Command Room (v2)
 
 **Decision.** `/projects/:slug` answers, visually and from records only:

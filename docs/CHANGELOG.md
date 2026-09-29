@@ -5,6 +5,18 @@ app's `package.json` version.
 
 ## [Unreleased]
 
+### Added (v2 PHASE 005 — Work Mode + Sleep Mode)
+
+- Focus follows mode changes (Pause after starting, Wake up after Sleep Mode, the page
+  after finishing); Escape closes Start Work; a Finish work session button when Sleep
+  Mode is refused; Start work here in the Command Room; nonessential Home sections fade
+  in Sleep Mode.
+
+### Fixed (v2 PHASE 005)
+
+- Hackathons: moving a sheet between Past and the open list could lose keyboard focus.
+- Home renders its secondary grids when scrolled to.
+
 ### Added (v2 PHASE 003–004 — Home and the Project Command Room)
 
 - **Home** at `/`: Start Work, Sleep Mode, Ask LOWTIDE (a local search, clearly
