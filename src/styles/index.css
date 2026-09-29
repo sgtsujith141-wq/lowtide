@@ -48,6 +48,37 @@
   --lt-activity-2: #7fb2a7;
   --lt-activity-3: #4b8b82;
   --lt-activity-4: #285c57;
+
+  /* v2 grid palettes (ADR-042). Level 0 is the theme's inactive cell. */
+  --lt-grid-0: #e6dfd3;
+  --lt-pulse-1: #b9dca8;
+  --lt-pulse-2: #7cbf7c;
+  --lt-pulse-3: #3f9652;
+  --lt-pulse-4: #226537;
+  --lt-work-1: #f1d8a0;
+  --lt-work-2: #e2b15c;
+  --lt-work-3: #c3862b;
+  --lt-work-4: #8a5913;
+  --lt-sleep-1: #dad2ef;
+  --lt-sleep-2: #b3a4de;
+  --lt-sleep-3: #8573c4;
+  --lt-sleep-4: #574797;
+  --lt-personal-1: #c0e2dc;
+  --lt-personal-2: #7fc3b7;
+  --lt-personal-3: #3f998c;
+  --lt-personal-4: #22655c;
+  --lt-gym-1: #f1cbbf;
+  --lt-gym-2: #de937e;
+  --lt-gym-3: #bf5f46;
+  --lt-gym-4: #883a28;
+  --lt-college-1: #c8d8ef;
+  --lt-college-2: #8fb2de;
+  --lt-college-3: #5183bf;
+  --lt-college-4: #2d568d;
+  --lt-projects-1: #efe0a6;
+  --lt-projects-2: #d9bd5c;
+  --lt-projects-3: #b4922b;
+  --lt-projects-4: #7a6115;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -73,6 +104,35 @@
     --lt-activity-2: #2f6258;
     --lt-activity-3: #4f9489;
     --lt-activity-4: #93cfc4;
+    --lt-grid-0: #38342e;
+    --lt-pulse-1: #1f4a2c;
+    --lt-pulse-2: #2c6e3d;
+    --lt-pulse-3: #409b53;
+    --lt-pulse-4: #74cc80;
+    --lt-work-1: #4a3818;
+    --lt-work-2: #7a5a1f;
+    --lt-work-3: #b88630;
+    --lt-work-4: #e8b85c;
+    --lt-sleep-1: #2e2745;
+    --lt-sleep-2: #473b73;
+    --lt-sleep-3: #6f5eb0;
+    --lt-sleep-4: #a898e0;
+    --lt-personal-1: #1c3d38;
+    --lt-personal-2: #265f56;
+    --lt-personal-3: #3a8f82;
+    --lt-personal-4: #74c9bb;
+    --lt-gym-1: #47261f;
+    --lt-gym-2: #733a2c;
+    --lt-gym-3: #b05a42;
+    --lt-gym-4: #e3907a;
+    --lt-college-1: #1e2d45;
+    --lt-college-2: #2b4670;
+    --lt-college-3: #4671ad;
+    --lt-college-4: #86aee6;
+    --lt-projects-1: #3f3715;
+    --lt-projects-2: #6b5b1d;
+    --lt-projects-3: #a58a2c;
+    --lt-projects-4: #dcc35c;
   }
 }
 
@@ -98,6 +158,35 @@
   --lt-activity-2: #2f6258;
   --lt-activity-3: #4f9489;
   --lt-activity-4: #93cfc4;
+  --lt-grid-0: #38342e;
+  --lt-pulse-1: #1f4a2c;
+  --lt-pulse-2: #2c6e3d;
+  --lt-pulse-3: #409b53;
+  --lt-pulse-4: #74cc80;
+  --lt-work-1: #4a3818;
+  --lt-work-2: #7a5a1f;
+  --lt-work-3: #b88630;
+  --lt-work-4: #e8b85c;
+  --lt-sleep-1: #2e2745;
+  --lt-sleep-2: #473b73;
+  --lt-sleep-3: #6f5eb0;
+  --lt-sleep-4: #a898e0;
+  --lt-personal-1: #1c3d38;
+  --lt-personal-2: #265f56;
+  --lt-personal-3: #3a8f82;
+  --lt-personal-4: #74c9bb;
+  --lt-gym-1: #47261f;
+  --lt-gym-2: #733a2c;
+  --lt-gym-3: #b05a42;
+  --lt-gym-4: #e3907a;
+  --lt-college-1: #1e2d45;
+  --lt-college-2: #2b4670;
+  --lt-college-3: #4671ad;
+  --lt-college-4: #86aee6;
+  --lt-projects-1: #3f3715;
+  --lt-projects-2: #6b5b1d;
+  --lt-projects-3: #a58a2c;
+  --lt-projects-4: #dcc35c;
 }
 
 /* Expose tokens to Tailwind as utilities (bg-paper, text-ink-muted, …). */
@@ -119,6 +208,35 @@
   --color-activity-2: var(--lt-activity-2);
   --color-activity-3: var(--lt-activity-3);
   --color-activity-4: var(--lt-activity-4);
+  --color-grid-0: var(--lt-grid-0);
+  --color-pulse-1: var(--lt-pulse-1);
+  --color-pulse-2: var(--lt-pulse-2);
+  --color-pulse-3: var(--lt-pulse-3);
+  --color-pulse-4: var(--lt-pulse-4);
+  --color-work-1: var(--lt-work-1);
+  --color-work-2: var(--lt-work-2);
+  --color-work-3: var(--lt-work-3);
+  --color-work-4: var(--lt-work-4);
+  --color-sleep-1: var(--lt-sleep-1);
+  --color-sleep-2: var(--lt-sleep-2);
+  --color-sleep-3: var(--lt-sleep-3);
+  --color-sleep-4: var(--lt-sleep-4);
+  --color-personal-1: var(--lt-personal-1);
+  --color-personal-2: var(--lt-personal-2);
+  --color-personal-3: var(--lt-personal-3);
+  --color-personal-4: var(--lt-personal-4);
+  --color-gym-1: var(--lt-gym-1);
+  --color-gym-2: var(--lt-gym-2);
+  --color-gym-3: var(--lt-gym-3);
+  --color-gym-4: var(--lt-gym-4);
+  --color-college-1: var(--lt-college-1);
+  --color-college-2: var(--lt-college-2);
+  --color-college-3: var(--lt-college-3);
+  --color-college-4: var(--lt-college-4);
+  --color-projects-1: var(--lt-projects-1);
+  --color-projects-2: var(--lt-projects-2);
+  --color-projects-3: var(--lt-projects-3);
+  --color-projects-4: var(--lt-projects-4);
   --color-warn: var(--lt-warn);
   --color-danger: var(--lt-danger);
 
@@ -163,5 +281,26 @@
       transition-duration: 0ms !important;
       animation-duration: 0ms !important;
     }
+  }
+}
+
+/*
+ * Sleep Mode (ADR-042): like a phone's Focus mode, not a black screen. The app
+ * stays visible and usable; it dims, loses saturation and stops moving, and
+ * nonessential controls fade. The off-time bar itself is not dimmed.
+ */
+@layer base {
+  [data-mode='sleep'] [data-dimmable] {
+    filter: saturate(0.45) brightness(0.82);
+    transition: filter 600ms var(--ease-tide);
+  }
+  [data-mode='sleep'] [data-nonessential] {
+    opacity: 0.45;
+  }
+  [data-mode='sleep'] *,
+  [data-mode='sleep'] *::before,
+  [data-mode='sleep'] *::after {
+    animation-duration: 0ms !important;
+    animation-iteration-count: 1 !important;
   }
 }
