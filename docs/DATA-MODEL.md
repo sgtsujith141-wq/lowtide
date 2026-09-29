@@ -278,6 +278,13 @@ time by date then id.
 Unknown extra fields in a record are dropped by the Zod parse. No schema change was
 needed for backups; the database stays at V3.
 
+## Planned: schema V4 (not implemented)
+
+The approved V4 design (nine new stores, `tasks.projectId`/`milestoneId`,
+`hackathons.projectId`, an upgrade that writes nothing to existing records) is in
+[LOWTIDE-V2-ARCHITECTURE.md](LOWTIDE-V2-ARCHITECTURE.md) §2–§9 and §15 (ADR-046). The
+store list above is still the running V3 schema.
+
 ## Migrations
 
 1. Never edit a shipped `this.version(n)` block in `src/db/database.ts`.

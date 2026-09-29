@@ -5,6 +5,23 @@ app's `package.json` version.
 
 ## [Unreleased]
 
+### Added (v2 PHASE 001 — decisions locked, baseline green)
+
+- ADR-037 to ADR-046: Daily Pulse, project completion, hackathon stages, staged move to a
+  local companion, network/AI security, visual system, Home and navigation, workspace
+  privacy, routine grid presets, and the locked schema V4 design. ADR-001/004/005/006,
+  ADR-020 and ADR-025 gain explicit status notes; none were rewritten.
+- Pure, tested rules not yet used by any screen: `dailyPulse` (algorithm v1),
+  `projectCompletion`, `hackathonStages`, `CATEGORY_PRESET` and `routineSignals`.
+- `docs/LOWTIDE-V2-ARCHITECTURE.md` now holds the exact V4 schema and a PHASE 002
+  preflight.
+
+### Fixed (v2 PHASE 001)
+
+- The inbox capture-time test depended on the real date and failed from 29 September to
+  4 October 2026. It now pins `now` and asserts exact times in any time zone.
+- Seven errors in the v2 PHASE 000 audit and architecture documents (see the audit §7).
+
 ### Added (PHASE 006 — core v0.1 roadmap complete)
 
 - **Protected time for the week ahead** on Today: seven day rows (today plus six);
