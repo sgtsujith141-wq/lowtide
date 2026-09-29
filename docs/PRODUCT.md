@@ -75,6 +75,10 @@ like a well-kept paper notebook than a SaaS dashboard.
   - Finished and dropped hackathons move to a collapsed "Past" with everything kept.
   - **Deliberately absent:** percentages, progress rings, Kanban, fetching event sites,
     turning next actions into tasks automatically.
+  - **v2 (decided, not built):** hackathons stay their own domain and may show visual
+    stages derived only from Registration, PPT and Build (ADR-039). Still no
+    percentages. Only technical Projects show a percentage, from weighted milestones
+    (ADR-038). A hackathon links to a Project only when you choose to.
 - **Today** also shows up to three hackathons that genuinely need attention this week:
   a pending registration that's overdue or due within 7 days, or an event starting
   within 7 days or happening now. One line each, with the next action, and nothing when

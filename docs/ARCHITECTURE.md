@@ -3,6 +3,14 @@
 LOWTIDE is a static single-page app. There is no server: the browser is the runtime
 and IndexedDB is the database.
 
+**LOWTIDE v2** is planned in [LOWTIDE-V2-ARCHITECTURE.md](LOWTIDE-V2-ARCHITECTURE.md)
+(decisions ADR-037 to ADR-046). Until its phases ship, this document describes the
+running app. v2 PHASE 001 added only pure, tested rules that nothing renders yet:
+`features/pulse/daily-pulse.ts` (ADR-037), `features/projects/completion.ts`
+(ADR-038), `features/hackathons/progress.ts` (ADR-039) and
+`features/rhythm/presets.ts` (ADR-045). IndexedDB stays canonical until a dedicated
+later phase (ADR-040).
+
 ## Layers
 
 ```

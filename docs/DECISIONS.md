@@ -4,6 +4,8 @@ Lightweight ADRs. Status is Accepted unless noted. Newest decisions are appended
 
 ## ADR-001 — React + Vite SPA, not a server-oriented framework
 
+**Status (2026-09-30):** in force. ADR-040 plans a later, explicit supersession when the local companion ships.
+
 **Context.** LOWTIDE is a single-user app whose data lives on the device. There is no
 server-side data to render.
 **Decision.** React 19 + TypeScript built by Vite into static files. No Next.js/SSR.
@@ -34,11 +36,15 @@ repository layer when needed rather than used directly in components.
 
 ## ADR-004 — No cloud, backend or authentication in v0.1
 
+**Status (2026-09-30):** in force. ADR-040/041 plan a local (not cloud) companion in a later phase, which will supersede this explicitly.
+
 **Decision.** No server, database service, accounts or auth.
 **Consequences.** No cross-device sync yet; backup is the user's responsibility until
 export exists (planned). Nothing to breach server-side.
 
 ## ADR-005 — No analytics or telemetry
+
+**Status (2026-09-30):** in force. Network use is superseded per capability only by the phase that adds it (ADR-041); analytics and telemetry stay out.
 
 **Decision.** No analytics, telemetry, error reporting services or third-party scripts.
 The app makes no network requests at runtime beyond loading its own static files
@@ -46,6 +52,8 @@ The app makes no network requests at runtime beyond loading its own static files
 **Consequences.** Bugs are learned about by using the app, not from dashboards.
 
 ## ADR-006 — Local-first
+
+**Status (2026-09-30):** in force. Canonical storage moves to a local SQLite companion only in a later dedicated phase (ADR-040); still local-first.
 
 **Decision.** The device's database is the source of truth. All features must work
 offline. Any future sync is an optional layer on top, not a requirement.
@@ -196,6 +204,8 @@ DATA-MODEL § V1 → V2).
 
 ## ADR-020 — Today's composition and de-duplication
 
+**Status (2026-09-30):** composition in force; the route moves to `/today` when Home ships (ADR-043).
+
 **Decision.** Today shows two task sections, from `tasks.watchForDay(today)` through the
 pure `composeToday()`:
 
@@ -288,6 +298,8 @@ very first paint waits for one small local chunk (`HydrateFallback` renders noth
 map to 5 colour tokens, and every square also carries a text label.
 
 ## ADR-025 — Overall grid: banded sum of per-habit levels, no denominator
+
+**Status (2026-09-30):** in force for Rhythm's overall, group and habit views. The v2 master grid is a separate Daily Pulse (ADR-037).
 
 **Decision.** For each day, add up the levels of every habit with an entry that day,
 archived habits included, then band the sum:
@@ -572,3 +584,237 @@ the history view never makes habits seem to disappear.
 
 **Not added:** a Money & personal group (not needed), new routes, or any body metrics.
 Relationship-type categories still don't exist (ADR-013), so no group can include them.
+
+## ADR-037 — Daily Pulse: a fixed-band master grid from real daily signals (v2)
+
+**Context.** LOWTIDE v2 needs one master grid for the whole day, not only habits.
+ADR-025's habit-only overall grid stays valid for Rhythm's per-habit and group views;
+this ADR adds a separate **master** grid and doesn't change ADR-025.
+**Decision.** `dailyPulse(signals)` in `src/features/pulse/daily-pulse.ts` (algorithm
+version 1) is a pure, deterministic function of one day's signals. It isn't AI, isn't
+stored, and is re-derived at read time. Records are never rewritten to change a score.
+
+**Signals** (all from real records; derivation lands with schema V4):
+
+| Signal             | Source                                                                                      |
+| ------------------ | ------------------------------------------------------------------------------------------- |
+| `workMinutes`      | active minutes (pauses excluded) of finished work sessions of kind project, task or general |
+| `workRoutines`     | work-preset routines (coding) at level ≥ 1 (ADR-045)                                        |
+| `progressMoves`    | tasks completed, milestones completed, decisions recorded, blocker/approval items resolved  |
+| `collegeMinutes`   | active minutes of finished college work sessions                                            |
+| `collegeRoutines`  | college-preset routines (learning) at level ≥ 1                                             |
+| `personalRoutines` | personal-preset routines (personal, health) at level ≥ 1                                    |
+| `movementRoutines` | gym-preset routines (fitness) at level ≥ 1                                                  |
+| `offTimeCompleted` | a manually started sleep or rest window that ended on that day                              |
+| `dayOff`           | the owner declared the day a day off (an off-time record of kind `day_off`)                 |
+
+**Points, each capped:**
+
+- work: 2 at 90+ minutes; 1 at 25+ minutes or a work routine; else 0;
+- progress: 1 for any progress move;
+- college: 1 for 25+ minutes or a college routine;
+- personal: 1 per personal routine, at most 2;
+- movement: 1 for a gym routine;
+- recovery: 1 for a completed off-time window.
+
+**Bands** (total 0–8): 0 → 0 · 1 → 1 · 2–3 → 2 · 4–5 → 3 · 6+ → 4.
+
+**Day off.** On a declared day off the level is the higher of the banded level and a
+rest level: 1, plus 2 for a completed off-time window, plus 1 for any personal or
+movement routine (so up to 4). Working on a day off never lowers the day.
+
+**Guarantees** (tested in `src/test/v2-rules.test.ts`):
+
+- more hours, tasks or routines past each cap add nothing, so 12 hours of work equals 90 minutes;
+- the gym is never required: level 4 is reachable without movement;
+- a declared day off can be strong (3) or high (4) on rest alone;
+- negative, non-finite or nonsense amounts count as nothing;
+- there is **no** protected-time, inbox or money signal. The signal list is pinned by
+  a test. Protected time never contributes (ADR-013, ADR-021) and isn't the source of
+  `dayOff`.
+- no history is fabricated. Days before V4 score only from the records they already
+  have (`habitEntries`, `tasks.completedAt`).
+
+**Replaceable.** A new algorithm gets a new `PULSE_ALGORITHM_VERSION` and a new ADR.
+Because the pulse is derived, past days re-render under it without data changes.
+
+## ADR-038 — Project completion is weighted milestones only (v2)
+
+**Context.** v0.1 kept percentages out deliberately (PRODUCT.md, for hackathons; ADR-025
+for habits). v2's technical Projects need a completion measure.
+**Decision.** A Project may show `Σ weight(completed milestones) ÷ Σ weight(all
+milestones)` as a whole percent, rounded down (`projectCompletion` in
+`src/features/projects/completion.ts`):
+
+- default milestone weight is 1; a weight must be finite and above 0;
+- no milestones means **no percentage is shown** (the function returns `null`);
+- 100 means every milestone is done (rounding can never reach it early);
+- time worked, task counts and AI estimates **never** determine completion;
+- adding a milestone may lower the percentage, which is accepted and shown honestly;
+- progress snapshots (schema V4) preserve past values, so history isn't rewritten.
+
+**Scope.** Projects only. Hackathons (ADR-039) and habits keep no percentages.
+
+## ADR-039 — Hackathons stay their own domain; progress from their own stages (v2)
+
+**Decision.**
+
+- Hackathons remain the `hackathons` store and sheet (ADR-027 to ADR-029 unchanged).
+- They may show **visual stage progress** derived only from their status fields
+  (`hackathonStages` in `src/features/hackathons/progress.ts`): Registered (done when
+  registered, active when waitlisted), PPT (omitted when not needed; done when
+  submitted, active when in progress), Build (active in progress, done from demo ready),
+  Demo (done from demo ready), Submitted. No percentage, no time, no task counts.
+- An optional `hackathon.projectId` (schema V4) links a technical Project **only when
+  the owner explicitly chooses** to track the build as a Project.
+- Existing hackathons are **never** converted into Projects automatically, by a
+  migration or otherwise.
+
+## ADR-040 — Source of truth: a staged move to a local companion (v2)
+
+**Context.** Claude, Claude Code, ChatGPT and future AI clients need persistent shared
+context, which browser IndexedDB can't provide to anything outside the browser.
+**Decision.** The long-term v2 architecture is: a LOWTIDE **local companion** process,
+a **SQLite canonical database**, a human-readable **technical workspace**, a **context
+service**, and **MCP/API** access. It's reached in stages:
+
+1. **Now and through the early v2 phases:** IndexedDB (Dexie) stays canonical. Schema V4
+   is an IndexedDB schema. ADR-001, ADR-002, ADR-004 and ADR-006 stay in force.
+2. **A dedicated later phase** introduces the companion and migrates IndexedDB →
+   SQLite through the existing backup envelope (ADR-031), with a verified backup
+   first and no data loss.
+3. Only then do workspace sync, the context service and MCP/API read from SQLite.
+
+**Repository interfaces are the migration seam** (ADR-003, ADR-015): UI code keeps
+depending on them, and only their implementation moves. No storage migration happens
+before its own phase.
+**Consequences.** When stage 2 lands, it will supersede ADR-001/002/004/006 explicitly.
+Until then they stand.
+
+## ADR-041 — Network and AI access: opt-in, local, authenticated, scoped (v2)
+
+**Decision.** Every AI and network integration is **opt-in** and off by default. The
+future companion:
+
+- binds only to `127.0.0.1` by default;
+- authenticates every request (a per-install secret);
+- never uses wildcard CORS (an explicit origin allow-list);
+- keeps secrets out of the frontend bundle;
+- keeps the GitHub token in the companion or OS secure storage. GitHub access starts
+  read-only and scoped to repositories the owner lists.
+
+**AI access is scope-based:**
+
+- **PROJECT** (the default for coding agents): one project's technical context only;
+- **WORKSPACE:** the technical workspace across projects;
+- **GLOBAL:** broader LOWTIDE context, only when the owner explicitly authorizes a
+  specific assistant. It still honours the exclusions below.
+
+**Always excluded:** protected time, from every scope. Sensitive personal records
+(sleep, routines, health-type records, habit logs, inbox) are available only through
+the context service under an explicit grant, and are never written into the workspace
+or Git to give AI context (ADR-044).
+**Consequences.** ADR-005's "no runtime network" stays true for the app as shipped;
+it's superseded per capability only in the phase that adds that capability, together
+with a SECURITY.md update.
+
+## ADR-042 — Visual system stays theme-adaptive; grid palettes and Sleep Mode (v2)
+
+**Decision.**
+
+- LOWTIDE keeps its warm-paper identity, the light and dark themes, and semantic CSS
+  tokens. The app does **not** become dark-first.
+- Future grid palettes, as token sets with light and dark variants:
+  - Daily Pulse: green
+  - Work: amber
+  - Sleep: violet
+  - Personal: teal
+  - Gym: warm red
+  - College: blue
+  - Projects: gold
+- Inactive cells follow the theme.
+- Levels stay readable without colour (ADR-026 text per cell).
+- **Sleep Mode** dims the UI, lowers saturation and reduces motion and visual noise,
+  while the normal structure and navigation stay visible. It is not a black
+  replacement screen.
+
+## ADR-043 — Home at `/`, Today at `/today`, and v2 navigation (v2)
+
+**Decision** (implemented in a later phase; ADR-020's Today composition is reused, not
+discarded):
+
+- `/` becomes **Home**, and the existing Today experience moves to `/today`.
+- **Primary mobile navigation:** Home, Projects, Hackathons, Rhythm, More.
+- **More** holds Today, Inbox, Tasks, Life/Routines, Calendar, AI, Data & backup and
+  other secondary areas.
+- Desktop navigation may show more destinations directly.
+- **Home and Projects** are the two most important surfaces.
+- The gym is never a primary Home card.
+
+**Consequences.** Until that phase ships, `/` stays Today, and ADR-020 and ADR-022
+stand. The 320 px phone bar must be re-measured when the tabs change.
+
+## ADR-044 — Workspace privacy: technical knowledge only (v2)
+
+**Decision.** The future filesystem workspace holds technical project knowledge:
+
+```
+projects/<project>/
+  PROJECT.md  CONTEXT.md
+  planning/  decisions/  research/  docs/  files/  assets/
+  ai/sessions/  ai/handoffs/  ai/summaries/
+  archive/
+```
+
+These are **never** written into the workspace or Git by default: raw sleep logs,
+routines, personal health-type records, personal habit logs, inbox contents, and
+protected time (never, with no option). Technical knowledge may later be Git-versioned.
+Sensitive life state stays in private LOWTIDE storage, and AI gets permitted context
+from the context service (ADR-041) instead of files.
+
+## ADR-045 — Routine grid presets map existing categories; no data change (v2)
+
+**Decision.** `CATEGORY_PRESET` (`src/features/rhythm/presets.ts`) is a presentation
+and context mapping:
+
+- coding → Work / Projects
+- learning → College / Learning
+- fitness → Gym
+- health → Personal
+- personal → Personal
+- money → unmapped (out of the master Daily Pulse unless configured later)
+
+Habit records keep their categories and are never rewritten. ADR-036's Rhythm group
+views are unchanged. The presets drive the v2 themed grids and the Daily Pulse
+routine signals (ADR-037).
+
+## ADR-046 — Schema V4 design locked (v2)
+
+**Decision.** Phase 002 implements exactly the V4 design in
+`docs/LOWTIDE-V2-ARCHITECTURE.md` §3–§9. Its key choices:
+
+- **Additive only.** Nine new stores: `projects`, `milestones`, `projectItems`,
+  `decisions`, `workSessions`, `offTimeSessions`, `events`, `progressSnapshots` and
+  `aiSessions`. Optional links: `tasks.projectId`, `tasks.milestoneId`,
+  `hackathons.projectId`. The upgrade writes **nothing** to existing records: no
+  projects are derived from task labels, and no hackathons are converted.
+- **Project items** are command/status/context items placed in visual lanes
+  (`working_now`, `next`, `waiting`, `needs_approval`, `blocked`, `parked`, `done`),
+  not copies of Tasks. Tasks appear in lanes by their own status; an item may
+  reference a task instead of duplicating it.
+- **Decisions get their own store.** They're immutable records with supersession, not
+  lane-moving status items, and they back `decision.recorded` and the workspace's
+  `decisions/`.
+- **Work sessions:** `projectId` is optional. The kinds are project, task, college and
+  general. A session whose task belongs to a project must carry that project.
+- **One event naming system:**
+  - `work.started`, `work.paused`, `work.resumed`, `work.finished`
+  - `offtime.started`, `offtime.ended`
+  - `habit.logged`, `task.completed`, `milestone.completed`
+  - `project.updated`, `project.approval_requested`, `project.item_parked`
+  - `decision.recorded`, `ai.session.completed`
+
+  There are no protected-time event types. Events reference records and never replace
+  domain truth.
+
+- **Backup:** envelope `formatVersion` stays 1, and `schemaVersion` becomes 4.
