@@ -4,12 +4,26 @@ LOWTIDE is a static single-page app. There is no server: the browser is the runt
 and IndexedDB is the database.
 
 **LOWTIDE v2** is planned in [LOWTIDE-V2-ARCHITECTURE.md](LOWTIDE-V2-ARCHITECTURE.md)
-(decisions ADR-037 to ADR-046). Until its phases ship, this document describes the
-running app. v2 PHASE 001 added only pure, tested rules that nothing renders yet:
-`features/pulse/daily-pulse.ts` (ADR-037), `features/projects/completion.ts`
-(ADR-038), `features/hackathons/progress.ts` (ADR-039) and
-`features/rhythm/presets.ts` (ADR-045). IndexedDB stays canonical until a dedicated
-later phase (ADR-040).
+(ADR-037 onwards). What's built so far:
+
+- schema V4 and its repositories (v2 PHASE 002);
+- Home, the contribution grids and the Daily Pulse (ADR-047, ADR-048);
+- Work Mode and Sleep Mode (ADR-049);
+- the Project Command Room (ADR-050).
+
+IndexedDB stays canonical until a dedicated later phase (ADR-040).
+
+**v2 feature map:**
+
+| Path                 | Holds                                                             |
+| -------------------- | ----------------------------------------------------------------- |
+| `components/shared/` | `ContributionGrid`, grid geometry and palettes, small SVG visuals |
+| `features/pulse/`    | `dailyPulse` (ADR-037) and day summaries from records (`days.ts`) |
+| `features/home/`     | Home sections, More, Ask LOWTIDE (local search)                   |
+| `features/projects/` | project summaries, charts, Projects page, Command Room (`room/`)  |
+| `features/modes/`    | the mode bar, Start Work panel, Sleep Mode                        |
+| `features/work/`     | work-session arithmetic                                           |
+| `features/activity/` | the ledger timeline                                               |
 
 ## Layers
 
@@ -202,12 +216,22 @@ Missing records follow one rule (documented on the interfaces in
 
 - `src/app/App.tsx` receives `repositories` and a `router` as props (so tests can use
   a memory router and a throwaway database) and provides the repository context.
-- `src/app/routes.tsx` is the route table: `Shell` is the layout route, with children
-  `/` (Today), `/inbox`, `/tasks`, `/rhythm`, `/hackathons`, `/data` (Data & backup,
-  not in the tab bar), and a catch-all "Nothing here".
-- **Narrow screens:** below `md` each nav item stacks its icon over a 10 px label
-  (tab-bar style), and the wordmark hides its text below 440 px. That way five items
-  fit with no overflow from 320 to 768 px (measured in Chromium).
+- `src/app/routes.tsx` is the route table (ADR-043): `Shell` is the layout route, with
+  children:
+  - `/` (Home), `/projects` and `/projects/:slug` (Command Room);
+  - `/today`, `/inbox`, `/tasks`, `/rhythm`, `/hackathons`, `/data` (Data & backup, not
+    in the tab bar), `/more`;
+  - a catch-all "Nothing here".
+
+  v0.1 screens are wrapped to keep their reading width inside the wider v2 frame.
+
+- **Navigation (ADR-043):** one list of links. On phones the five tabs are Home,
+  Projects, Hackathons, Rhythm and More; the desktop-only links carry `max-md:hidden`
+  and More carries `md:hidden`. Below `md` each item stacks its icon over a 10 px label,
+  and the wordmark hides its text below 440 px. Every screen was measured with 0 px
+  horizontal overflow at 320 px in Chromium.
+- **Mode bar (ADR-049):** under the header, sticky, showing a running work session or
+  Sleep Mode. In Sleep Mode the shell carries `data-mode="sleep"`.
 - **Route-level code splitting (ADR-022).** Each screen is a React Router `lazy` route,
   so its code (and display-only libraries like date-fns `format`) is a separate chunk.
   The entry keeps React, the router, the shell and the data layer. `prefetchScreens()`
@@ -253,17 +277,17 @@ Missing records follow one rule (documented on the interfaces in
 
 ## Directory conventions
 
-| Path                     | Holds                                                         |
-| ------------------------ | ------------------------------------------------------------- |
-| `src/app/`               | Composition: App, routes, context objects, app-level screens  |
-| `src/features/<area>/`   | Feature UI + feature logic (today, inbox, tasks so far)       |
-| `src/components/ui/`     | Small presentational primitives (Button, notices, styles)     |
-| `src/components/shared/` | Cross-feature composed components (created when first needed) |
-| `src/db/`                | Everything that knows about IndexedDB                         |
-| `src/hooks/`             | Cross-feature hooks                                           |
-| `src/lib/`               | Pure helpers (ids, time)                                      |
-| `src/types/`             | Domain types                                                  |
-| `src/styles/`            | Global CSS and tokens                                         |
-| `src/test/`              | Test setup, helpers and tests                                 |
+| Path                     | Holds                                                          |
+| ------------------------ | -------------------------------------------------------------- |
+| `src/app/`               | Composition: App, routes, context objects, app-level screens   |
+| `src/features/<area>/`   | Feature UI + feature logic, one folder per area                |
+| `src/components/ui/`     | Small presentational primitives (Button, notices, styles)      |
+| `src/components/shared/` | Cross-feature composed components (contribution grid, visuals) |
+| `src/db/`                | Everything that knows about IndexedDB                          |
+| `src/hooks/`             | Cross-feature hooks                                            |
+| `src/lib/`               | Pure helpers (ids, time)                                       |
+| `src/types/`             | Domain types                                                   |
+| `src/styles/`            | Global CSS and tokens                                          |
+| `src/test/`              | Test setup, helpers and tests                                  |
 
 Empty folders are not created ahead of time.

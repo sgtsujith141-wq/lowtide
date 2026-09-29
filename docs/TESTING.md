@@ -61,7 +61,12 @@ findBy…()).toHaveFocus()` can run a moment too early. Use `expectFocus(…)` f
 - `setupTestDatabase` unmounts rendered trees before deleting the database, so no live
   subscription outlives it.
 
-## Current coverage (v2 PHASE 001): 29 files, 356 tests
+## Current coverage (v2 PHASE 004): 38 files, 463 tests
+
+v2 PHASE 002–004 added `migration-v4`, `v4-repositories`, `v4-backup`, `contribution-grid`,
+`pulse-days`, `project-summary`, `home-page`, `modes` and `project-room` tests. Home
+renders about 2,200 labelled grid squares, so Testing Library role queries are slow
+there: tests wait for Home's sections with a 5 s timeout, the same as the first screen.
 
 v2 PHASE 001 added `v2-rules.test.ts` (18 tests: Daily Pulse bands, caps, day off,
 no gym requirement, pinned signal list without protected time, inbox or money; grid

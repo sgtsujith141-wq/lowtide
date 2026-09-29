@@ -25,9 +25,42 @@ like a well-kept paper notebook than a SaaS dashboard.
 | Money / business experiments | Lightweight tracking of experiments (modelled in a later phase).                   |
 | Protected time               | Time reserved for relationship, family, friends, rest — visible so it is defended. |
 
+## LOWTIDE v2 (in progress)
+
+- **Home** (`/`) opens on three actions (Start Work, Sleep Mode, Ask LOWTIDE), then a
+  large green **Daily Pulse** calendar of the last year, GitHub-style, with one square
+  per day coloured only by what actually happened (ADR-037, ADR-047). Select a day to
+  see what it held. Below that:
+  - project cards: completion from milestones, what's happening now, next, waiting,
+    approvals, blockers, time this week, when it last moved;
+  - **Needs you**;
+  - a compact Today;
+  - recent activity;
+  - smaller Work, Projects, College, Personal and Sleep grids.
+
+  The gym isn't on Home.
+
+- **Projects** (`/projects`) and each project's **Command Room** answer at a glance:
+  - how far along it is, by milestone weight;
+  - the milestone pipeline;
+  - what's working now, next, waiting, needs approval, blocked, parked and done;
+  - progress over time;
+  - time invested;
+  - its own activity calendar and timeline.
+
+  Tabs cover Tasks, Milestones, Docs (the decision log), AI (real sessions only) and
+  GitHub (not connected, and it says so).
+
+- **Start Work** runs one work session at a time: general, college/study, project, or
+  project + task. It has a live timer, pause/resume and finish, and survives a reload.
+- **Sleep Mode** marks an off-time window you start and end yourself. The app dims but
+  stays usable; it's a marked window, never a sleep measurement.
+- **Ask LOWTIDE** is a local search until a real AI client is connected. It never
+  pretends otherwise.
+
 ## What works today (core v0.1 complete, PHASE 006)
 
-- **Today** (`/`, first in the nav) answers "what about today?" at a glance:
+- **Today** (`/today` since v2; `/` in v0.1) answers "what about today?" at a glance:
   - the date, and a box to dump a thought (Enter saves). A quiet link says how many
     thoughts are waiting in the inbox, only when there are some;
   - **Needs attention**: tasks due today or overdue, in words ("Due today", "Was due

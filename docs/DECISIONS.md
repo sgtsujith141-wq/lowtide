@@ -822,3 +822,108 @@ routine signals (ADR-037).
 **Amendment (v2 PHASE 002, implementation):** `Project` gains an optional `phase` text
 field ("current phase" in the Command Room). Additive, unindexed, and in the backup
 schema. Nothing else in the locked design changed.
+
+## ADR-047 — One contribution calendar component; themed grid levels (v2)
+
+**Decision.** Every grid uses `ContributionGrid` (`src/components/shared/`), with GitHub
+geometry and the ADR-026 accessibility model:
+
+- 7 Sunday-first rows and 53 week columns ending with today's week. Days after today
+  aren't drawn. Month labels sit above, never closer than three columns apart, with
+  Mon/Wed/Fri at the side.
+- Square levels 0–4. Level 0 is the theme's inactive cell (`--lt-grid-0`). Levels 1–4
+  come from one of seven palette token sets (ADR-042), in light and dark.
+- It's an ARIA grid with one Tab stop. Arrows move by day and week, and Home/End jump
+  to the ends. Enter/Space or a click selects a day. Hover or focus shows a tooltip, and
+  every square has a full text label.
+- It scrolls sideways on narrow screens, starting at the most recent weeks, and the
+  weekday labels stay pinned.
+
+**Themed grid levels** (pure, `features/pulse/days.ts`, all capped):
+
+| Grid     | Level from                                                                                         |
+| -------- | -------------------------------------------------------------------------------------------------- |
+| Pulse    | `dailyPulse` (ADR-037)                                                                             |
+| Work     | work minutes: 1–29 · 30–89 · 90–179 · 180+, or at least 1 for a coding routine                     |
+| Projects | progress moves: 1 · 2 · 3–4 · 5+                                                                   |
+| College  | the higher of study minutes (the work bands) and learning routines (ADR-025 banding)               |
+| Personal | personal and health routines, ADR-025 banding                                                      |
+| Gym      | the best gym routine level that day (movement isn't "more is better")                              |
+| Sleep    | length of the marked off-time window: <3 h · 3–5 h · 5–7 h · 7 h+, labelled "marked, not measured" |
+
+Rhythm's v0.1 `ActivityGrid` (26 weeks, Monday-first) is unchanged until the Life and
+Rhythm phase replaces its view.
+
+## ADR-048 — Home composition, Needs You, and an honest Ask LOWTIDE (v2)
+
+**Decision.** Home (ADR-043) is, in order:
+
+1. Start Work, Sleep Mode and Ask LOWTIDE;
+2. the year of Daily Pulse, with a day-details panel for the selected day;
+3. project command cards (live projects only);
+4. Needs you;
+5. a compact Today (ADR-020 composition);
+6. recent activity from the ledger (private events hidden);
+7. the Work, Projects, College, Personal and Sleep grids.
+
+The gym grid isn't on Home.
+
+**Needs you** lists, from records:
+
+- open approval and blocker items of live projects;
+- projects in `needs_approval` or `blocked`;
+- tasks due today or overdue;
+- ADR-029's near hackathon deadlines.
+
+An empty list says "Nothing is waiting on you." Items waiting on other people aren't
+listed: nothing records who a dependency is really waiting on, so guessing would be
+wrong.
+
+**Ask LOWTIDE** is a local search over projects, milestones, project items, tasks and
+hackathons, and it says so ("No AI is connected, and nothing leaves this device"). It
+becomes an assistant only when a real client is connected under ADR-041.
+
+## ADR-049 — Work Mode and Sleep Mode in the app shell (v2)
+
+**Decision.**
+
+- **The mode bar** sits under the header on every screen. It shows the running work
+  session (label, a live timer from `startedAt` minus pauses, today's total,
+  pause/resume and finish) or the open off-time window (time off and Wake up).
+- **Start Work** opens an inline panel rather than a modal, so nothing traps focus. It
+  offers general work, college/study, project, and project + task, plus an optional
+  intent. A running session survives reloads, because it's read back from storage.
+- **Sleep Mode** starts a sleep off-time window. It's refused while work runs, and the
+  message says to finish work first. While it's open, `data-mode="sleep"` on the shell:
+  - dims and desaturates everything marked `data-dimmable`;
+  - fades `data-nonessential` elements;
+  - stops animation.
+
+  Navigation stays usable. The bar says "A marked window, not a sleep measurement."
+
+## ADR-050 — The Project Command Room (v2)
+
+**Decision.** `/projects/:slug` answers, visually and from records only:
+
+- how far along the project is (a completion ring, hidden without milestones);
+- where it is in its milestone pipeline;
+- what's in each of the seven lanes (items, plus tasks by status);
+- progress over time (snapshots, carried forward at render time, starting when
+  tracking started);
+- time per week (finished work sessions);
+- its own gold activity calendar (events plus work minutes);
+- its recent activity.
+
+It has seven tabs:
+
+| Tab        | Contents                                                          |
+| ---------- | ----------------------------------------------------------------- |
+| Overview   | everything above                                                  |
+| Tasks      | add, link an existing open task, complete                         |
+| Milestones | add with weight and due date, complete or reopen, reorder, remove |
+| Docs       | the decision log, never edited, with supersession                 |
+| AI         | only AI sessions a real client reported                           |
+| GitHub     | not connected, and it says so; nothing is fetched                 |
+| History    | the full project timeline                                         |
+
+No tab shows placeholder content as if it were real.

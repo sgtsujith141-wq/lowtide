@@ -24,12 +24,20 @@ v2 grows LOWTIDE into a local-first personal operating system inside this reposi
 Plan: [LOWTIDE-V2-ARCHITECTURE.md](LOWTIDE-V2-ARCHITECTURE.md); audit:
 [LOWTIDE-V2-AUDIT.md](LOWTIDE-V2-AUDIT.md). Each phase starts only on the owner's prompt.
 
-| v2 phase | Goal                                                                                                  | Status                     |
-| -------- | ----------------------------------------------------------------------------------------------------- | -------------------------- |
-| 000      | Audit, safeguards, migration plan                                                                     | Done                       |
-| 001      | Green baseline, decisions locked (ADR-037 to ADR-046), V4 design locked, pure rules tested            | Done (see V2-PHASE-001.md) |
-| 002      | Schema V4, repositories, rules, ledger, backup V4, with the preflight in the architecture doc §16     | Done (see V2-PHASE-002.md) |
-| 003+     | Grids and Daily Pulse; Home and navigation; Start Work and Sleep Mode; Project Command Room; later AI | Not started                |
+| v2 phase | Goal                                                                          | Status                     |
+| -------- | ----------------------------------------------------------------------------- | -------------------------- |
+| 000      | Audit, safeguards, migration plan                                             | Done                       |
+| 001      | Green baseline, decisions locked (ADR-037 to ADR-046), V4 design locked       | Done (see V2-PHASE-001.md) |
+| 002      | V4 data foundation: schema, repositories, ledger, backup V4, preflight        | Done (see V2-PHASE-002.md) |
+| 003      | Home v2: Daily Pulse calendar, project cards, Needs you, Today, activity, nav | Done (see V2-PHASE-003.md) |
+| 004      | Project Command Room                                                          | Done (see V2-PHASE-004.md) |
+| 005      | Work Mode + Sleep Mode                                                        | See V2-PHASE-005.md        |
+| 006      | Life + Rhythm                                                                 | See the status document    |
+| 007      | Hackathons + Calendar + integration                                           | See the status document    |
+| 008      | Shared AI context architecture + local companion/MCP foundation               | See the status document    |
+| 009      | QA, polish, performance, accessibility, docs                                  | See the status document    |
+
+The overnight build's final state is in [LOWTIDE-V2-STATUS.md](LOWTIDE-V2-STATUS.md).
 
 ## Optional future work
 

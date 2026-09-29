@@ -5,6 +5,21 @@ app's `package.json` version.
 
 ## [Unreleased]
 
+### Added (v2 PHASE 003–004 — Home and the Project Command Room)
+
+- **Home** at `/`: Start Work, Sleep Mode, Ask LOWTIDE (a local search, clearly
+  labelled); a year of Daily Pulse as a GitHub-style calendar with day details; project
+  cards; Needs you; a compact Today; recent activity; Work, Projects, College, Personal
+  and Sleep grids. Today moved to `/today` (ADR-043).
+- **Navigation:** phones get Home, Projects, Hackathons, Rhythm and More; desktop lists
+  every destination.
+- **Projects** page and **Project Command Room**: completion ring, milestone pipeline,
+  seven command lanes, progress-over-time and time-invested charts, project activity
+  calendar, timeline, and the Tasks, Milestones, Docs, AI, GitHub and History tabs.
+- **Work Mode and Sleep Mode:** a global mode bar with a live timer, pause/resume,
+  finish and today's total; Sleep Mode dims the app without replacing it.
+- A reusable `ContributionGrid` in seven light/dark palettes (ADR-047).
+
 ### Added (v2 PHASE 002 — V4 data foundation)
 
 - Schema V4 (additive): projects, milestones, project items in lanes, decisions, work
