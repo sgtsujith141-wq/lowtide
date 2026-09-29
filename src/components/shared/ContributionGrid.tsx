@@ -40,6 +40,9 @@ export const ContributionGrid = memo(function ContributionGrid({
   selected,
   onSelect,
   emptyLabel = 'nothing recorded',
+  since,
+  showDetail = false,
+  surface = 'raised',
 }: {
   label: string;
   today: LocalDate;
@@ -51,10 +54,23 @@ export const ContributionGrid = memo(function ContributionGrid({
   selected?: LocalDate | null;
   onSelect?: (date: LocalDate) => void;
   emptyLabel?: string;
+  /** First day to draw (short views such as "last 7 days"); earlier days stay blank. */
+  since?: LocalDate;
+  /** A line under the grid naming the focused or hovered day (for touch and small screens). */
+  showDetail?: boolean;
+  /** The background the grid sits on, so the pinned weekday labels match it. */
+  surface?: 'raised' | 'paper';
 }) {
-  const columns = useMemo(() => gridColumns(today, weeks), [today, weeks]);
+  const pinned = surface === 'paper' ? 'bg-paper' : 'bg-paper-raised';
+  const columns = useMemo(
+    () =>
+      gridColumns(today, weeks).map((column) =>
+        column.map((date) => (date && since && date < since ? null : date)),
+      ),
+    [today, weeks, since],
+  );
   const months = useMemo(() => monthLabels(columns), [columns]);
-  const first = columns[0]?.[0] ?? today;
+  const first = columns.flat().find((d): d is LocalDate => d !== null) ?? today;
   const [focused, setFocused] = useState<LocalDate>(selected ?? today);
   const [tip, setTip] = useState<{ date: LocalDate; x: number; y: number } | null>(null);
   const grid = useRef<HTMLDivElement>(null);
@@ -109,7 +125,7 @@ export const ContributionGrid = memo(function ContributionGrid({
       <div ref={scroller} className="relative -mx-1 overflow-x-auto px-1 pt-1 pb-1">
         <div className="inline-flex flex-col gap-[3px]">
           <div aria-hidden className="flex gap-[3px] text-[10px] leading-3 text-ink-muted">
-            <span className="sticky left-0 z-[1] w-7 shrink-0 bg-paper-raised" />
+            <span className={`sticky left-0 z-[1] w-7 shrink-0 ${pinned}`} />
             {months.map((month, i) => (
               <span key={i} className="w-(--cell) shrink-0 overflow-visible whitespace-nowrap">
                 {month}
@@ -130,7 +146,7 @@ export const ContributionGrid = memo(function ContributionGrid({
               <div role="row" key={row} className="flex items-center gap-[3px]">
                 <span
                   aria-hidden
-                  className="sticky left-0 z-[1] w-7 shrink-0 bg-paper-raised text-[10px] leading-3 text-ink-muted"
+                  className={`sticky left-0 z-[1] w-7 shrink-0 text-[10px] leading-3 text-ink-muted ${pinned}`}
                 >
                   {weekday}
                 </span>
@@ -186,6 +202,9 @@ export const ContributionGrid = memo(function ContributionGrid({
         >
           {describe(tip.date).label}
         </div>
+      )}
+      {showDetail && (
+        <p className="mt-1 min-h-4 text-xs text-ink-muted">{describe(tip?.date ?? active).label}</p>
       )}
       <div
         className="mt-1 flex items-center justify-end gap-1 text-[10px] text-ink-muted"

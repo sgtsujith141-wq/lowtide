@@ -6,7 +6,8 @@ import { fieldClass } from '../../components/ui/styles';
 import { useRepositories } from '../../hooks/useRepositories';
 import type { Habit, HabitEntry, LocalDate } from '../../types/domain';
 import { habitLevel } from './intensity';
-import { LEVEL_CLASS } from './levels';
+import { levelClass } from '../../components/shared/grid-palette';
+import { habitPalette } from './palette';
 
 /**
  * Today's quick log for one habit. `check`: one press toggles. `count` and
@@ -49,7 +50,10 @@ export function HabitLogRow({
   }
 
   const square = (
-    <span aria-hidden className={`size-3 shrink-0 rounded-[2px] ${LEVEL_CLASS[level]}`} />
+    <span
+      aria-hidden
+      className={`size-3 shrink-0 rounded-[2px] ${levelClass(habitPalette(habit), level)}`}
+    />
   );
 
   if (habit.unit === 'check') {

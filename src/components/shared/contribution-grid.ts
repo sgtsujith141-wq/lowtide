@@ -74,3 +74,13 @@ export function longDay(date: LocalDate): string {
 export function weeksForDays(days: number): number {
   return Math.max(1, Math.ceil(days / 7) + 1);
 }
+
+/** Range views for themed grids (RangeGrid). */
+export const GRID_RANGES = [
+  { id: '7', label: '7 days', days: 7 },
+  { id: '30', label: '30 days', days: 30 },
+  { id: '90', label: '90 days', days: 90 },
+  { id: '182', label: 'six months', days: 182 },
+  { id: '365', label: '12 months', days: 365 },
+] as const;
+export type GridRangeId = (typeof GRID_RANGES)[number]['id'];

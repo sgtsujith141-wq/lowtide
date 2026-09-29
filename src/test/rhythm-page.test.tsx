@@ -236,6 +236,22 @@ describe('Rhythm page', () => {
   });
 });
 
+describe('Rhythm ranges (one grid system, ADR-052)', () => {
+  it('switches between 7 days and 12 months with the same geometry', async () => {
+    const { user } = await setup((r) =>
+      r.habits.create({ name: 'Gym', category: 'fitness', unit: 'check' }),
+    );
+    await screen.findByRole('grid', { name: 'All rhythms, last six months' });
+    await user.click(screen.getByRole('radio', { name: '12 months' }));
+    const year = screen.getByRole('grid', { name: 'All rhythms, last 12 months' });
+    expect(within(year).getAllByRole('row')).toHaveLength(7);
+    expect(within(year).getAllByRole('gridcell').length).toBeGreaterThan(52 * 7);
+    await user.click(screen.getByRole('radio', { name: '7 days' }));
+    const week = screen.getByRole('grid', { name: 'All rhythms, last 7 days' });
+    expect(within(week).getAllByRole('gridcell')).toHaveLength(7);
+  });
+});
+
 describe('Rhythm category groups', () => {
   it('shows a group grid while today’s logging still lists every active rhythm', async () => {
     const { user } = await setup(async ({ habits }) => {

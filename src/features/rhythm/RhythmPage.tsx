@@ -8,8 +8,10 @@ import { useRepositories } from '../../hooks/useRepositories';
 import { useToday } from '../../hooks/useToday';
 import { useWatch } from '../../hooks/useWatch';
 import type { Habit } from '../../types/domain';
-import { ActivityGrid } from './ActivityGrid';
-import { buildGrid, gridRange, RHYTHM_GROUPS, type GridView } from './grid';
+import { RangeGrid } from '../../components/shared/RangeGrid';
+import { gridStart, YEAR_WEEKS } from '../../components/shared/contribution-grid';
+import { buildGrid, RHYTHM_GROUPS, type GridView } from './grid';
+import { gridDaysOf, viewPalette } from './palette';
 import { HabitForm } from './HabitForm';
 import { HabitLogRow } from './HabitLogRow';
 import { CATEGORY_LABEL } from './labels';
@@ -36,7 +38,8 @@ export function RhythmPage() {
   const today = useToday();
   const { habits } = useRepositories();
   const all = useWatch(habits.watchAll);
-  const range = useMemo(() => gridRange(today), [today]);
+  // A year of entries: the grid's range switch goes up to 12 months.
+  const range = useMemo(() => ({ start: gridStart(today, YEAR_WEEKS), end: today }), [today]);
   const watchEntries = useMemo(
     () => habits.watchEntries(range.start, range.end),
     [habits, range.start, range.end],
@@ -63,8 +66,8 @@ export function RhythmPage() {
     if (habitList.some((h) => h.id === viewId)) return { kind: 'habit', habitId: viewId };
     return { kind: 'overall' };
   }, [viewId, habitList]);
-  const weeks = useMemo(
-    () => buildGrid(today, habitList, entryList, view),
+  const days = useMemo(
+    () => gridDaysOf(buildGrid(today, habitList, entryList, view, YEAR_WEEKS + 1)),
     [today, habitList, entryList, view],
   );
   const todayEntries = new Map(
@@ -123,7 +126,7 @@ export function RhythmPage() {
         <section aria-labelledby="grid-heading" className="mt-5">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
             <h2 id="grid-heading" className="text-sm font-medium text-ink-muted">
-              Last six months
+              History
             </h2>
             <label htmlFor={selectId} className="flex items-center gap-2 text-xs text-ink-muted">
               Show
@@ -168,7 +171,14 @@ export function RhythmPage() {
               </select>
             </label>
           </div>
-          <ActivityGrid weeks={weeks} today={today} label={`${viewLabel}, last six months`} />
+          <RangeGrid
+            name={viewLabel}
+            today={today}
+            days={days}
+            palette={viewPalette(view, habitList)}
+            showDetail
+            surface="paper"
+          />
         </section>
       )}
 
