@@ -7,36 +7,53 @@ import { renderApp } from './render';
 const newDb = setupTestDatabase();
 
 describe('App shell', () => {
-  it('boots to Today with landmarks, main navigation and capture ready', async () => {
+  it('boots to Home with landmarks and the v2 navigation (ADR-043)', async () => {
     await renderApp('/', createDexieRepositories(newDb()));
     expect(screen.getByRole('banner')).toBeInTheDocument();
     expect(screen.getByRole('main')).toBeInTheDocument();
     const nav = screen.getByRole('navigation', { name: 'Main' });
-    expect(
-      within(nav)
-        .getAllByRole('link')
-        .map((l) => l.textContent),
-    ).toEqual(['Today', 'Inbox', 'Tasks', 'Rhythm', 'Hackathons']);
-    expect(screen.getByRole('heading', { level: 1, name: 'Today' })).toBeInTheDocument();
-    await expectFocus(() => screen.getByRole('textbox', { name: 'What’s taking up space?' }));
-    await vi.waitFor(() => expect(document.title).toBe('Today · LOWTIDE')); // set in an effect
+    const items = within(nav).getAllByRole('listitem');
+    const names = (keep: (li: HTMLElement) => boolean) =>
+      items.filter(keep).map((li) => li.textContent);
+    // Phones: five tabs. Desktop: every destination, and no More.
+    expect(names((li) => !li.classList.contains('max-md:hidden'))).toEqual([
+      'Home',
+      'Projects',
+      'Hackathons',
+      'Rhythm',
+      'More',
+    ]);
+    expect(names((li) => !li.classList.contains('md:hidden'))).toEqual([
+      'Home',
+      'Projects',
+      'Today',
+      'Inbox',
+      'Tasks',
+      'Hackathons',
+      'Rhythm',
+    ]);
+    expect(screen.getByRole('heading', { level: 1, name: 'Home' })).toBeInTheDocument();
+    for (const name of ['Start Work', 'Sleep Mode', 'Ask LOWTIDE'])
+      expect(screen.getByRole('button', { name })).toBeInTheDocument();
+    await vi.waitFor(() => expect(document.title).toBe('Home · LOWTIDE')); // set in an effect
   });
 
   it('marks the current section and navigates between sections', async () => {
     const { user } = await renderApp('/', createDexieRepositories(newDb()));
     const nav = screen.getByRole('navigation', { name: 'Main' });
-    expect(within(nav).getByRole('link', { name: 'Today' })).toHaveAttribute(
-      'aria-current',
-      'page',
-    );
+    expect(within(nav).getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
 
     await user.click(within(nav).getByRole('link', { name: 'Tasks' }));
-    expect(await screen.findByRole('heading', { level: 1, name: 'Tasks' })).toBeInTheDocument();
+    // Role queries scan every labelled square of Home's year grids while the
+    // next screen loads, so allow the same wait as the first screen (renderApp).
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Tasks' }, { timeout: 5000 }),
+    ).toBeInTheDocument();
     expect(within(nav).getByRole('link', { name: 'Tasks' })).toHaveAttribute(
       'aria-current',
       'page',
     );
-    expect(within(nav).getByRole('link', { name: 'Today' })).not.toHaveAttribute('aria-current');
+    expect(within(nav).getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
 
     await user.click(within(nav).getByRole('link', { name: 'Inbox' }));
     expect(await screen.findByRole('heading', { level: 1, name: 'Inbox' })).toBeInTheDocument();
@@ -57,7 +74,10 @@ describe('App shell', () => {
 
 describe('route-level code splitting', () => {
   it.each([
-    ['/', 'Today'],
+    ['/', 'Home'],
+    ['/today', 'Today'],
+    ['/projects', 'Projects'],
+    ['/more', 'More'],
     ['/inbox', 'Inbox'],
     ['/tasks', 'Tasks'],
     ['/rhythm', 'Rhythm'],

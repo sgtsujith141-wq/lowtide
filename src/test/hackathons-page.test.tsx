@@ -239,7 +239,7 @@ describe('Hackathons on Today', () => {
       });
       await hackathons.create({ name: 'Far away', eventStart: addDays(today(), 30) });
       await hackathons.create({ name: 'Done already', eventStart: today(), status: 'finished' });
-    }, '/');
+    }, '/today');
     const section = await screen.findByRole('region', { name: 'Hackathons' });
     expect(within(section).getAllByRole('listitem')).toHaveLength(1);
     const row = within(section).getByRole('listitem');
@@ -261,7 +261,10 @@ describe('Hackathons on Today', () => {
   });
 
   it('is absent when nothing is relevant, and caps at three with a link', async () => {
-    await setup((r) => r.hackathons.create({ name: 'Far', eventStart: addDays(today(), 9) }), '/');
+    await setup(
+      (r) => r.hackathons.create({ name: 'Far', eventStart: addDays(today(), 9) }),
+      '/today',
+    );
     await screen.findByRole('heading', { name: 'Needs attention' });
     expect(screen.queryByRole('region', { name: 'Hackathons' })).not.toBeInTheDocument();
   });
@@ -270,7 +273,7 @@ describe('Hackathons on Today', () => {
     await setup(async ({ hackathons }) => {
       for (const n of [1, 2, 3, 4])
         await hackathons.create({ name: `H${n}`, eventStart: addDays(today(), n) });
-    }, '/');
+    }, '/today');
     const section = await screen.findByRole('region', { name: 'Hackathons' });
     expect(
       within(section)

@@ -62,15 +62,20 @@ afterEach(() => {
 });
 
 describe('Data & backup page', () => {
-  it('is a lazy route reachable from the shell without a sixth tab', async () => {
+  it('is a lazy route reachable from the shell without a sixth phone tab', async () => {
     const { user } = await renderApp('/', createDexieRepositories(newDb()));
     const nav = screen.getByRole('navigation', { name: 'Main' });
-    expect(within(nav).getAllByRole('link')).toHaveLength(5);
+    const phoneTabs = within(nav)
+      .getAllByRole('listitem')
+      .filter((li) => !li.classList.contains('max-md:hidden'));
+    expect(phoneTabs).toHaveLength(5);
+    expect(within(nav).queryByRole('link', { name: 'Data & backup' })).not.toBeInTheDocument();
     const links = screen.getAllByRole('link', { name: 'Data & backup' });
     expect(links.length).toBeGreaterThanOrEqual(1);
     await user.click(links[0]!);
+    // Home's year grids make role queries slow while the next screen loads.
     expect(
-      await screen.findByRole('heading', { level: 1, name: 'Data & backup' }),
+      await screen.findByRole('heading', { level: 1, name: 'Data & backup' }, { timeout: 5000 }),
     ).toBeInTheDocument();
   });
 

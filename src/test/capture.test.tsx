@@ -11,7 +11,7 @@ async function setup(override?: (repos: Repositories) => Repositories) {
   const db = newDb();
   const base = createDexieRepositories(db);
   const repositories = override ? override(base) : base;
-  return { db, repositories, ...(await renderApp('/', repositories)) };
+  return { db, repositories, ...(await renderApp('/today', repositories)) };
 }
 
 describe('Brain dump capture', () => {

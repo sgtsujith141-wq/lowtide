@@ -17,7 +17,7 @@ async function setup(
   const base = createDexieRepositories(newDb());
   await seed?.(base);
   const repositories = override ? override(base) : base;
-  const rendered = await renderApp('/', repositories);
+  const rendered = await renderApp('/today', repositories);
   await screen.findByRole('heading', { name: 'Needs attention' });
   return { repositories, ...rendered };
 }
@@ -25,7 +25,7 @@ async function setup(
 const region = (name: string) => screen.getByRole('region', { name });
 
 describe('Today page', () => {
-  it('is the home route: date, capture, and three calm sections', async () => {
+  it('lives at /today (ADR-043): date, capture, and three calm sections', async () => {
     await setup();
     expect(screen.getByRole('heading', { level: 1, name: 'Today' })).toBeInTheDocument();
     expect(
