@@ -29,7 +29,14 @@ export function HackathonsPage() {
   const [announcement, setAnnouncement] = useState('');
   const addButton = useRef<HTMLButtonElement>(null);
   const pastSummary = useRef<HTMLElement>(null);
+  /**
+   * Where focus goes once the list shows a change: an id (its Edit button) or
+   * 'past' (the Past summary). `inOpen` means the Edit button must be in the
+   * open list, so a stale render with the sheet still under Past can't take it.
+   */
   const focusAfterUpdate = useRef<string | null>(null);
+  const focusInOpenList = useRef(false);
+  const openList = useRef<HTMLUListElement>(null);
 
   const list = useMemo(() => (all.status === 'ready' ? all.data : []), [all]);
   const open = useMemo(() => orderHackathons(list.filter(isOpen), today), [list, today]);
@@ -46,12 +53,15 @@ export function HackathonsPage() {
   useEffect(() => {
     const target = focusAfterUpdate.current;
     if (!target) return;
+    const scope = focusInOpenList.current ? openList.current : document;
     const el =
       target === 'past'
         ? pastSummary.current
-        : document.querySelector<HTMLElement>(`[data-hackathon-edit="${CSS.escape(target)}"]`);
+        : (scope?.querySelector<HTMLElement>(`[data-hackathon-edit="${CSS.escape(target)}"]`) ??
+          null);
     if (!el) return;
     focusAfterUpdate.current = null;
+    focusInOpenList.current = false;
     el.focus();
   }, [all, editingId, adding]);
 
@@ -103,7 +113,15 @@ export function HackathonsPage() {
           today={today}
           busy={busyId === h.id}
           onEdit={() => setEditingId(h.id)}
-          onStatus={(field, value) =>
+          onStatus={(field, value) => {
+            // Decide where focus goes before saving: the live list can re-render
+            // with the moved sheet before the save's promise resolves, and the
+            // effect only looks for a target when the list changes.
+            const moves = isOpen({ ...h, [field]: value } as Hackathon) !== isOpen(h);
+            if (moves) {
+              focusAfterUpdate.current = isOpen(h) ? 'past' : h.id;
+              focusInOpenList.current = !isOpen(h);
+            }
             void run(
               h,
               () => hackathons.update(h.id, { [field]: value }),
@@ -111,11 +129,9 @@ export function HackathonsPage() {
                 ? `${h.name}: ${STATUS_LABEL[value as Hackathon['status']]}`
                 : `${h.name} updated`,
             ).then((updated) => {
-              if (updated && isOpen(updated) !== isOpen(h)) {
-                focusAfterUpdate.current = isOpen(updated) ? h.id : 'past';
-              }
-            })
-          }
+              if (!updated && moves) focusAfterUpdate.current = null;
+            });
+          }}
           onNextAction={async (value) =>
             (await run(
               h,
@@ -187,7 +203,7 @@ export function HackathonsPage() {
             enough to start.
           </p>
         )}
-        <ul>{open.map(renderSheet)}</ul>
+        <ul ref={openList}>{open.map(renderSheet)}</ul>
       </section>
 
       {past.length > 0 && (

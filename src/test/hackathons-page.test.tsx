@@ -185,7 +185,9 @@ describe('Hackathons page', () => {
       screen.getByRole('combobox', { name: 'Status for Old one' }),
       'active',
     );
-    await expectFocus(screen.findByRole('button', { name: 'Edit Old one' }));
+    // Re-query on every poll: the sheet (and its Edit button) is replaced when it
+    // moves from Past to the open list, so an element found early can go stale.
+    await expectFocus(() => screen.queryByRole('button', { name: 'Edit Old one' }));
     expect(screen.queryByText(/^Past/)).not.toBeInTheDocument();
   });
 
