@@ -5,6 +5,14 @@ app's `package.json` version.
 
 ## [Unreleased]
 
+### Changed (v2 PHASE 009 — QA and polish)
+
+- Vendor code is in separate chunks; the app entry is 69 kB.
+- Accessibility: Sleep Mode keeps AA contrast, the heading order is fixed, list markup
+  is valid, and the milestone pipeline is keyboard-scrollable. axe-core reports 0
+  violations on every route.
+- `docs/LOWTIDE-V2-STATUS.md` records the final state.
+
 ### Added (v2 PHASE 008 — shared AI context, companion stage 1)
 
 - **AI & workspace** (`/ai`): scoped context packs (Project, Workspace, Global with

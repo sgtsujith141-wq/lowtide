@@ -61,7 +61,15 @@ findBy…()).toHaveFocus()` can run a moment too early. Use `expectFocus(…)` f
 - `setupTestDatabase` unmounts rendered trees before deleting the database, so no live
   subscription outlives it.
 
-## Current coverage (v2 PHASE 004): 38 files, 463 tests
+## Current coverage (v2 PHASE 009): 45 files, 514 tests
+
+v2 PHASE 005–009 added `life-page`, `v5-college`, `calendar-page`, `hackathons-v2`,
+`context-engine`, `ai-page` and `companion/companion.test.ts` (node environment,
+including a real stdio MCP session). Async waits allow 3 s (`setup.ts`), Vitest uses
+half the cores (`vite.config.ts`), and IntersectionObserver is stubbed: call
+`revealLazyContent()` to render content that appears on scroll.
+
+### Earlier (v2 PHASE 004): 38 files, 463 tests
 
 v2 PHASE 002–004 added `migration-v4`, `v4-repositories`, `v4-backup`, `contribution-grid`,
 `pulse-days`, `project-summary`, `home-page`, `modes` and `project-room` tests. Home

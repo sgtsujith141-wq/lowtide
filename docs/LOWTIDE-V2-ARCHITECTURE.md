@@ -3,6 +3,12 @@
 - **Status:** decisions locked (v2 PHASE 001). Schema V4 (§3–§9) is the approved design
   for PHASE 002, and nothing in it is implemented yet. The pure rules for Daily Pulse,
   project completion, hackathon stages and grid presets exist and are tested.
+- **Implementation status (overnight build, 2026-09-30):**
+  - §3–§10 are built, with schema V5 adding `collegeItems` (ADR-051).
+  - §11–§12 are built as the workspace export and in-app context packs (ADR-054).
+  - §13 is stage 1: a stdio MCP companion over the exported workspace (ADR-055).
+  - [LOWTIDE-V2-STATUS.md](LOWTIDE-V2-STATUS.md) lists what's complete, partial and
+    pending. Where this document and a later ADR differ, the ADR wins.
 - **Date:** 2026-09-30
 - **Baseline:** v0.1 at `de8f501`, schema V3
 - **Companions:**
