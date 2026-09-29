@@ -20,6 +20,7 @@ const screens = {
   hackathons: () => import('../features/hackathons/HackathonsPage'),
   data: () => import('../features/backup/DataPage'),
   more: () => import('../features/home/MorePage'),
+  life: () => import('../features/life/LifePage'),
 };
 
 /** Warms every screen chunk. Safe to call more than once. */
@@ -78,6 +79,7 @@ export const routes: RouteObject[] = [
         lazy: async () => ({ Component: narrow((await screens.hackathons()).HackathonsPage) }),
       },
       { path: 'more', lazy: async () => ({ Component: (await screens.more()).MorePage }) },
+      { path: 'life', lazy: async () => ({ Component: (await screens.life()).LifePage }) },
       { path: '*', element: <NotFound /> },
     ],
   },

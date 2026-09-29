@@ -1,4 +1,12 @@
-import { ChevronRight, Database, Inbox, ListTodo, Sun, type LucideIcon } from 'lucide-react';
+import {
+  ChevronRight,
+  Database,
+  HeartPulse,
+  Inbox,
+  ListTodo,
+  Sun,
+  type LucideIcon,
+} from 'lucide-react';
 import { Link } from 'react-router';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { ModeActions } from '../modes/ModeActions';
@@ -7,6 +15,7 @@ const MORE_LINKS: { to: string; label: string; hint: string; icon: LucideIcon }[
   { to: '/today', label: 'Today', hint: 'Plan, deadlines, capture', icon: Sun },
   { to: '/inbox', label: 'Inbox', hint: 'Sort captured thoughts', icon: Inbox },
   { to: '/tasks', label: 'Tasks', hint: 'Everything open', icon: ListTodo },
+  { to: '/life', label: 'Life', hint: 'Routines, sleep, gym, college', icon: HeartPulse },
   { to: '/data', label: 'Data & backup', hint: 'Export, restore, storage', icon: Database },
 ];
 

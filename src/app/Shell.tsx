@@ -2,6 +2,7 @@ import {
   AudioWaveform,
   Ellipsis,
   FolderKanban,
+  HeartPulse,
   House,
   Inbox,
   ListTodo,
@@ -33,6 +34,7 @@ const NAV: {
   { to: '/tasks', label: 'Tasks', icon: ListTodo, only: 'desktop' },
   { to: '/hackathons', label: 'Hackathons', icon: Trophy },
   { to: '/rhythm', label: 'Rhythm', icon: AudioWaveform },
+  { to: '/life', label: 'Life', icon: HeartPulse, only: 'desktop' },
   { to: '/more', label: 'More', icon: Ellipsis, only: 'phone' },
 ];
 
