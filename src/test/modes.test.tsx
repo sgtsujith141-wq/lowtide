@@ -1,7 +1,7 @@
 import { screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { createDexieRepositories, type Repositories } from '../db/repositories';
-import { setupTestDatabase } from './helpers';
+import { expectFocus, setupTestDatabase } from './helpers';
 import { renderApp } from './render';
 
 const newDb = setupTestDatabase();
@@ -25,6 +25,8 @@ describe('Work Mode', () => {
 
     const bar = await workBar();
     expect(within(bar).getByText('Working')).toBeInTheDocument();
+    // The Start button is gone and Start Work is disabled: focus moves to Pause.
+    await expectFocus(() => within(bar).queryByRole('button', { name: 'Pause' }));
     expect(await within(bar).findByText(/General work: Inbox zero/)).toBeInTheDocument();
     expect(within(bar).getByLabelText('Session time')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Start Work' })).toBeDisabled();
@@ -37,6 +39,7 @@ describe('Work Mode', () => {
     await vi.waitFor(() =>
       expect(screen.queryByRole('region', { name: 'Work session' })).not.toBeInTheDocument(),
     );
+    await expectFocus(() => screen.getByRole('main'));
 
     const watch = await new Promise<unknown[]>((resolve) => {
       const stop = repositories.events.watchRecent()((events) => {
@@ -81,6 +84,18 @@ describe('Work Mode', () => {
     expect(session!.projectId).toBeDefined();
   });
 
+  it('closes the Start Work panel with Escape and returns focus to its button', async () => {
+    const { user } = await setup();
+    const start = screen.getByRole('button', { name: 'Start Work' });
+    await user.click(start);
+    expect(start).toHaveAttribute('aria-expanded', 'true');
+    await user.click(screen.getByRole('radio', { name: 'College / study' }));
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('form', { name: 'Start work' })).not.toBeInTheDocument();
+    expect(start).toHaveAttribute('aria-expanded', 'false');
+    await expectFocus(() => screen.getByRole('button', { name: 'Start Work' }));
+  });
+
   it('asks for a project before starting project work', async () => {
     const { user } = await setup();
     await user.click(screen.getByRole('button', { name: 'Start Work' }));
@@ -104,14 +119,20 @@ describe('Work Mode', () => {
 });
 
 describe('Sleep Mode (ADR-042)', () => {
-  it('won’t begin while work is running, and says why', async () => {
+  it('won’t begin while work is running, says why, and offers to finish the work', async () => {
     const { user } = await setup((r) => r.work.start({ kind: 'general' }));
     await workBar();
     await user.click(screen.getByRole('button', { name: 'Sleep Mode' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Finish the work session first, then Sleep Mode can begin.',
-    );
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('Finish the work session first, then Sleep Mode can begin.');
     expect(screen.queryByRole('region', { name: 'Off time' })).not.toBeInTheDocument();
+    await user.click(within(alert).getByRole('button', { name: 'Finish work session' }));
+    await vi.waitFor(() =>
+      expect(screen.queryByRole('region', { name: 'Work session' })).not.toBeInTheDocument(),
+    );
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Sleep Mode' }));
+    expect(await screen.findByRole('region', { name: 'Off time' })).toBeInTheDocument();
   });
 
   it('dims the app without replacing it, keeps navigation, and ends with Wake up', async () => {
@@ -119,6 +140,7 @@ describe('Sleep Mode (ADR-042)', () => {
     await user.click(screen.getByRole('button', { name: 'Sleep Mode' }));
     const bar = await screen.findByRole('region', { name: 'Off time' });
     expect(within(bar).getByText('Sleep Mode')).toBeInTheDocument();
+    await expectFocus(() => within(bar).queryByRole('button', { name: 'Wake up' }));
     expect(within(bar).getByText(/not a sleep measurement/)).toBeInTheDocument();
     expect(container.querySelector('[data-mode="sleep"]')).not.toBeNull();
     // Still the normal app: navigation and content remain.
@@ -131,5 +153,6 @@ describe('Sleep Mode (ADR-042)', () => {
       expect(screen.queryByRole('region', { name: 'Off time' })).not.toBeInTheDocument(),
     );
     expect(container.querySelector('[data-mode="sleep"]')).toBeNull();
+    await expectFocus(() => screen.getByRole('main'));
   });
 });

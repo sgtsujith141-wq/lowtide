@@ -41,7 +41,7 @@ export function HomePage() {
       <NeedsYou today={today} />
       <TodaySummary today={today} />
 
-      <section aria-labelledby="recent-heading" className="mt-10">
+      <section aria-labelledby="recent-heading" className="mt-10" data-nonessential>
         <h2 id="recent-heading" className="font-serif text-lg font-semibold tracking-tight">
           Recent activity
         </h2>
@@ -50,7 +50,9 @@ export function HomePage() {
         </div>
       </section>
 
-      <SecondaryGrids today={today} />
+      <div data-nonessential>
+        <SecondaryGrids today={today} />
+      </div>
     </>
   );
 }

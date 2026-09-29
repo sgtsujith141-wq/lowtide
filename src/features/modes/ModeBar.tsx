@@ -1,5 +1,5 @@
 import { Moon, Pause, Play, Square, Sunrise } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '../../components/ui/Button';
 import { Announcer, ErrorNotice } from '../../components/ui/Notice';
 import { useNow } from '../../hooks/useNow';
@@ -8,6 +8,7 @@ import { useToday } from '../../hooks/useToday';
 import { useWatch } from '../../hooks/useWatch';
 import type { OffTimeSession, WorkSession } from '../../types/domain';
 import { activeMs, clock, isPaused } from '../work/duration';
+import { consumeModeFocus } from './focus-intent';
 import { useModes } from './useModes';
 import { useWorkLabel } from './work-label';
 
@@ -33,17 +34,23 @@ function WorkStrip({ session }: { session: WorkSession }) {
   const todays = useWatch(watchToday);
   const [error, setError] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState('');
+  const primary = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (consumeModeFocus()) primary.current?.focus();
+  }, []);
   const todayMs =
     todays.status === 'ready'
       ? todays.data.reduce((sum, s) => sum + (s.id === session.id ? 0 : activeMs(s, now)), 0) +
         activeMs(session, now)
       : activeMs(session, now);
 
-  async function run(action: () => Promise<unknown>, done: string) {
+  async function run(action: () => Promise<unknown>, done: string, leaving = false) {
     setError(null);
     try {
       await action();
       setAnnouncement(done);
+      // The bar is about to disappear with the focused button; land on the page.
+      if (leaving) document.getElementById('main')?.focus();
     } catch {
       setError('Couldn’t update the work session. Nothing changed.');
     }
@@ -69,17 +76,23 @@ function WorkStrip({ session }: { session: WorkSession }) {
         <p className="text-xs text-ink-muted tabular-nums">today {clock(todayMs)}</p>
         <div className="flex gap-1.5">
           {paused ? (
-            <Button onClick={() => void run(() => work.resume(session.id), 'Work resumed')}>
+            <Button
+              ref={primary}
+              onClick={() => void run(() => work.resume(session.id), 'Work resumed')}
+            >
               <Play aria-hidden className="size-3.5" /> Resume
             </Button>
           ) : (
-            <Button onClick={() => void run(() => work.pause(session.id), 'Work paused')}>
+            <Button
+              ref={primary}
+              onClick={() => void run(() => work.pause(session.id), 'Work paused')}
+            >
               <Pause aria-hidden className="size-3.5" /> Pause
             </Button>
           )}
           <Button
             variant="primary"
-            onClick={() => void run(() => work.finish(session.id), 'Work session finished')}
+            onClick={() => void run(() => work.finish(session.id), 'Work session finished', true)}
           >
             <Square aria-hidden className="size-3.5" /> Finish
           </Button>
@@ -95,6 +108,10 @@ function OffTimeStrip({ session }: { session: OffTimeSession }) {
   const { offTime } = useRepositories();
   const now = useNow(true, 15_000);
   const [error, setError] = useState<string | null>(null);
+  const wake = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (consumeModeFocus()) wake.current?.focus();
+  }, []);
   const minutes = Math.max(
     0,
     Math.floor((now.getTime() - Date.parse(session.startedAt!)) / 60_000),
@@ -120,10 +137,14 @@ function OffTimeStrip({ session }: { session: OffTimeSession }) {
           </span>
         </p>
         <Button
+          ref={wake}
           variant="primary"
           onClick={() => {
             setError(null);
-            offTime.end(session.id).catch(() => setError('Couldn’t end off time. Try again.'));
+            offTime.end(session.id).then(
+              () => document.getElementById('main')?.focus(),
+              () => setError('Couldn’t end off time. Try again.'),
+            );
           }}
         >
           <Sunrise aria-hidden className="size-4" /> Wake up

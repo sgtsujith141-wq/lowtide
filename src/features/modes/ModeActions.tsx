@@ -1,5 +1,5 @@
 import { Moon, Play, Search } from 'lucide-react';
-import { useId, useMemo, useState, type FormEvent } from 'react';
+import { useId, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Button } from '../../components/ui/Button';
 import { ErrorNotice } from '../../components/ui/Notice';
 import { fieldClass, labelClass } from '../../components/ui/styles';
@@ -7,6 +7,7 @@ import { RecordStateError } from '../../db/repositories';
 import { useRepositories } from '../../hooks/useRepositories';
 import { useWatch } from '../../hooks/useWatch';
 import type { WorkKind } from '../../types/domain';
+import { consumeModeFocus, requestModeFocus } from './focus-intent';
 import { useModes } from './useModes';
 
 const KINDS: { kind: WorkKind | 'project-task'; label: string }[] = [
@@ -21,23 +22,27 @@ const KINDS: { kind: WorkKind | 'project-task'; label: string }[] = [
  * inline panel (no modal), so the page stays visible and nothing traps focus.
  */
 export function ModeActions({ onAsk }: { onAsk?: () => void }) {
-  const { offTime } = useRepositories();
+  const { offTime, work } = useRepositories();
   const modes = useModes();
   const [open, setOpen] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<'work-running' | 'failed' | null>(null);
   const panelId = useId();
+  const startButton = useRef<HTMLButtonElement>(null);
 
   async function sleep() {
     setError(null);
+    requestModeFocus();
     try {
       await offTime.start('sleep');
     } catch (e) {
-      setError(
-        e instanceof RecordStateError && modes.work
-          ? 'Finish the work session first, then Sleep Mode can begin.'
-          : 'Couldn’t start Sleep Mode. Try again.',
-      );
+      consumeModeFocus();
+      setError(e instanceof RecordStateError && modes.work ? 'work-running' : 'failed');
     }
+  }
+
+  function closePanel() {
+    setOpen(false);
+    startButton.current?.focus();
   }
 
   const busy = modes.work !== undefined || modes.offTime !== undefined;
@@ -46,6 +51,7 @@ export function ModeActions({ onAsk }: { onAsk?: () => void }) {
     <div>
       <div className="flex flex-wrap gap-2">
         <Button
+          ref={startButton}
           variant="primary"
           aria-expanded={open}
           aria-controls={panelId}
@@ -73,15 +79,36 @@ export function ModeActions({ onAsk }: { onAsk?: () => void }) {
           A work session is running (see the bar above).
         </p>
       )}
-      {error && <ErrorNotice>{error}</ErrorNotice>}
+      {error === 'work-running' && modes.work && (
+        <div role="alert" className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+          <span className="text-danger">
+            Finish the work session first, then Sleep Mode can begin.
+          </span>
+          <Button
+            onClick={() => {
+              const id = modes.work?.id;
+              if (id)
+                void work.finish(id).then(
+                  () => setError(null),
+                  () => setError('failed'),
+                );
+            }}
+          >
+            Finish work session
+          </Button>
+        </div>
+      )}
+      {error === 'failed' && (
+        <ErrorNotice>Couldn’t do that. Nothing changed; try again.</ErrorNotice>
+      )}
       <div id={panelId} hidden={!open || busy}>
-        {open && !busy && <StartWorkForm onStarted={() => setOpen(false)} />}
+        {open && !busy && <StartWorkForm onStarted={() => setOpen(false)} onCancel={closePanel} />}
       </div>
     </div>
   );
 }
 
-function StartWorkForm({ onStarted }: { onStarted: () => void }) {
+function StartWorkForm({ onStarted, onCancel }: { onStarted: () => void; onCancel: () => void }) {
   const { work, projects, tasks } = useRepositories();
   const allProjects = useWatch(projects.watchAll);
   const [kind, setKind] = useState<(typeof KINDS)[number]['kind']>('general');
@@ -110,6 +137,7 @@ function StartWorkForm({ onStarted }: { onStarted: () => void }) {
     setError(null);
     if (needsProject && !projectId) return setError('Choose a project.');
     if (kind === 'project-task' && !taskId) return setError('Choose a task.');
+    requestModeFocus();
     try {
       await work.start({
         kind: kind === 'project-task' ? 'task' : kind,
@@ -119,6 +147,7 @@ function StartWorkForm({ onStarted }: { onStarted: () => void }) {
       });
       onStarted();
     } catch {
+      consumeModeFocus();
       setError('Couldn’t start work. Is another session or off time running?');
     }
   }
@@ -126,6 +155,12 @@ function StartWorkForm({ onStarted }: { onStarted: () => void }) {
   return (
     <form
       onSubmit={(e) => void submit(e)}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          onCancel();
+        }
+      }}
       aria-label="Start work"
       className="mt-3 max-w-md space-y-3 rounded-lg border border-line bg-paper-raised p-3"
     >
@@ -216,9 +251,14 @@ function StartWorkForm({ onStarted }: { onStarted: () => void }) {
         />
       </div>
       {error && <ErrorNotice>{error}</ErrorNotice>}
-      <Button type="submit" variant="primary">
-        <Play aria-hidden className="size-4" /> Start
-      </Button>
+      <div className="flex gap-2">
+        <Button type="submit" variant="primary">
+          <Play aria-hidden className="size-4" /> Start
+        </Button>
+        <Button variant="ghost" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
     </form>
   );
 }

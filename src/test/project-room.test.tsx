@@ -162,6 +162,14 @@ describe('Project Command Room', () => {
     expect(screen.getByText(/fetches nothing from GitHub/)).toBeInTheDocument();
   });
 
+  it('starts a project work session from the room', async () => {
+    const { user } = await room(engine);
+    await user.click(screen.getByRole('button', { name: 'Start work here' }));
+    const bar = await screen.findByRole('region', { name: 'Work session' }, { timeout: 3000 });
+    expect(await within(bar).findByText(/Engine/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Start work here' })).not.toBeInTheDocument();
+  });
+
   it('adds and completes a project task from the Tasks tab', async () => {
     const { user, repositories } = await room(engine);
     await user.click(screen.getByRole('tab', { name: 'Tasks' }));

@@ -1,4 +1,4 @@
-import { ArrowLeft, Clock, Pencil } from 'lucide-react';
+import { ArrowLeft, Clock, Pencil, Play } from 'lucide-react';
 import { useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { Link, useParams } from 'react-router';
 import { ContributionGrid } from '../../components/shared/ContributionGrid';
@@ -14,6 +14,8 @@ import { useWatch } from '../../hooks/useWatch';
 import { formatWhen } from '../../lib/when';
 import { PROJECT_STATES, type Project, type ProjectState } from '../../types/domain';
 import { Timeline } from '../activity/Timeline';
+import { consumeModeFocus, requestModeFocus } from '../modes/focus-intent';
+import { useModes } from '../modes/useModes';
 import { progressSeries, projectCalendar, weeklyMinutes } from './charts';
 import { Lanes } from './room/Lanes';
 import {
@@ -121,6 +123,7 @@ function Room({ project }: { project: Project }) {
         <h1 className="font-serif text-2xl font-semibold tracking-tight">{project.name}</h1>
         <Chip tone={STATE_TONE[project.state]}>{STATE_LABEL[project.state]}</Chip>
         {project.phase && <span className="text-sm text-ink-muted">Phase: {project.phase}</span>}
+        <StartHere project={project} />
         <StateSelect project={project} />
       </div>
 
@@ -278,6 +281,31 @@ function Room({ project }: { project: Project }) {
         )}
       </div>
     </>
+  );
+}
+
+/** Starts a project work session from the room (ADR-049); hidden while any mode runs. */
+function StartHere({ project }: { project: Project }) {
+  const { work } = useRepositories();
+  const modes = useModes();
+  const [error, setError] = useState(false);
+  if (!modes.ready || modes.work || modes.offTime || project.state === 'archived') return null;
+  return (
+    <span>
+      <Button
+        onClick={() => {
+          setError(false);
+          requestModeFocus();
+          work.start({ kind: 'project', projectId: project.id }).catch(() => {
+            consumeModeFocus();
+            setError(true);
+          });
+        }}
+      >
+        <Play aria-hidden className="size-3.5" /> Start work here
+      </Button>
+      {error && <ErrorNotice>Couldn’t start work. Nothing changed.</ErrorNotice>}
+    </span>
   );
 }
 
