@@ -176,35 +176,52 @@ describe('project completion (ADR-038)', () => {
   });
 });
 
-describe('hackathon stages (ADR-039)', () => {
-  it('derives stages only from the status fields', () => {
+describe('hackathon stages (ADR-039, ADR-053)', () => {
+  it('derives seven stages only from the hackathon’s own fields', () => {
     expect(
       hackathonStages({
         registrationStatus: 'registered',
+        problemStatement: 'Smart irrigation',
         pptStatus: 'in_progress',
         buildStatus: 'not_started',
       }),
     ).toEqual([
-      { key: 'registered', state: 'done' },
+      { key: 'registration', state: 'done' },
+      { key: 'problem', state: 'done' },
+      { key: 'research', state: 'done' },
       { key: 'ppt', state: 'active' },
       { key: 'build', state: 'todo' },
-      { key: 'demo', state: 'todo' },
-      { key: 'submitted', state: 'todo' },
+      { key: 'testing', state: 'todo' },
+      { key: 'submission', state: 'todo' },
     ]);
   });
 
-  it('drops the PPT stage when none is needed and marks a submitted build complete', () => {
-    expect(
-      hackathonStages({
-        registrationStatus: 'waitlisted',
-        pptStatus: 'not_needed',
-        buildStatus: 'submitted',
-      }),
-    ).toEqual([
-      { key: 'registered', state: 'active' },
-      { key: 'build', state: 'done' },
-      { key: 'demo', state: 'done' },
-      { key: 'submitted', state: 'done' },
-    ]);
+  it('puts research between knowing the problem and starting work, and drops an unneeded PPT', () => {
+    const stages = hackathonStages({
+      registrationStatus: 'waitlisted',
+      problemStatement: 'PS 4',
+      pptStatus: 'not_needed',
+      buildStatus: 'not_started',
+    });
+    expect(stages.map((s) => s.key)).not.toContain('ppt');
+    expect(stages.find((s) => s.key === 'registration')?.state).toBe('active');
+    expect(stages.find((s) => s.key === 'research')?.state).toBe('active');
+  });
+
+  it('marks testing active at demo-ready and everything done once submitted', () => {
+    const demo = hackathonStages({
+      registrationStatus: 'registered',
+      pptStatus: 'submitted',
+      buildStatus: 'demo_ready',
+    });
+    expect(demo.find((s) => s.key === 'testing')?.state).toBe('active');
+    expect(demo.find((s) => s.key === 'problem')?.state).toBe('todo'); // no problem recorded
+    const done = hackathonStages({
+      registrationStatus: 'registered',
+      problemStatement: 'x',
+      pptStatus: 'submitted',
+      buildStatus: 'submitted',
+    });
+    expect(done.every((s) => s.state === 'done')).toBe(true);
   });
 });

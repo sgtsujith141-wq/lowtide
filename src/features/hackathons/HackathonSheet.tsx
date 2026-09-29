@@ -1,4 +1,5 @@
-import { Pencil } from 'lucide-react';
+import { FolderKanban, Pencil } from 'lucide-react';
+import { Link } from 'react-router';
 import { useId, useState, type ChangeEvent, type FormEvent } from 'react';
 import { Button, IconButton } from '../../components/ui/Button';
 import { fieldClass } from '../../components/ui/styles';
@@ -12,6 +13,7 @@ import {
 } from '../../types/domain';
 import { BUILD_LABEL, PPT_LABEL, REGISTRATION_LABEL, STATUS_LABEL } from './labels';
 import { formatRange, primaryMoment, type MomentTone } from './schedule';
+import { StageRail } from './StageRail';
 
 const TONE_CLASS: Record<MomentTone, string> = {
   past: 'text-ink-muted',
@@ -49,16 +51,23 @@ export function HackathonSheet({
   hackathon: h,
   today,
   busy,
+  project,
   onStatus,
   onNextAction,
   onEdit,
+  onTrackProject,
+  onUnlinkProject,
 }: {
   hackathon: Hackathon;
   today: LocalDate;
   busy: boolean;
+  /** The linked technical project, if the build is tracked as one (ADR-039). */
+  project?: { name: string; slug: string } | undefined;
   onStatus: (field: StatusField, value: string) => void;
   onNextAction: (value: string) => Promise<boolean>;
   onEdit: () => void;
+  onTrackProject: () => void;
+  onUnlinkProject: () => void;
 }) {
   const id = useId();
   const moment = primaryMoment(h, today);
@@ -98,6 +107,8 @@ export function HackathonSheet({
           {range && <span className="text-ink-muted">{range}</span>}
         </p>
       )}
+
+      <StageRail hackathon={h} />
 
       <div className="mt-1.5">
         {editingNext ? (
@@ -173,6 +184,36 @@ export function HackathonSheet({
           </label>
         ))}
       </div>
+
+      <p className="mt-1.5 flex flex-wrap items-center gap-x-2 text-xs text-ink-muted">
+        {project ? (
+          <>
+            <FolderKanban aria-hidden className="size-3.5" />
+            <span>
+              Build tracked as{' '}
+              <Link to={`/projects/${project.slug}`} className="text-accent-ink hover:underline">
+                {project.name}
+              </Link>
+            </span>
+            <button
+              type="button"
+              onClick={onUnlinkProject}
+              className="underline decoration-line-strong underline-offset-2 hover:text-ink"
+            >
+              Unlink
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={onTrackProject}
+            className="inline-flex items-center gap-1 underline decoration-line-strong underline-offset-2 hover:text-ink"
+          >
+            <FolderKanban aria-hidden className="size-3.5" />
+            Track the build as a project
+          </button>
+        )}
+      </p>
 
       {hasDetails && (
         <details className="mt-1.5 text-sm">

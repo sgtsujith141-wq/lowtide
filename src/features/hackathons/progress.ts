@@ -1,12 +1,27 @@
 import type { Hackathon } from '../../types/domain';
 
 /**
- * Hackathon progress (ADR-039): visual stages derived only from the
- * hackathon's own status fields. No percentage, no time, no tasks, and no
- * link to a Project is needed or implied.
+ * Hackathon progress (ADR-039, stages widened by ADR-053): visual stages
+ * derived only from the hackathon's own fields. No percentage, no time, no
+ * tasks, and no link to a Project is needed or implied.
+ *
+ * Research has no status of its own; it's the stretch between knowing the
+ * problem and starting the PPT or build, so its state is positional:
+ * active in that stretch, done once either has begun. Nothing else is inferred.
  */
 export type StageState = 'done' | 'active' | 'todo';
-export type StageKey = 'registered' | 'ppt' | 'build' | 'demo' | 'submitted';
+export type StageKey =
+  'registration' | 'problem' | 'research' | 'ppt' | 'build' | 'testing' | 'submission';
+
+export const STAGE_LABEL: Record<StageKey, string> = {
+  registration: 'Registration',
+  problem: 'Problem',
+  research: 'Research',
+  ppt: 'PPT',
+  build: 'Prototype / build',
+  testing: 'Testing',
+  submission: 'Submission',
+};
 
 export interface Stage {
   key: StageKey;
@@ -14,38 +29,51 @@ export interface Stage {
 }
 
 export function hackathonStages(
-  hackathon: Pick<Hackathon, 'registrationStatus' | 'pptStatus' | 'buildStatus'>,
+  h: Pick<Hackathon, 'registrationStatus' | 'pptStatus' | 'buildStatus' | 'problemStatement'>,
 ): Stage[] {
-  const { registrationStatus, pptStatus, buildStatus } = hackathon;
+  const hasProblem = Boolean(h.problemStatement?.trim());
+  const pptStarted = h.pptStatus === 'in_progress' || h.pptStatus === 'submitted';
+  const buildStarted = h.buildStatus !== 'not_started';
   const stages: Stage[] = [
     {
-      key: 'registered',
+      key: 'registration',
       state:
-        registrationStatus === 'registered'
+        h.registrationStatus === 'registered'
           ? 'done'
-          : registrationStatus === 'waitlisted'
+          : h.registrationStatus === 'waitlisted'
             ? 'active'
             : 'todo',
     },
+    { key: 'problem', state: hasProblem ? 'done' : 'todo' },
+    {
+      key: 'research',
+      state: pptStarted || buildStarted ? 'done' : hasProblem ? 'active' : 'todo',
+    },
   ];
   // A PPT that isn't needed isn't a stage at all, rather than a free "done".
-  if (pptStatus !== 'not_needed') {
+  if (h.pptStatus !== 'not_needed') {
     stages.push({
       key: 'ppt',
-      state: pptStatus === 'submitted' ? 'done' : pptStatus === 'in_progress' ? 'active' : 'todo',
+      state:
+        h.pptStatus === 'submitted' ? 'done' : h.pptStatus === 'in_progress' ? 'active' : 'todo',
     });
   }
   stages.push(
     {
       key: 'build',
       state:
-        buildStatus === 'not_started' ? 'todo' : buildStatus === 'in_progress' ? 'active' : 'done',
+        h.buildStatus === 'not_started'
+          ? 'todo'
+          : h.buildStatus === 'in_progress'
+            ? 'active'
+            : 'done',
     },
     {
-      key: 'demo',
-      state: buildStatus === 'demo_ready' || buildStatus === 'submitted' ? 'done' : 'todo',
+      key: 'testing',
+      state:
+        h.buildStatus === 'submitted' ? 'done' : h.buildStatus === 'demo_ready' ? 'active' : 'todo',
     },
-    { key: 'submitted', state: buildStatus === 'submitted' ? 'done' : 'todo' },
+    { key: 'submission', state: h.buildStatus === 'submitted' ? 'done' : 'todo' },
   );
   return stages;
 }

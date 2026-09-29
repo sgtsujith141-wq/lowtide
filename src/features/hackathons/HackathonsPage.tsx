@@ -20,7 +20,17 @@ import { isOpen, orderHackathons } from './schedule';
 export function HackathonsPage() {
   useDocumentTitle('Hackathons');
   const today = useToday();
-  const { hackathons } = useRepositories();
+  const { hackathons, projects } = useRepositories();
+  const allProjects = useWatch(projects.watchAll);
+  const projectsById = useMemo(
+    () =>
+      new Map(
+        allProjects.status === 'ready'
+          ? allProjects.data.map((p) => [p.id, { name: p.name, slug: p.slug }] as const)
+          : [],
+      ),
+    [allProjects],
+  );
   const all = useWatch(hackathons.watchAll);
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -112,6 +122,24 @@ export function HackathonsPage() {
           hackathon={h}
           today={today}
           busy={busyId === h.id}
+          project={h.projectId ? projectsById.get(h.projectId) : undefined}
+          onTrackProject={() =>
+            void run(
+              h,
+              async () => {
+                await projects.createFromHackathon(h.id);
+                return h;
+              },
+              `${h.name}: the build is now a project.`,
+            )
+          }
+          onUnlinkProject={() =>
+            void run(
+              h,
+              () => hackathons.update(h.id, { projectId: null }),
+              `${h.name}: unlinked from its project.`,
+            )
+          }
           onEdit={() => setEditingId(h.id)}
           onStatus={(field, value) => {
             // Decide where focus goes before saving: the live list can re-render

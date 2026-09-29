@@ -133,6 +133,40 @@ export function createDexieProjectRepository(deps: RepositoryDeps): ProjectRepos
       });
     },
 
+    createFromHackathon(hackathonId) {
+      return db.transaction('rw', [...all, db.hackathons], async () => {
+        const hackathon = await db.hackathons.get(hackathonId);
+        if (!hackathon) throw new RecordNotFoundError('Hackathon', hackathonId);
+        if (hackathon.projectId) throw new RecordStateError('Already tracked as a project');
+        const now = clock();
+        const at = toTimestamp(now);
+        const project = projectSchema.parse(
+          omitUndefined({
+            id: newId(),
+            name: hackathon.name,
+            slug: await uniqueSlug(hackathon.name),
+            kind: 'software',
+            state: 'active',
+            objective: optionalText(hackathon.problemStatement),
+            nextAction: optionalText(hackathon.nextAction),
+            createdAt: at,
+            updatedAt: at,
+            stateChangedAt: at,
+          }),
+        );
+        await db.projects.add(project);
+        await db.hackathons.put({ ...hackathon, projectId: project.id, updatedAt: at });
+        await appendEvent(db, newId, now, {
+          type: 'project.updated',
+          entityId: project.id,
+          projectId: project.id,
+          data: { change: 'created', to: project.state, hackathonId },
+        });
+        await refreshSnapshot(db, newId, now, project.id);
+        return project;
+      });
+    },
+
     update(id, changes) {
       return db.transaction('rw', all, async () => {
         const now = clock();

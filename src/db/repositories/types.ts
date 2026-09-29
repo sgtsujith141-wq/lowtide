@@ -419,6 +419,12 @@ export interface NewDecision {
  */
 export interface ProjectRepository {
   create(input: NewProject): Promise<Project>;
+  /**
+   * Creates a technical project for a hackathon's build and links it
+   * (`hackathon.projectId`) in one transaction. Only on explicit request
+   * (ADR-039); rejects with `RecordStateError` if it's already linked.
+   */
+  createFromHackathon(hackathonId: Id): Promise<Project>;
   update(id: Id, changes: ProjectChanges): Promise<Project>;
   /**
    * Moves the project to `state`. Leaving `archived` only goes to `parked`.
