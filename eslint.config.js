@@ -62,7 +62,7 @@ export default defineConfig([
     rules: { 'no-restricted-imports': 'off' },
   },
   {
-    files: ['*.config.{js,ts}'],
+    files: ['*.config.{js,ts}', 'companion/**/*.ts'],
     languageOptions: { globals: globals.node },
   },
   prettier,
