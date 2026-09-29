@@ -16,4 +16,5 @@ export const COUNT_ROWS: { key: keyof BackupCounts; label: string }[] = [
   { key: 'events', label: 'Timeline events' },
   { key: 'progressSnapshots', label: 'Progress snapshots' },
   { key: 'aiSessions', label: 'AI sessions' },
+  { key: 'collegeItems', label: 'College items' },
 ];

@@ -413,3 +413,32 @@ export interface AiSession {
   filesTouched?: string[];
   createdAt: Timestamp;
 }
+
+/* ------------------------------------------------------------------------ */
+/* Schema V5 (v2 PHASE 006, ADR-051): college items.                        */
+/* ------------------------------------------------------------------------ */
+
+export const COLLEGE_KINDS = ['class', 'lab', 'assignment', 'exam', 'event'] as const;
+export type CollegeKind = (typeof COLLEGE_KINDS)[number];
+
+export const COLLEGE_STATUSES = ['planned', 'attended', 'missed', 'done', 'cancelled'] as const;
+export type CollegeStatus = (typeof COLLEGE_STATUSES)[number];
+
+/**
+ * A class or lab (attended / missed), or an assignment, exam or event (done),
+ * on a calendar day. Missing a class is recorded plainly and never scored
+ * against you; only attended and done items count as activity.
+ */
+export interface CollegeItem {
+  id: Id;
+  kind: CollegeKind;
+  title: string;
+  /** The day it happens or is due. */
+  date: LocalDate;
+  status: CollegeStatus;
+  /** Free text, e.g. "DBMS" or "Physics 101". */
+  course?: string;
+  note?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}

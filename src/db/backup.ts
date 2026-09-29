@@ -15,6 +15,7 @@ import {
 } from './migrations';
 import {
   checkAiSession,
+  checkCollegeItem,
   checkEntryValue,
   checkHabitTarget,
   checkHackathonDates,
@@ -24,6 +25,7 @@ import {
   checkWorkSession,
 } from './rules';
 import {
+  collegeItemSchema,
   aiSessionSchema,
   decisionSchema,
   habitEntrySchema,
@@ -69,6 +71,7 @@ const SCHEMAS = {
   events: ledgerEventSchema,
   progressSnapshots: progressSnapshotSchema,
   aiSessions: aiSessionSchema,
+  collegeItems: collegeItemSchema,
 } as const;
 
 const byKeys =
@@ -144,6 +147,12 @@ export function sortBackupData(data: BackupData): BackupData {
       ),
     ),
     aiSessions: [...data.aiSessions].sort(byKeys(...CREATED)),
+    collegeItems: [...data.collegeItems].sort(
+      byKeys(
+        (c) => c.date,
+        (c) => c.id,
+      ),
+    ),
   };
 }
 
@@ -169,7 +178,7 @@ const MAX_ISSUES = 25;
  * 1. parse JSON;
  * 2. check the envelope: marker, format version (newer → reject), schema
  *    version (newer than this build → reject), export time, and every store
- *    that schema has (six before V4, fifteen from V4);
+ *    that schema has (six before V4, fifteen in V4, sixteen from V5);
  * 3. migrate older-schema data in memory with the database's own migrations;
  * 4. validate every record against the current schemas and the domain rules
  *    the repositories enforce;
@@ -420,4 +429,6 @@ function checkV4Integrity(
     attempt(`aiSessions[${i}]`, () => checkAiSession(a));
     needProject(`aiSessions[${i}]`, a.projectId);
   });
+
+  data.collegeItems.forEach((c, i) => attempt(`collegeItems[${i}]`, () => checkCollegeItem(c)));
 }

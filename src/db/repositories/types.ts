@@ -1,4 +1,7 @@
 import type {
+  CollegeItem,
+  CollegeKind,
+  CollegeStatus,
   AiScope,
   ProjectItemKind,
   ProjectKind,
@@ -299,6 +302,7 @@ export interface BackupData {
   events: LedgerEvent[];
   progressSnapshots: ProgressSnapshot[];
   aiSessions: AiSession[];
+  collegeItems: CollegeItem[];
 }
 
 export type BackupCounts = Record<keyof BackupData, number>;
@@ -550,6 +554,35 @@ export interface AiSessionRepository {
   watchForProject(projectId: Id): Watch<AiSession[]>;
 }
 
+export interface NewCollegeItem {
+  kind: CollegeKind;
+  title: string;
+  date: LocalDate;
+  /** Defaults to `planned`. */
+  status?: CollegeStatus;
+  course?: string;
+  note?: string;
+}
+
+/** Omitted keys are left alone; `null` or blank removes `course`/`note`. */
+export type CollegeItemChanges = {
+  title?: string;
+  date?: LocalDate;
+  status?: CollegeStatus;
+} & { [K in 'course' | 'note']?: string | null };
+
+/**
+ * College classes, labs, assignments, exams and events (ADR-051). Status
+ * rules: classes and labs are attended or missed; the rest are done.
+ */
+export interface CollegeRepository {
+  create(input: NewCollegeItem): Promise<CollegeItem>;
+  update(id: Id, changes: CollegeItemChanges): Promise<CollegeItem>;
+  remove(id: Id): Promise<void>;
+  /** Items dated `start..end` inclusive, by date then title. */
+  watchRange(start: LocalDate, end: LocalDate): Watch<CollegeItem[]>;
+}
+
 /** Raw records behind activity grids and the Daily Pulse, for a date range. */
 export interface ActivitySources {
   habits: Habit[];
@@ -562,6 +595,8 @@ export interface ActivitySources {
   decisions: Decision[];
   /** Resolved blocker and approval items. */
   resolvedItems: ProjectItem[];
+  /** Attended classes/labs and done assignments/exams/events (ADR-051). */
+  collegeDone: CollegeItem[];
 }
 
 export interface ActivityRepository {
@@ -586,4 +621,5 @@ export interface Repositories {
   events: EventRepository;
   aiSessions: AiSessionRepository;
   activity: ActivityRepository;
+  college: CollegeRepository;
 }

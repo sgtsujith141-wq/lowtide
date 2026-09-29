@@ -1,5 +1,8 @@
 import { z } from 'zod/mini';
 import {
+  COLLEGE_KINDS,
+  COLLEGE_STATUSES,
+  type CollegeItem,
   AI_SCOPES,
   DECISION_ORIGINS,
   ENTITY_TYPES,
@@ -248,6 +251,20 @@ export const aiSessionSchema = z.object({
   createdAt: timestamp,
 }) satisfies z.ZodMiniType<AiSession>;
 
+/* Schema V5 (ADR-051). */
+
+export const collegeItemSchema = z.object({
+  id,
+  kind: z.enum(COLLEGE_KINDS),
+  title: text,
+  date: localDate,
+  status: z.enum(COLLEGE_STATUSES),
+  course: z.exactOptional(text),
+  note: z.exactOptional(text),
+  createdAt: timestamp,
+  updatedAt: timestamp,
+}) satisfies z.ZodMiniType<CollegeItem>;
+
 /**
  * IndexedDB name. Changing it abandons existing user data; don't.
  */
@@ -257,7 +274,7 @@ export const DATABASE_NAME = 'lowtide';
  * Current schema version. Bump it (never edit a shipped version) when the
  * store layout or record shape changes; see docs/DATA-MODEL.md#migrations.
  */
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 
 /**
  * Dexie store definitions for version 1. First entry is the primary key;
@@ -310,4 +327,12 @@ export const STORES_V4 = {
   events: 'id, at, localDate, type, projectId, [entityType+entityId]',
   progressSnapshots: 'id, projectId, &[projectId+localDate]',
   aiSessions: 'id, projectId, startedAt',
+} as const;
+
+/**
+ * Version 5 (v2 PHASE 006, ADR-051): one new store for college classes, labs,
+ * assignments, exams and events. Additive: no existing record is touched.
+ */
+export const STORES_V5 = {
+  collegeItems: 'id, date, kind',
 } as const;

@@ -1,6 +1,7 @@
 import { Dexie, type EntityTable } from 'dexie';
 import type {
   AiSession,
+  CollegeItem,
   Decision,
   Habit,
   HabitEntry,
@@ -17,7 +18,7 @@ import type {
   WorkSession,
 } from '../types/domain';
 import { migrateHackathonToV3 } from './migrations';
-import { DATABASE_NAME, STORES_V1, STORES_V2, STORES_V3, STORES_V4 } from './schema';
+import { DATABASE_NAME, STORES_V1, STORES_V2, STORES_V3, STORES_V4, STORES_V5 } from './schema';
 
 /**
  * The LOWTIDE IndexedDB database.
@@ -41,6 +42,7 @@ export class LowtideDatabase extends Dexie {
   events!: EntityTable<LedgerEvent, 'id'>;
   progressSnapshots!: EntityTable<ProgressSnapshot, 'id'>;
   aiSessions!: EntityTable<AiSession, 'id'>;
+  collegeItems!: EntityTable<CollegeItem, 'id'>;
 
   constructor(name: string = DATABASE_NAME) {
     super(name);
@@ -62,6 +64,8 @@ export class LowtideDatabase extends Dexie {
     // V4 (ADR-046): nine new stores, two new indexes. No upgrade(): additive
     // only, so no existing record is read or rewritten.
     this.version(4).stores(STORES_V4);
+    // V5 (ADR-051): + collegeItems. Additive, no upgrade().
+    this.version(5).stores(STORES_V5);
   }
 }
 

@@ -16,6 +16,7 @@ describe('LowtideDatabase', () => {
     expect(db.verno).toBe(SCHEMA_VERSION);
     expect(db.tables.map((t) => t.name).sort()).toEqual([
       'aiSessions',
+      'collegeItems',
       'decisions',
       'events',
       'habitEntries',

@@ -5,6 +5,7 @@ import {
   createDexieEventRepository,
 } from './dexie-activity-repositories';
 import { createDexieBackupRepository } from './dexie-backup-repository';
+import { createDexieCollegeRepository } from './dexie-college-repository';
 import { createDexieHabitRepository } from './dexie-habit-repository';
 import { createDexieHackathonRepository } from './dexie-hackathon-repository';
 import { createDexieInboxRepository } from './dexie-inbox-repository';
@@ -17,6 +18,9 @@ import type { RepositoryDeps } from './shared';
 import type { Repositories } from './types';
 
 export type {
+  CollegeItemChanges,
+  CollegeRepository,
+  NewCollegeItem,
   ActivityRepository,
   ActivitySources,
   AiSessionRepository,
@@ -81,5 +85,6 @@ export function createDexieRepositories(
     events: createDexieEventRepository({ db, ...deps }),
     aiSessions: createDexieAiSessionRepository({ db, ...deps }),
     activity: createDexieActivityRepository({ db, ...deps }),
+    college: createDexieCollegeRepository({ db, ...deps }),
   };
 }

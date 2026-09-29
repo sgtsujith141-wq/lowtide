@@ -84,13 +84,18 @@ export const V4_STORE_NAMES = [
   'aiSessions',
 ] as const;
 
+/** Stores added by schema V5 (ADR-051). */
+export const V5_STORE_NAMES = ['collegeItems'] as const;
+
 /** Persisted stores, in the order backups list them. */
-export const STORE_NAMES = [...LEGACY_STORE_NAMES, ...V4_STORE_NAMES] as const;
+export const STORE_NAMES = [...LEGACY_STORE_NAMES, ...V4_STORE_NAMES, ...V5_STORE_NAMES] as const;
 export type StoreName = (typeof STORE_NAMES)[number];
 
 /** The stores a backup written under `schemaVersion` must contain. */
 export function storesForSchema(schemaVersion: number): readonly StoreName[] {
-  return schemaVersion >= 4 ? STORE_NAMES : LEGACY_STORE_NAMES;
+  if (schemaVersion >= 5) return STORE_NAMES;
+  if (schemaVersion === 4) return [...LEGACY_STORE_NAMES, ...V4_STORE_NAMES];
+  return LEGACY_STORE_NAMES;
 }
 
 export type RawSnapshot = Record<StoreName, Record<string, unknown>[]>;
@@ -101,7 +106,8 @@ export type RawSnapshot = Record<StoreName, Record<string, unknown>[]>;
  * use. V1 → V2 changed no record data (only added an index); V2 → V3 runs
  * `migrateHackathonToV3` on every hackathon; V3 → V4 adds the nine new
  * stores empty and changes nothing else (no projects are derived from task
- * labels, no hackathons converted, no history synthesized). Returns new arrays.
+ * labels, no hackathons converted, no history synthesized); V4 → V5 adds
+ * `collegeItems` empty. Returns new arrays.
  */
 export function migrateSnapshot(
   snapshot: Partial<RawSnapshot> & Pick<RawSnapshot, (typeof LEGACY_STORE_NAMES)[number]>,
@@ -110,5 +116,6 @@ export function migrateSnapshot(
   const next = { ...snapshot } as RawSnapshot;
   if (from < 3) next.hackathons = snapshot.hackathons.map(migrateHackathonToV3);
   if (from < 4) for (const store of V4_STORE_NAMES) next[store] = [];
+  if (from < 5) for (const store of V5_STORE_NAMES) next[store] = [];
   return next;
 }

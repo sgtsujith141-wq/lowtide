@@ -137,24 +137,32 @@ export function createDexieActivityRepository(deps: RepositoryDeps): ActivityRep
         // Sessions are indexed by their start day; a window that started the
         // evening before `start` can still end inside the range, so read a day early.
         const before = addDays(start, -1);
-        const [habits, habitEntries, workSessions, offTime, tasks, milestones, decisions, items] =
-          await Promise.all([
-            db.habits.toArray(),
-            db.habitEntries.where('date').between(start, end, true, true).toArray(),
-            db.workSessions.where('localDate').between(start, end, true, true).toArray(),
-            db.offTimeSessions.where('localDate').between(before, end, true, true).toArray(),
-            db.tasks.filter((t) => t.status === 'done' && inRange(t.completedAt)).toArray(),
-            db.milestones.filter((m) => inRange(m.completedAt)).toArray(),
-            db.decisions
-              .where('decidedAt')
-              .between(toTimestamp(new Date(`${before}T00:00:00`)), '￿')
-              .toArray(),
-            db.projectItems
-              .filter(
-                (i) => (i.kind === 'blocker' || i.kind === 'approval') && inRange(i.resolvedAt),
-              )
-              .toArray(),
-          ]);
+        const [
+          habits,
+          habitEntries,
+          workSessions,
+          offTime,
+          tasks,
+          milestones,
+          decisions,
+          items,
+          college,
+        ] = await Promise.all([
+          db.habits.toArray(),
+          db.habitEntries.where('date').between(start, end, true, true).toArray(),
+          db.workSessions.where('localDate').between(start, end, true, true).toArray(),
+          db.offTimeSessions.where('localDate').between(before, end, true, true).toArray(),
+          db.tasks.filter((t) => t.status === 'done' && inRange(t.completedAt)).toArray(),
+          db.milestones.filter((m) => inRange(m.completedAt)).toArray(),
+          db.decisions
+            .where('decidedAt')
+            .between(toTimestamp(new Date(`${before}T00:00:00`)), '￿')
+            .toArray(),
+          db.projectItems
+            .filter((i) => (i.kind === 'blocker' || i.kind === 'approval') && inRange(i.resolvedAt))
+            .toArray(),
+          db.collegeItems.where('date').between(start, end, true, true).toArray(),
+        ]);
         return {
           habits,
           habitEntries,
@@ -168,6 +176,7 @@ export function createDexieActivityRepository(deps: RepositoryDeps): ActivityRep
           milestones,
           decisions: decisions.filter((d) => inRange(d.decidedAt)),
           resolvedItems: items,
+          collegeDone: college.filter((c) => c.status === 'attended' || c.status === 'done'),
         };
       });
     },

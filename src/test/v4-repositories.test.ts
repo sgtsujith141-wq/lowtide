@@ -407,6 +407,7 @@ describe('activity sources', () => {
     expect(sources.completedTasks).toHaveLength(1);
     expect(Object.keys(sources).sort()).toEqual(
       [
+        'collegeDone',
         'completedTasks',
         'decisions',
         'habitEntries',

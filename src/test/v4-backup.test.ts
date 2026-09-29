@@ -42,6 +42,7 @@ async function seedV4(r: Repositories) {
   await r.hackathons.update(h.id, { projectId: p.id });
   await r.protectedTime.create({ title: 'Walk', date: '2026-09-29', kind: 'rest' });
   await r.tasks.complete(t.id);
+  await r.college.create({ kind: 'class', title: 'DBMS', date: '2026-09-28', status: 'attended' });
 }
 
 function inspectOk(r: Repositories, doc: unknown): ValidatedBackup {
@@ -57,7 +58,7 @@ async function exported() {
 }
 
 describe('V4 backup round trip', () => {
-  it('fills every one of the 15 stores', async () => {
+  it('fills every V4 and V5 store', async () => {
     const { doc } = await exported();
     for (const store of STORE_NAMES) {
       if (store === 'inbox' || store === 'habits' || store === 'habitEntries') continue;

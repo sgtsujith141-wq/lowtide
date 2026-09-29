@@ -36,6 +36,7 @@ const empty: ActivitySources = {
   milestones: [],
   decisions: [],
   resolvedItems: [],
+  collegeDone: [],
 };
 
 describe('active minutes', () => {

@@ -35,6 +35,8 @@ export interface DaySummary {
   routines: { name: string; category: HabitCategory; level: Level }[];
   /** Minutes of off-time (sleep/rest) windows that ended this day. */
   offTimeMinutes: number;
+  /** Attended classes/labs and done assignments, exams and events (ADR-051). */
+  collegeDone: number;
   dayOff: boolean;
 }
 
@@ -53,6 +55,7 @@ function emptyDay(date: LocalDate): DaySummary {
     resolved: 0,
     routines: [],
     offTimeMinutes: 0,
+    collegeDone: 0,
     dayOff: false,
   };
 }
@@ -118,10 +121,18 @@ export function summariseDays(
     }
   }
 
+  for (const item of sources.collegeDone) {
+    const d = day(item.date);
+    if (d) d.collegeDone += 1;
+  }
+
   for (const d of days.values()) {
     d.routines.sort((a, b) => a.name.localeCompare(b.name));
+    const routines = routineSignals(d.routines);
     d.signals = {
-      ...routineSignals(d.routines),
+      ...routines,
+      // College activity also counts attended classes and done coursework (ADR-051).
+      collegeRoutines: routines.collegeRoutines + d.collegeDone,
       workMinutes: d.workMinutes,
       collegeMinutes: d.collegeMinutes,
       progressMoves: d.tasksCompleted + d.milestonesCompleted + d.decisions + d.resolved,
@@ -191,6 +202,7 @@ export function describeDay(d: DaySummary): string[] {
   if (d.resolved) parts.push(`${d.resolved} resolved`);
   if (d.routines.length)
     parts.push(`${d.routines.length} routine${d.routines.length === 1 ? '' : 's'}`);
+  if (d.collegeDone) parts.push(`${d.collegeDone} college item${d.collegeDone === 1 ? '' : 's'}`);
   if (d.offTimeMinutes) parts.push(`off time ${duration(d.offTimeMinutes)}`);
   if (d.dayOff) parts.push('day off');
   return parts;
@@ -229,10 +241,13 @@ export function gridDays(
       }
       case 'college': {
         const routines = presetLevels(d, 'college');
-        level = Math.max(workLevel(d.collegeMinutes), overallLevel(routines)) as Level;
+        const items = projectLevel(d.collegeDone);
+        level = Math.max(workLevel(d.collegeMinutes), overallLevel(routines), items) as Level;
         text = d.collegeMinutes ? `${duration(d.collegeMinutes)} of study` : 'no study session';
         if (routines.length)
           text += `, ${routines.length} learning routine${routines.length === 1 ? '' : 's'}`;
+        if (d.collegeDone)
+          text += `, ${d.collegeDone} class${d.collegeDone === 1 ? '' : 'es'} or coursework`;
         break;
       }
       case 'personal': {

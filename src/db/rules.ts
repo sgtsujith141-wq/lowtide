@@ -1,5 +1,6 @@
 import {
   EVENT_ENTITY,
+  type CollegeItem,
   type AiSession,
   type Hackathon,
   type HabitUnit,
@@ -160,5 +161,16 @@ export function checkAiSession(session: AiSession) {
   }
   if (session.endedAt < session.startedAt) {
     throw new InvalidInputError('An AI session can’t end before it starts');
+  }
+}
+
+/** College items (ADR-051): attended/missed are for classes and labs; done for the rest. */
+export function checkCollegeItem(item: Pick<CollegeItem, 'kind' | 'status'>) {
+  const attendable = item.kind === 'class' || item.kind === 'lab';
+  if (attendable && item.status === 'done') {
+    throw new InvalidInputError('A class or lab is attended or missed, not done');
+  }
+  if (!attendable && (item.status === 'attended' || item.status === 'missed')) {
+    throw new InvalidInputError(`An ${item.kind} is done, not attended or missed`);
   }
 }

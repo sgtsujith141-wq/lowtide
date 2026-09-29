@@ -2,7 +2,7 @@ import { Dexie } from 'dexie';
 import { afterEach, describe, expect, it } from 'vitest';
 import { inspectBackup } from '../db/backup';
 import { openDatabase } from '../db/database';
-import { LEGACY_STORE_NAMES, STORE_NAMES, V4_STORE_NAMES } from '../db/migrations';
+import { LEGACY_STORE_NAMES, STORE_NAMES, V4_STORE_NAMES, V5_STORE_NAMES } from '../db/migrations';
 import { createDexieRepositories } from '../db/repositories';
 import {
   SCHEMA_VERSION,
@@ -109,8 +109,9 @@ describe('schema V3 → V4 (additive only, ADR-046)', () => {
     const name = await createV3Database(seedV3);
     const db = openDatabase(name);
     await db.open();
-    expect(SCHEMA_VERSION).toBe(4);
-    expect(db.verno).toBe(4);
+    // V4's upgrade runs on the way to the current schema (V5 adds a store only).
+    expect(SCHEMA_VERSION).toBe(5);
+    expect(db.verno).toBe(SCHEMA_VERSION);
     for (const [store, records] of Object.entries(v3Data)) {
       const stored = await db.table(store).toArray();
       expect(stored.sort((a, b) => a.id.localeCompare(b.id))).toEqual(records);
@@ -122,7 +123,8 @@ describe('schema V3 → V4 (additive only, ADR-046)', () => {
     const name = await createV3Database(seedV3);
     const db = openDatabase(name);
     await db.open();
-    for (const store of V4_STORE_NAMES) expect(await db.table(store).count()).toBe(0);
+    for (const store of [...V4_STORE_NAMES, ...V5_STORE_NAMES])
+      expect(await db.table(store).count()).toBe(0);
     db.close();
   });
 
@@ -210,12 +212,13 @@ const envelope = (schemaVersion: number, data: Record<string, unknown[]>) =>
   });
 
 describe('backups across schema versions', () => {
-  it.each([1, 2, 3])('imports a schema-%i backup into V4 with the new stores empty', (version) => {
+  it.each([1, 2, 3])('imports a schema-%i backup with the V4 and V5 stores empty', (version) => {
     const result = inspectBackup(envelope(version, v3Data));
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.backup.sourceSchemaVersion).toBe(version);
-    for (const store of V4_STORE_NAMES) expect(result.backup.data[store]).toEqual([]);
+    for (const store of [...V4_STORE_NAMES, ...V5_STORE_NAMES])
+      expect(result.backup.data[store]).toEqual([]);
     expect(result.backup.data.tasks).toHaveLength(2);
     expect(result.backup.data.protectedTime).toEqual(v3Data.protectedTime);
   });
@@ -227,6 +230,19 @@ describe('backups across schema versions', () => {
     expect(inspectBackup(envelope(4, data))).toMatchObject({ ok: false, problem: 'invalid-data' });
   });
 
+  it('imports a complete schema-4 backup into V5 with college items empty', () => {
+    const data: Record<string, unknown[]> = { ...v3Data };
+    for (const store of V4_STORE_NAMES) data[store] = [];
+    const result = inspectBackup(envelope(4, data));
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.backup.data.collegeItems).toEqual([]);
+    // …but a schema-4 file can't carry a V5 store.
+    expect(inspectBackup(envelope(4, { ...data, collegeItems: [] }))).toMatchObject({
+      ok: false,
+      problem: 'invalid-data',
+    });
+  });
+
   it('refuses an unknown store, and V4 stores in an older backup', () => {
     const data: Record<string, unknown[]> = { ...v3Data, projects: [] };
     expect(inspectBackup(envelope(3, data))).toMatchObject({ ok: false, problem: 'invalid-data' });
@@ -235,9 +251,10 @@ describe('backups across schema versions', () => {
     expect(inspectBackup(envelope(4, full))).toMatchObject({ ok: false, problem: 'invalid-data' });
   });
 
-  it('lists 15 stores: six legacy, nine V4', () => {
+  it('lists 16 stores: six legacy, nine V4, one V5', () => {
     expect(LEGACY_STORE_NAMES).toHaveLength(6);
     expect(V4_STORE_NAMES).toHaveLength(9);
-    expect(STORE_NAMES).toEqual([...LEGACY_STORE_NAMES, ...V4_STORE_NAMES]);
+    expect(V5_STORE_NAMES).toEqual(['collegeItems']);
+    expect(STORE_NAMES).toEqual([...LEGACY_STORE_NAMES, ...V4_STORE_NAMES, ...V5_STORE_NAMES]);
   });
 });
