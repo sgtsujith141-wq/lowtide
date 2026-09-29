@@ -1,6 +1,8 @@
 import { screen, within } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { format } from 'date-fns';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createDexieRepositories, type Repositories } from '../db/repositories';
+import { formatFull } from '../lib/when';
 import { setupTestDatabase, steppingClock, expectFocus } from './helpers';
 import { renderApp } from './render';
 
@@ -18,17 +20,31 @@ const list = () => screen.getByRole('list', { name: 'Inbox items' });
 const items = () => within(list()).getAllByRole('listitem');
 
 describe('Inbox page', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('lists unprocessed thoughts oldest first with their capture time', async () => {
+    // Pin "now" a few minutes after the stepping clock's captures, so the
+    // relative label is the same-day clock time whatever the real date is.
+    // Only Date is faked (and keeps ticking), so Dexie and waits run normally.
+    vi.useFakeTimers({ toFake: ['Date'], shouldAdvanceTime: true });
+    vi.setSystemTime(new Date('2026-09-28T09:05:00.000Z'));
     await setup(['first thought', 'second\nwith detail']);
     await screen.findByText('first thought');
     expect(items().map((li) => li.querySelector('p')?.textContent)).toEqual([
       'first thought',
       'second\nwith detail',
     ]);
-    expect(within(items()[0]!).getByText(/\d/, { selector: 'time' })).toHaveAttribute(
-      'datetime',
-      '2026-09-28T09:00:00.000Z',
-    );
+    const times = items().map((li) => li.querySelector('time'));
+    const captured = ['2026-09-28T09:00:00.000Z', '2026-09-28T09:01:00.000Z'];
+    times.forEach((time, i) => {
+      const at = captured[i]!;
+      expect(time).toHaveAttribute('datetime', at);
+      // Local clock time, computed here so the test holds in any time zone.
+      expect(time).toHaveTextContent(format(new Date(at), 'HH:mm'));
+      expect(time).toHaveAttribute('title', formatFull(at));
+    });
     expect(screen.getByText('2 to sort')).toBeInTheDocument();
   });
 
