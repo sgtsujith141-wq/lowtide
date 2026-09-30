@@ -22,9 +22,13 @@ import {
   checkLedgerEvent,
   checkOffTime,
   checkProjectItem,
+  checkSpaceNode,
   checkWorkSession,
+  spaceTreeProblems,
 } from './rules';
 import {
+  sourceRecordSchema,
+  spaceNodeSchema,
   noteSchema,
   collegeItemSchema,
   aiSessionSchema,
@@ -74,6 +78,8 @@ const SCHEMAS = {
   aiSessions: aiSessionSchema,
   collegeItems: collegeItemSchema,
   notes: noteSchema,
+  spaceNodes: spaceNodeSchema,
+  sourceRecords: sourceRecordSchema,
 } as const;
 
 const byKeys =
@@ -156,6 +162,14 @@ export function sortBackupData(data: BackupData): BackupData {
       ),
     ),
     notes: [...data.notes].sort(byKeys(...CREATED)),
+    spaceNodes: [...data.spaceNodes].sort(byKeys(...CREATED)),
+    sourceRecords: [...data.sourceRecords].sort(
+      byKeys(
+        (r) => r.sourceId,
+        (r) => r.entityType,
+        (r) => r.id,
+      ),
+    ),
   };
 }
 
@@ -317,6 +331,7 @@ function checkIntegrity(data: BackupData, issues: string[]) {
   });
 
   checkV4Integrity(data, issues, attempt);
+  checkV7Integrity(data, issues, attempt);
 }
 
 /** Cross-store rules for the V4 stores (ADR-046, architecture §15). */
@@ -439,5 +454,29 @@ function checkV4Integrity(
     needProject(`notes[${i}]`, n.projectId);
     if (n.author === 'ai-client' && !n.client)
       issues.push(`notes[${i}]: an AI note names its client`);
+  });
+}
+
+/** SPACE and provenance (ADR-062). Links may point at records removed since; that's allowed. */
+function checkV7Integrity(
+  data: BackupData,
+  issues: string[],
+  attempt: (label: string, check: () => void) => void,
+) {
+  const keys = new Set<string>();
+  data.spaceNodes.forEach((n, i) => {
+    attempt(`spaceNodes[${i}]`, () => checkSpaceNode(n));
+    if (n.key !== undefined) {
+      if (keys.has(n.key)) issues.push(`spaceNodes[${i}]: second node keyed ${n.key}`);
+      keys.add(n.key);
+    }
+  });
+  issues.push(...spaceTreeProblems(data.spaceNodes));
+
+  const sources = new Set<string>();
+  data.sourceRecords.forEach((r, i) => {
+    const key = `${r.system}|${r.sourceId}|${r.entityType}`;
+    if (sources.has(key)) issues.push(`sourceRecords[${i}]: second record for ${key}`);
+    sources.add(key);
   });
 }

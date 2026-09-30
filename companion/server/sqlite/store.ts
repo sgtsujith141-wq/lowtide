@@ -71,6 +71,8 @@ export class SqliteStore implements StoreDb {
   aiSessions!: SqliteTable<StoreDb['aiSessions'] extends StoreTable<infer T> ? T : never>;
   collegeItems!: SqliteTable<StoreDb['collegeItems'] extends StoreTable<infer T> ? T : never>;
   notes!: SqliteTable<StoreDb['notes'] extends StoreTable<infer T> ? T : never>;
+  spaceNodes!: SqliteTable<StoreDb['spaceNodes'] extends StoreTable<infer T> ? T : never>;
+  sourceRecords!: SqliteTable<StoreDb['sourceRecords'] extends StoreTable<infer T> ? T : never>;
 
   /** `path` is a file, or ':memory:' for tests. */
   constructor(path: string) {

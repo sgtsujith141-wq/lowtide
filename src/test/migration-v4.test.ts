@@ -8,6 +8,7 @@ import {
   V4_STORE_NAMES,
   V5_STORE_NAMES,
   V6_STORE_NAMES,
+  V7_STORE_NAMES,
 } from '../db/migrations';
 import { createDexieRepositories } from '../db/repositories';
 import {
@@ -116,7 +117,7 @@ describe('schema V3 → V4 (additive only, ADR-046)', () => {
     const db = openDatabase(name);
     await db.open();
     // V4's upgrade runs on the way to the current schema (V5 adds a store only).
-    expect(SCHEMA_VERSION).toBe(6);
+    expect(SCHEMA_VERSION).toBe(7);
     expect(db.verno).toBe(SCHEMA_VERSION);
     for (const [store, records] of Object.entries(v3Data)) {
       const stored = await db.table(store).toArray();
@@ -257,16 +258,18 @@ describe('backups across schema versions', () => {
     expect(inspectBackup(envelope(4, full))).toMatchObject({ ok: false, problem: 'invalid-data' });
   });
 
-  it('lists 17 stores: six legacy, nine V4, one V5, one V6', () => {
+  it('lists 19 stores: six legacy, nine V4, one V5, one V6, two V7', () => {
     expect(LEGACY_STORE_NAMES).toHaveLength(6);
     expect(V4_STORE_NAMES).toHaveLength(9);
     expect(V5_STORE_NAMES).toEqual(['collegeItems']);
     expect(V6_STORE_NAMES).toEqual(['notes']);
+    expect(V7_STORE_NAMES).toEqual(['spaceNodes', 'sourceRecords']);
     expect(STORE_NAMES).toEqual([
       ...LEGACY_STORE_NAMES,
       ...V4_STORE_NAMES,
       ...V5_STORE_NAMES,
       ...V6_STORE_NAMES,
+      ...V7_STORE_NAMES,
     ]);
   });
 });

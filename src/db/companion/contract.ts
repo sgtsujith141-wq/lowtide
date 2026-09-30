@@ -112,6 +112,20 @@ export const REPOSITORY_CONTRACT = {
   activity: { watchSources: 'watchFactory' },
   college: { create: 'call', update: 'call', remove: 'call', watchRange: 'watchFactory' },
   notes: { create: 'call', update: 'call', remove: 'call', watchForProject: 'watchFactory' },
+  space: {
+    get: 'call',
+    getByKey: 'call',
+    create: 'call',
+    update: 'call',
+    move: 'call',
+    archive: 'call',
+    restore: 'call',
+    ensureRoots: 'call',
+    watchChildren: 'watchFactory',
+    watchAll: 'watch',
+    watchLinked: 'watchFactory',
+    watchSources: 'watchFactory',
+  },
 } as const satisfies {
   [R in keyof Repositories]: { [M in keyof Repositories[R]]: MemberKind };
 };

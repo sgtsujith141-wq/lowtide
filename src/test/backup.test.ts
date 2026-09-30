@@ -89,12 +89,12 @@ describe('export', () => {
   it('writes the envelope and every store', async () => {
     const { db, r } = await setupSeeded();
     const doc = await r.backup.exportBackup();
-    expect(doc).toMatchObject({ format: 'lowtide-backup', formatVersion: 1, schemaVersion: 6 });
+    expect(doc).toMatchObject({ format: 'lowtide-backup', formatVersion: 1, schemaVersion: 7 });
     expect(BACKUP_FORMAT_VERSION).toBe(1);
     expect(doc.schemaVersion).toBe(SCHEMA_VERSION);
     expect(new Date(doc.exportedAt).toISOString()).toBe(doc.exportedAt);
     expect(Object.keys(doc.data).sort()).toEqual([...STORE_NAMES].sort());
-    expect(STORE_NAMES).toHaveLength(17);
+    expect(STORE_NAMES).toHaveLength(19);
     expect(Object.fromEntries(Object.entries(doc.data).map(([k, v]) => [k, v.length]))).toEqual({
       tasks: 3,
       inbox: 3,
@@ -114,6 +114,8 @@ describe('export', () => {
       aiSessions: 0,
       collegeItems: 0,
       notes: 0,
+      spaceNodes: 0,
+      sourceRecords: 0,
     });
     expect(normalise(doc.data)).toEqual(normalise(await readAll(db)));
   });

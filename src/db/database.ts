@@ -4,6 +4,8 @@ import type {
   CollegeItem,
   Note,
   Decision,
+  SourceRecord,
+  SpaceNode,
   Habit,
   HabitEntry,
   Hackathon,
@@ -28,6 +30,7 @@ import {
   STORES_V4,
   STORES_V5,
   STORES_V6,
+  STORES_V7,
 } from './schema';
 
 /**
@@ -54,6 +57,8 @@ export class LowtideDatabase extends Dexie {
   aiSessions!: EntityTable<AiSession, 'id'>;
   collegeItems!: EntityTable<CollegeItem, 'id'>;
   notes!: EntityTable<Note, 'id'>;
+  spaceNodes!: EntityTable<SpaceNode, 'id'>;
+  sourceRecords!: EntityTable<SourceRecord, 'id'>;
 
   constructor(name: string = DATABASE_NAME) {
     super(name);
@@ -79,6 +84,8 @@ export class LowtideDatabase extends Dexie {
     this.version(5).stores(STORES_V5);
     // V6 (ADR-056): + notes, new optional fields. Additive, no upgrade().
     this.version(6).stores(STORES_V6);
+    // V7 (ADR-062): + spaceNodes, sourceRecords. Additive, no upgrade().
+    this.version(7).stores(STORES_V7);
   }
 }
 
@@ -118,6 +125,8 @@ export function asStore(db: LowtideDatabase): StoreDb {
       aiSessions: db.aiSessions,
       collegeItems: db.collegeItems,
       notes: db.notes,
+      spaceNodes: db.spaceNodes,
+      sourceRecords: db.sourceRecords,
       transaction: transaction as StoreDb['transaction'],
     };
     stores.set(db, store);

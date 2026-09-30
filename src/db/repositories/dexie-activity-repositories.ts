@@ -1,3 +1,4 @@
+import type { StoreDb } from '../store';
 import { addDays } from '../../lib/calendar';
 import { toLocalDate, toTimestamp } from '../../lib/time';
 import { PRIVATE_EVENT_TYPES, type LedgerEvent } from '../../types/domain';
@@ -134,6 +135,16 @@ export function createDexieAiSessionRepository(deps: RepositoryDeps): AiSessionR
   };
 }
 
+/**
+ * Records that came in by import (ADR-062). They are history someone wrote
+ * down elsewhere, not work done in LOWTIDE, so they never count as activity:
+ * an imported finished task or old decision lights no square.
+ */
+async function importedIds(db: StoreDb): Promise<Set<string>> {
+  const records = await db.sourceRecords.toArray();
+  return new Set(records.map((r) => r.entityId));
+}
+
 /** Local day of an instant, as the owner saw it. */
 const dayOf = (at: string) => toLocalDate(new Date(at));
 
@@ -177,6 +188,11 @@ export function createDexieActivityRepository(deps: RepositoryDeps): ActivityRep
             .toArray(),
           db.collegeItems.where('date').between(start, end, true, true).toArray(),
         ]);
+        // Provenance is read only when something here could have been imported.
+        const candidates = tasks.length + milestones.length + decisions.length + items.length;
+        const imported = candidates ? await importedIds(db) : new Set<string>();
+        const own = <T extends { id: string }>(records: T[]) =>
+          imported.size ? records.filter((r) => !imported.has(r.id)) : records;
         return {
           habits,
           habitEntries,
@@ -186,10 +202,10 @@ export function createDexieActivityRepository(deps: RepositoryDeps): ActivityRep
               ? o.localDate >= start && o.localDate <= end
               : inRange(o.endedAt ?? o.startedAt),
           ),
-          completedTasks: tasks,
-          milestones,
-          decisions: decisions.filter((d) => inRange(d.decidedAt)),
-          resolvedItems: items,
+          completedTasks: own(tasks),
+          milestones: own(milestones),
+          decisions: own(decisions).filter((d) => inRange(d.decidedAt)),
+          resolvedItems: own(items),
           collegeDone: college.filter((c) => c.status === 'attended' || c.status === 'done'),
         };
       });

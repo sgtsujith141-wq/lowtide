@@ -30,6 +30,8 @@ describe('LowtideDatabase', () => {
       'projectItems',
       'projects',
       'protectedTime',
+      'sourceRecords',
+      'spaceNodes',
       'tasks',
       'workSessions',
     ]);

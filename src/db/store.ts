@@ -14,6 +14,8 @@ import type {
   Project,
   ProjectItem,
   ProtectedTime,
+  SourceRecord,
+  SpaceNode,
   Task,
   WorkSession,
 } from '../types/domain';
@@ -96,6 +98,8 @@ export interface StoreDb {
   aiSessions: StoreTable<AiSession>;
   collegeItems: StoreTable<CollegeItem>;
   notes: StoreTable<Note>;
+  spaceNodes: StoreTable<SpaceNode>;
+  sourceRecords: StoreTable<SourceRecord>;
 
   transaction<R>(
     mode: TransactionMode,

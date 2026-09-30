@@ -90,18 +90,24 @@ export const V5_STORE_NAMES = ['collegeItems'] as const;
 /** Stores added by schema V6 (ADR-056). */
 export const V6_STORE_NAMES = ['notes'] as const;
 
+/** Stores added by schema V7 (ADR-062). */
+export const V7_STORE_NAMES = ['spaceNodes', 'sourceRecords'] as const;
+
 /** Persisted stores, in the order backups list them. */
 export const STORE_NAMES = [
   ...LEGACY_STORE_NAMES,
   ...V4_STORE_NAMES,
   ...V5_STORE_NAMES,
   ...V6_STORE_NAMES,
+  ...V7_STORE_NAMES,
 ] as const;
 export type StoreName = (typeof STORE_NAMES)[number];
 
 /** The stores a backup written under `schemaVersion` must contain. */
 export function storesForSchema(schemaVersion: number): readonly StoreName[] {
-  if (schemaVersion >= 6) return STORE_NAMES;
+  if (schemaVersion >= 7) return STORE_NAMES;
+  if (schemaVersion === 6)
+    return [...LEGACY_STORE_NAMES, ...V4_STORE_NAMES, ...V5_STORE_NAMES, ...V6_STORE_NAMES];
   if (schemaVersion === 5) return [...LEGACY_STORE_NAMES, ...V4_STORE_NAMES, ...V5_STORE_NAMES];
   if (schemaVersion === 4) return [...LEGACY_STORE_NAMES, ...V4_STORE_NAMES];
   return LEGACY_STORE_NAMES;
@@ -128,5 +134,6 @@ export function migrateSnapshot(
   if (from < 4) for (const store of V4_STORE_NAMES) next[store] = [];
   if (from < 5) for (const store of V5_STORE_NAMES) next[store] = [];
   if (from < 6) for (const store of V6_STORE_NAMES) next[store] = [];
+  if (from < 7) for (const store of V7_STORE_NAMES) next[store] = [];
   return next;
 }

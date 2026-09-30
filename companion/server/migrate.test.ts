@@ -46,7 +46,7 @@ describe('migration into the companion (ADR-058, stage B)', () => {
         'foreign keys hold at commit',
       ]),
     );
-    expect(report.stores).toHaveLength(17);
+    expect(report.stores).toHaveLength(19);
     for (const s of report.stores) expect(s.companion).toBe(s.backup);
 
     // The companion now holds exactly the backup's data, record for record.

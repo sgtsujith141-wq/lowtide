@@ -75,6 +75,22 @@ export async function scenario(r: Repositories) {
   await r.protectedTime.create({ title: 'Dinner', date: '2026-09-30', kind: 'relationship' });
   await r.college.create({ kind: 'class', title: 'DBMS', date: '2026-09-28', status: 'attended' });
   await r.notes.create(p.id, { kind: 'research', title: 'Queues', body: '# Notes\n\nUse one.' });
+  const [projectsSection] = await r.space.ensureRoots();
+  const page = await r.space.create({
+    parentId: projectsSection!.id,
+    title: 'Engine notes',
+    body: '# Engine',
+    links: [{ type: 'project', id: p.id }],
+  });
+  await r.space.create({
+    parentId: page.id,
+    title: 'Parts',
+    table: {
+      columns: [{ id: 'name', name: 'Name', type: 'text' }],
+      rows: [{ id: 'r1', cells: { name: 'Bolt' } }],
+    },
+  });
+  await r.space.update(page.id, { body: '# Engine\n\nUpdated.' });
   await r.aiSessions.record({
     client: 'claude-code',
     scope: 'project',

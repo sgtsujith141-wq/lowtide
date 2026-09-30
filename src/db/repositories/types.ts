@@ -1,4 +1,11 @@
 import type {
+  EntityLink,
+  LinkableType,
+  SourceRecord,
+  SpaceBodyFormat,
+  SpaceNode,
+  SpaceNodeKind,
+  SpaceTable,
   ResearchStatus,
   Note,
   NoteKind,
@@ -310,6 +317,8 @@ export interface BackupData {
   aiSessions: AiSession[];
   collegeItems: CollegeItem[];
   notes: Note[];
+  spaceNodes: SpaceNode[];
+  sourceRecords: SourceRecord[];
 }
 
 export type BackupCounts = Record<keyof BackupData, number>;
@@ -622,6 +631,54 @@ export interface NotesRepository {
   watchForProject(projectId: Id): Watch<Note[]>;
 }
 
+export interface NewSpaceNode {
+  /** Omitted: a top-level section. */
+  parentId?: Id;
+  kind?: SpaceNodeKind;
+  title: string;
+  icon?: string;
+  body?: string;
+  bodyFormat?: SpaceBodyFormat;
+  links?: EntityLink[];
+  table?: SpaceTable;
+}
+
+/** Omitted keys are left alone; `null` removes an optional field. */
+export type SpaceNodeChanges = {
+  title?: string;
+  links?: EntityLink[];
+  table?: SpaceTable;
+} & { [K in 'icon' | 'body']?: string | null };
+
+/**
+ * SPACE, the knowledge hierarchy (ADR-062): sections, pages and tables with
+ * links to LOWTIDE records and their provenance. Knowledge, not activity:
+ * nothing here writes a ledger event or a snapshot. Nodes are archived, never
+ * deleted.
+ */
+export interface SpaceRepository {
+  get(id: Id): Promise<SpaceNode | undefined>;
+  /** The node with a maintained key (`projects`, `project:<id>`…), if it exists. */
+  getByKey(key: string): Promise<SpaceNode | undefined>;
+  /** Appended after its siblings. */
+  create(input: NewSpaceNode): Promise<SpaceNode>;
+  update(id: Id, changes: SpaceNodeChanges): Promise<SpaceNode>;
+  /** Moves under `parentId` (null: top level), at `order` or last. Refuses loops. */
+  move(id: Id, parentId: Id | null, order?: number): Promise<SpaceNode>;
+  archive(id: Id): Promise<SpaceNode>;
+  restore(id: Id): Promise<SpaceNode>;
+  /** Creates any missing top-level section; returns all six, in order. */
+  ensureRoots(): Promise<SpaceNode[]>;
+  /** Children of a node (null: top level), in order, archived included. */
+  watchChildren(parentId: Id | null): Watch<SpaceNode[]>;
+  /** Every node (for trees and search), by parent then order. */
+  watchAll: Watch<SpaceNode[]>;
+  /** Nodes that link to a LOWTIDE record. */
+  watchLinked(type: LinkableType, id: Id): Watch<SpaceNode[]>;
+  /** Where a record came from: its provenance records, canonical first. */
+  watchSources(type: LinkableType, id: Id): Watch<SourceRecord[]>;
+}
+
 /** Raw records behind activity grids and the Daily Pulse, for a date range. */
 export interface ActivitySources {
   habits: Habit[];
@@ -662,4 +719,5 @@ export interface Repositories {
   activity: ActivityRepository;
   college: CollegeRepository;
   notes: NotesRepository;
+  space: SpaceRepository;
 }

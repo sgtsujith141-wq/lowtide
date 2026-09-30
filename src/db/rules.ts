@@ -10,6 +10,7 @@ import {
   type ProjectItemKind,
   type ProjectLane,
   type ProjectState,
+  type SpaceNode,
   type WorkSession,
 } from '../types/domain';
 import { InvalidInputError } from './repositories/errors';
@@ -173,4 +174,70 @@ export function checkCollegeItem(item: Pick<CollegeItem, 'kind' | 'status'>) {
   if (!attendable && (item.status === 'attended' || item.status === 'missed')) {
     throw new InvalidInputError(`An ${item.kind} is done, not attended or missed`);
   }
+}
+
+/**
+ * A SPACE node's own shape (ADR-062): a table carries its table and nothing
+ * else does; column and row ids are unique; cells name real columns and fit
+ * the column's type.
+ */
+export function checkSpaceNode(node: Pick<SpaceNode, 'kind' | 'table' | 'id' | 'parentId'>) {
+  if (node.parentId === node.id) throw new InvalidInputError('A page can’t be its own parent');
+  if (node.kind === 'table' && !node.table) throw new InvalidInputError('A table needs columns');
+  if (node.kind !== 'table' && node.table) {
+    throw new InvalidInputError('Only a table page holds table data');
+  }
+  if (!node.table) return;
+  const types = new Map<string, string>();
+  for (const column of node.table.columns) {
+    if (types.has(column.id)) throw new InvalidInputError(`Column ${column.id} appears twice`);
+    types.set(column.id, column.type);
+  }
+  const rows = new Set<string>();
+  for (const row of node.table.rows) {
+    if (rows.has(row.id)) throw new InvalidInputError(`Row ${row.id} appears twice`);
+    rows.add(row.id);
+    for (const [columnId, value] of Object.entries(row.cells)) {
+      const type = types.get(columnId);
+      if (!type) throw new InvalidInputError(`Row ${row.id} has a cell for no column`);
+      const ok =
+        type === 'number'
+          ? typeof value === 'number' && Number.isFinite(value)
+          : type === 'boolean'
+            ? typeof value === 'boolean'
+            : type === 'multiSelect'
+              ? Array.isArray(value) && value.every((v) => typeof v === 'string')
+              : type === 'link'
+                ? Array.isArray(value) && value.every((v) => typeof v === 'object')
+                : typeof value === 'string';
+      if (!ok)
+        throw new InvalidInputError(`Row ${row.id}: a ${type} cell holds the wrong kind of value`);
+    }
+  }
+}
+
+/**
+ * The SPACE hierarchy as a whole: every parent exists and no node is its own
+ * ancestor. Returns problems instead of throwing, for backup inspection.
+ */
+export function spaceTreeProblems(nodes: readonly Pick<SpaceNode, 'id' | 'parentId'>[]): string[] {
+  const parent = new Map(nodes.map((n) => [n.id, n.parentId]));
+  const problems: string[] = [];
+  for (const node of nodes) {
+    if (node.parentId !== undefined && !parent.has(node.parentId)) {
+      problems.push(`space node ${node.id}: parent ${node.parentId} is missing`);
+      continue;
+    }
+    const seen = new Set<string>([node.id]);
+    let at = node.parentId;
+    while (at !== undefined) {
+      if (seen.has(at)) {
+        problems.push(`space node ${node.id}: its parents form a loop`);
+        break;
+      }
+      seen.add(at);
+      at = parent.get(at);
+    }
+  }
+  return problems;
 }

@@ -1,4 +1,9 @@
 import {
+  LINKABLE_TYPES,
+  SOURCE_ROLES,
+  SOURCE_SYSTEMS,
+  SPACE_BODY_FORMATS,
+  SPACE_NODE_KINDS,
   AI_SCOPES,
   BUILD_STATUSES,
   COLLEGE_KINDS,
@@ -28,7 +33,7 @@ import {
 import type { StoreName } from '../../../src/db/migrations';
 
 /*
- * The relational schema for LOWTIDE domain schema V6 (ADR-057): one table per
+ * The relational schema for LOWTIDE domain schema V7 (ADR-057, ADR-062): one table per
  * store, one typed column per field, enumerations as CHECK constraints (from
  * the same constants the domain uses), references as deferred foreign keys,
  * and the browser's indexes and unique indexes. Nested value collections
@@ -375,7 +380,60 @@ export const TABLES: TableSpec[] = [
     ],
     indexes: ['projectId', 'createdAt'],
   },
+  {
+    store: 'spaceNodes',
+    table: 'space_nodes',
+    columns: [
+      id,
+      opt('parentId', 'text', { references: 'space_nodes' }),
+      req('kind', 'text', { values: SPACE_NODE_KINDS }),
+      req('title'),
+      opt('icon'),
+      opt('key', 'text', { unique: true }),
+      opt('body'),
+      opt('bodyFormat', 'text', { values: SPACE_BODY_FORMATS }),
+      req('order', 'integer', { column: 'sort_order' }),
+      req('archived', 'bool'),
+      req('links', 'json'),
+      req('externalLinks', 'json'),
+      req('attachments', 'json'),
+      opt('table', 'json', { column: 'table_data' }),
+      opt('source', 'json'),
+      created,
+      updated,
+    ],
+    indexes: ['parentId', 'key', 'updatedAt'],
+  },
+  {
+    store: 'sourceRecords',
+    table: 'source_records',
+    columns: [
+      id,
+      req('system', 'text', { values: SOURCE_SYSTEMS }),
+      req('sourceId'),
+      req('entityType', 'text', { values: LINKABLE_TYPES }),
+      req('entityId'),
+      req('role', 'text', { values: SOURCE_ROLES }),
+      opt('url'),
+      req('originalTitle'),
+      opt('path', 'json'),
+      req('contentHash'),
+      req('importedAt'),
+      req('appliedAt'),
+      opt('sourceCreatedAt'),
+      opt('sourceUpdatedAt'),
+    ],
+    indexes: ['[system+sourceId+entityType]', '[entityType+entityId]'],
+    unique: [['system', 'sourceId', 'entityType']],
+  },
 ];
+
+/** The tables of domain schema V6 (companion migration 1). */
+export const V6_TABLES = TABLES.filter(
+  (t) => t.store !== 'spaceNodes' && t.store !== 'sourceRecords',
+);
+/** The tables added by domain schema V7 (companion migration 3, ADR-062). */
+export const V7_TABLES = TABLES.filter((t) => !V6_TABLES.includes(t));
 
 export const TABLE_BY_STORE = new Map(TABLES.map((t) => [t.store, t]));
 
@@ -389,10 +447,10 @@ const SQL_TYPE: Record<ColumnType, string> = {
 
 const quote = (value: string) => `'${value.replace(/'/g, "''")}'`;
 
-/** CREATE TABLE and CREATE INDEX statements for every domain table. */
-export function domainDdl(): string[] {
+/** CREATE TABLE and CREATE INDEX statements for the given domain tables. */
+export function domainDdl(specs: readonly TableSpec[] = TABLES): string[] {
   const statements: string[] = [];
-  for (const spec of TABLES) {
+  for (const spec of specs) {
     const lines = spec.columns.map((c) => {
       const parts = [c.column, SQL_TYPE[c.type]];
       if (c.field === 'id') parts.push('PRIMARY KEY');

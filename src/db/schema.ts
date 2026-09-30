@@ -1,5 +1,20 @@
 import { z } from 'zod/mini';
 import {
+  LINKABLE_TYPES,
+  SOURCE_ROLES,
+  SOURCE_SYSTEMS,
+  SPACE_ATTACHMENT_KINDS,
+  SPACE_ATTACHMENT_STATUSES,
+  SPACE_BODY_FORMATS,
+  SPACE_COLUMN_TYPES,
+  SPACE_NODE_KINDS,
+  type EntityLink,
+  type SourceRecord,
+  type SourceRef,
+  type SpaceAttachment,
+  type SpaceColumn,
+  type SpaceNode,
+  type SpaceRow,
   NOTE_AUTHORS,
   NOTE_KINDS,
   RESEARCH_STATUSES,
@@ -291,6 +306,101 @@ export const noteSchema = z.object({
   updatedAt: timestamp,
 }) satisfies z.ZodMiniType<Note>;
 
+/* Schema V7 (ADR-062): SPACE and source provenance. */
+
+const linkableType = z.enum(LINKABLE_TYPES);
+const entityLink = z.object({
+  type: linkableType,
+  id,
+  rowId: z.exactOptional(z.string().check(z.minLength(1), z.maxLength(200))),
+  label: z.exactOptional(z.string().check(z.maxLength(2000))),
+});
+const shortKey = z.string().check(z.minLength(1), z.maxLength(200));
+
+export const entityLinkSchema = entityLink satisfies z.ZodMiniType<EntityLink>;
+
+const sourceRef = z.object({
+  system: z.enum(SOURCE_SYSTEMS),
+  sourceId: shortKey,
+  url: z.exactOptional(text),
+  originalTitle: z.string().check(z.maxLength(2000)),
+  path: z.exactOptional(z.array(z.string())),
+  importedAt: timestamp,
+  sourceCreatedAt: z.exactOptional(timestamp),
+  sourceUpdatedAt: z.exactOptional(timestamp),
+}) satisfies z.ZodMiniType<SourceRef>;
+
+const spaceAttachment = z.object({
+  id: shortKey,
+  kind: z.enum(SPACE_ATTACHMENT_KINDS),
+  name: text,
+  status: z.enum(SPACE_ATTACHMENT_STATUSES),
+  url: z.exactOptional(text),
+  note: z.exactOptional(text),
+}) satisfies z.ZodMiniType<SpaceAttachment>;
+
+const spaceColumn = z.object({
+  id: shortKey,
+  name: z.string().check(z.maxLength(500)),
+  type: z.enum(SPACE_COLUMN_TYPES),
+  options: z.exactOptional(
+    z.array(z.object({ name: z.string(), color: z.exactOptional(z.string()) })),
+  ),
+  description: z.exactOptional(z.string()),
+}) satisfies z.ZodMiniType<SpaceColumn>;
+
+const spaceCell = z.union([
+  z.string(),
+  z.number(),
+  z.boolean(),
+  z.array(z.string()),
+  z.array(entityLink),
+]);
+
+const spaceRow = z.object({
+  id: shortKey,
+  cells: z.record(z.string(), spaceCell),
+  pageId: z.exactOptional(id),
+  links: z.exactOptional(z.array(entityLink)),
+}) satisfies z.ZodMiniType<SpaceRow>;
+
+export const spaceNodeSchema = z.object({
+  id,
+  parentId: z.exactOptional(id),
+  kind: z.enum(SPACE_NODE_KINDS),
+  title: text.check(z.maxLength(2000)),
+  icon: z.exactOptional(z.string().check(z.maxLength(64))),
+  key: z.exactOptional(shortKey),
+  body: z.exactOptional(z.string().check(z.maxLength(1_000_000))),
+  bodyFormat: z.exactOptional(z.enum(SPACE_BODY_FORMATS)),
+  order: count,
+  archived: z.boolean(),
+  links: z.array(entityLink),
+  externalLinks: z.array(z.object({ url: text, label: z.exactOptional(z.string()) })),
+  attachments: z.array(spaceAttachment),
+  table: z.exactOptional(z.object({ columns: z.array(spaceColumn), rows: z.array(spaceRow) })),
+  source: z.exactOptional(sourceRef),
+  createdAt: timestamp,
+  updatedAt: timestamp,
+}) satisfies z.ZodMiniType<SpaceNode>;
+
+export const sourceRecordSchema = z.object({
+  id,
+  system: z.enum(SOURCE_SYSTEMS),
+  sourceId: shortKey,
+  entityType: linkableType,
+  entityId: id,
+  role: z.enum(SOURCE_ROLES),
+  url: z.exactOptional(text),
+  originalTitle: z.string().check(z.maxLength(2000)),
+  path: z.exactOptional(z.array(z.string())),
+  contentHash: shortKey,
+  importedAt: timestamp,
+  appliedAt: timestamp,
+  sourceCreatedAt: z.exactOptional(timestamp),
+  sourceUpdatedAt: z.exactOptional(timestamp),
+}) satisfies z.ZodMiniType<SourceRecord>;
+
 /**
  * IndexedDB name. Changing it abandons existing user data; don't.
  */
@@ -300,7 +410,7 @@ export const DATABASE_NAME = 'lowtide';
  * Current schema version. Bump it (never edit a shipped version) when the
  * store layout or record shape changes; see docs/DATA-MODEL.md#migrations.
  */
-export const SCHEMA_VERSION = 6;
+export const SCHEMA_VERSION = 7;
 
 /**
  * Dexie store definitions for version 1. First entry is the primary key;
@@ -371,4 +481,14 @@ export const STORES_V5 = {
  */
 export const STORES_V6 = {
   notes: 'id, projectId, createdAt',
+} as const;
+
+/**
+ * Version 7 (v2 PHASE 010, ADR-062): `spaceNodes` (the SPACE hierarchy of
+ * sections, pages and tables) and `sourceRecords` (provenance for imported
+ * records, and the importer's memory). Additive: nothing existing is touched.
+ */
+export const STORES_V7 = {
+  spaceNodes: 'id, parentId, &key, updatedAt',
+  sourceRecords: 'id, &[system+sourceId+entityType], [entityType+entityId]',
 } as const;

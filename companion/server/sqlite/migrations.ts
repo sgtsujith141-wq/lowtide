@@ -1,6 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { SCHEMA_VERSION } from '../../../src/db/schema';
-import { domainDdl } from './tables';
+import { domainDdl, V6_TABLES, V7_TABLES } from './tables';
 
 /*
  * Companion database migrations (ADR-057). Each runs once, in order, inside
@@ -19,7 +19,7 @@ export const MIGRATIONS: Migration[] = [
   {
     id: 1,
     name: 'domain schema V6 tables',
-    statements: domainDdl,
+    statements: () => domainDdl(V6_TABLES),
   },
   {
     id: 2,
@@ -66,6 +66,11 @@ export const MIGRATIONS: Migration[] = [
         last_seen_at TEXT NOT NULL
       ) STRICT`,
     ],
+  },
+  {
+    id: 3,
+    name: 'domain schema V7: SPACE nodes and source records',
+    statements: () => domainDdl(V7_TABLES),
   },
 ];
 

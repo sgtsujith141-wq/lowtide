@@ -489,3 +489,214 @@ export interface Note {
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
+
+/* ------------------------------------------------------------------------ */
+/* Schema V7 (v2 PHASE 010, ADR-062): SPACE and source provenance.          */
+/* ------------------------------------------------------------------------ */
+
+/**
+ * `section`: a container in the hierarchy (Projects, Archive, a project's
+ * Planning…). `page`: a document. `table`: a page whose content is a table.
+ */
+export const SPACE_NODE_KINDS = ['section', 'page', 'table'] as const;
+export type SpaceNodeKind = (typeof SPACE_NODE_KINDS)[number];
+
+/**
+ * `markdown`: plain Markdown. `notion`: Notion's enhanced Markdown as
+ * imported (callouts, toggles, tables and colours stay as Notion tags), with
+ * child-page, mention and file references rewritten to SPACE.
+ */
+export const SPACE_BODY_FORMATS = ['markdown', 'notion'] as const;
+export type SpaceBodyFormat = (typeof SPACE_BODY_FORMATS)[number];
+
+/** The LOWTIDE records a SPACE node, table row or provenance record can point at. */
+export const LINKABLE_TYPES = [
+  'project',
+  'task',
+  'milestone',
+  'projectItem',
+  'decision',
+  'hackathon',
+  'aiSession',
+  'spaceNode',
+] as const;
+export type LinkableType = (typeof LINKABLE_TYPES)[number];
+
+export interface EntityLink {
+  type: LinkableType;
+  id: Id;
+  /** A row of the linked table node, when the link is to one row of a SPACE table. */
+  rowId?: string;
+  /** What the link was called at its source (shown if the target is gone). */
+  label?: string;
+}
+
+export interface ExternalLink {
+  url: string;
+  label?: string;
+}
+
+export const SPACE_ATTACHMENT_KINDS = ['file', 'image', 'pdf', 'video', 'audio'] as const;
+export type SpaceAttachmentKind = (typeof SPACE_ATTACHMENT_KINDS)[number];
+
+/**
+ * A file that belongs to a page. `stored` would mean LOWTIDE holds the bytes;
+ * `external` means only the reference is kept (the file still lives at its
+ * source, and a signed source URL may have expired). Nothing claims a file was
+ * imported when it wasn't.
+ */
+export const SPACE_ATTACHMENT_STATUSES = ['stored', 'external'] as const;
+export type SpaceAttachmentStatus = (typeof SPACE_ATTACHMENT_STATUSES)[number];
+
+export interface SpaceAttachment {
+  id: string;
+  kind: SpaceAttachmentKind;
+  name: string;
+  status: SpaceAttachmentStatus;
+  /** Where the file can be found (for `external`, the source reference). */
+  url?: string;
+  note?: string;
+}
+
+export const SPACE_COLUMN_TYPES = [
+  'text',
+  'number',
+  'boolean',
+  'date',
+  'select',
+  'status',
+  'multiSelect',
+  'url',
+  'link',
+] as const;
+export type SpaceColumnType = (typeof SPACE_COLUMN_TYPES)[number];
+
+export interface SpaceColumnOption {
+  name: string;
+  color?: string;
+}
+
+export interface SpaceColumn {
+  /** Stable within its table. */
+  id: string;
+  name: string;
+  type: SpaceColumnType;
+  /** For `select`, `status` and `multiSelect`. */
+  options?: SpaceColumnOption[];
+  description?: string;
+}
+
+/**
+ * One cell. By column type: `text`/`url`/`select`/`status` → string,
+ * `number` → number, `boolean` → boolean, `date` → LocalDate or Timestamp,
+ * `multiSelect` → strings, `link` → links to SPACE pages or LOWTIDE records.
+ * An empty cell is simply absent from `cells`.
+ */
+export type SpaceCellValue = string | number | boolean | string[] | EntityLink[];
+
+export interface SpaceRow {
+  /** Stable within its table. */
+  id: string;
+  cells: Record<string, SpaceCellValue>;
+  /** The row's own page, when it has one. */
+  pageId?: Id;
+  /** LOWTIDE records this row became or describes. */
+  links?: EntityLink[];
+}
+
+export interface SpaceTable {
+  columns: SpaceColumn[];
+  rows: SpaceRow[];
+}
+
+export const SOURCE_SYSTEMS = ['notion'] as const;
+export type SourceSystem = (typeof SOURCE_SYSTEMS)[number];
+
+/** Where an imported record came from: enough to answer "where is this from?". */
+export interface SourceRef {
+  system: SourceSystem;
+  /** The source's own id (a Notion page or database id, or a derived `<id>#…` key). */
+  sourceId: string;
+  url?: string;
+  originalTitle: string;
+  /** Titles from the source's root down to the record's parent. */
+  path?: string[];
+  importedAt: Timestamp;
+  sourceCreatedAt?: Timestamp;
+  sourceUpdatedAt?: Timestamp;
+}
+
+/**
+ * A node of SPACE, LOWTIDE's knowledge hierarchy: sections, documents and
+ * tables. Knowledge, not activity: creating or importing a node never
+ * produces a ledger event, a pulse square or a snapshot.
+ */
+export interface SpaceNode {
+  id: Id;
+  /** Absent for a top-level section. */
+  parentId?: Id;
+  kind: SpaceNodeKind;
+  title: string;
+  icon?: string;
+  /**
+   * A stable name for sections LOWTIDE maintains itself: `projects`,
+   * `archive`, `project:<id>`, `project:<id>:planning`… Unique.
+   */
+  key?: string;
+  body?: string;
+  bodyFormat?: SpaceBodyFormat;
+  /** Whole number ≥ 0; siblings are shown in this order. */
+  order: number;
+  archived: boolean;
+  links: EntityLink[];
+  externalLinks: ExternalLink[];
+  attachments: SpaceAttachment[];
+  /** Present exactly when `kind` is `table`. */
+  table?: SpaceTable;
+  source?: SourceRef;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+/** The top-level SPACE sections LOWTIDE keeps (ADR-062), in display order. */
+export const SPACE_ROOTS = [
+  { key: 'projects', title: 'Projects' },
+  { key: 'hackathons', title: 'Hackathons' },
+  { key: 'college', title: 'College' },
+  { key: 'ideas', title: 'Ideas' },
+  { key: 'personal', title: 'Personal' },
+  { key: 'archive', title: 'Archive' },
+] as const;
+export type SpaceRootKey = (typeof SPACE_ROOTS)[number]['key'];
+
+/**
+ * How a source record relates to what LOWTIDE made of it. `canonical`: this
+ * source is the record's authority. `legacy`: an older duplicate, kept as
+ * provenance. `reference`: the record was placed or linked from it.
+ */
+export const SOURCE_ROLES = ['canonical', 'legacy', 'reference'] as const;
+export type SourceRole = (typeof SOURCE_ROLES)[number];
+
+/**
+ * Provenance for an imported record (schema V7), one per (source record,
+ * LOWTIDE record type). It is also the importer's memory: running an import
+ * again finds what it made last time here instead of making it twice.
+ */
+export interface SourceRecord {
+  id: Id;
+  system: SourceSystem;
+  sourceId: string;
+  entityType: LinkableType;
+  entityId: Id;
+  role: SourceRole;
+  url?: string;
+  originalTitle: string;
+  path?: string[];
+  /** Fingerprint of the source content last applied. */
+  contentHash: string;
+  importedAt: Timestamp;
+  /** When the importer last wrote the LOWTIDE record from this source. */
+  appliedAt: Timestamp;
+  sourceCreatedAt?: Timestamp;
+  sourceUpdatedAt?: Timestamp;
+}

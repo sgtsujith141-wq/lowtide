@@ -18,4 +18,6 @@ export const COUNT_ROWS: { key: keyof BackupCounts; label: string }[] = [
   { key: 'aiSessions', label: 'AI sessions' },
   { key: 'collegeItems', label: 'College items' },
   { key: 'notes', label: 'Notes' },
+  { key: 'spaceNodes', label: 'SPACE pages' },
+  { key: 'sourceRecords', label: 'Source records' },
 ];
