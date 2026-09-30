@@ -150,7 +150,7 @@ describe('the app with a real companion', () => {
     });
     await screen.findByRole('heading', { level: 1, name: 'Engine' }, { timeout: 8000 });
     await user.click(screen.getByRole('tab', { name: 'Docs' }));
-    const notes = await screen.findByRole('region', { name: 'Notes' }, { timeout: 5000 });
+    let notes = await screen.findByRole('region', { name: 'Notes' }, { timeout: 5000 });
     expect(await within(notes).findByText('Queues')).toBeInTheDocument();
 
     const ai = await mcpClient(
@@ -171,6 +171,14 @@ describe('the app with a real companion', () => {
     expect(
       await screen.findByText(/recorded by Claude Code/, undefined, { timeout: 5000 }),
     ).toBeInTheDocument();
+
+    // The timeline names the client, too.
+    await user.click(screen.getByRole('tab', { name: 'History' }));
+    expect(
+      (await screen.findAllByText('(by Claude Code)', undefined, { timeout: 5000 })).length,
+    ).toBeGreaterThanOrEqual(2);
+    await user.click(screen.getByRole('tab', { name: 'Docs' }));
+    notes = await screen.findByRole('region', { name: 'Notes' }, { timeout: 5000 });
 
     // And the owner's own note goes through the companion too.
     await user.type(within(notes).getByLabelText('Note title'), 'Mine');

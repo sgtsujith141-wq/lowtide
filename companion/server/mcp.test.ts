@@ -2,8 +2,10 @@
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { CompanionClient, createCompanionRepositories } from '../../src/db/companion/client';
 import { createRepositories } from '../../src/db/repositories';
 import type { AuditEntry, ClientStatus, Grant } from '../../src/db/companion/wire';
+import { stable } from './migrate';
 import { mcpClient, startTestCompanion, type TestCompanion } from './test-fixtures';
 
 const running: TestCompanion[] = [];
@@ -572,6 +574,27 @@ describe('the companion HTTP boundary', () => {
     await waitFor((all) => /event: change\ndata: \{"stores":\[[^\]]*"notes"/.test(all));
     await waitFor((all) => all.includes('event: ai'));
     controller.abort();
+  });
+
+  it('exports and restores backups through the app’s own repositories, validated again', async () => {
+    const t = await start();
+    const app = new CompanionClient({ url: t.companion.url, token: t.ownerToken });
+    const repositories = createCompanionRepositories(app);
+    const before = await repositories.backup.exportBackup();
+    expect(before.data.projects.map((p) => p.name)).toEqual(['Engine']);
+
+    // Change something, then restore the earlier backup over it.
+    await repositories.projects.create({ name: 'Made after the backup' });
+    expect((await repositories.backup.exportBackup()).data.projects).toHaveLength(2);
+    const inspection = repositories.backup.inspect(JSON.stringify(before));
+    expect(inspection.ok).toBe(true);
+    if (!inspection.ok) return;
+    await repositories.backup.restore(inspection.backup);
+
+    const after = await repositories.backup.exportBackup();
+    expect(stable(after.data)).toBe(stable(before.data));
+    expect(await t.companion.store.projects.count()).toBe(1);
+    app.stop();
   });
 
   it('answers the owner’s repository calls by the shared contract only', async () => {

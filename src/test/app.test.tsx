@@ -47,8 +47,12 @@ describe('App shell', () => {
     const nav = screen.getByRole('navigation', { name: 'Main' });
     expect(within(nav).getByRole('link', { name: 'Home' })).toHaveAttribute('aria-current', 'page');
 
+    // Each click loads a screen chunk for the first time in this worker; like the
+    // first render in renderApp, that import can take seconds on a loaded machine.
     await user.click(within(nav).getByRole('link', { name: 'Tasks' }));
-    expect(await screen.findByRole('heading', { level: 1, name: 'Tasks' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Tasks' }, { timeout: 8000 }),
+    ).toBeInTheDocument();
     expect(within(nav).getByRole('link', { name: 'Tasks' })).toHaveAttribute(
       'aria-current',
       'page',
@@ -56,7 +60,9 @@ describe('App shell', () => {
     expect(within(nav).getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
 
     await user.click(within(nav).getByRole('link', { name: 'Inbox' }));
-    expect(await screen.findByRole('heading', { level: 1, name: 'Inbox' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { level: 1, name: 'Inbox' }, { timeout: 8000 }),
+    ).toBeInTheDocument();
   });
 
   it('offers a skip link that moves focus to the main content', async () => {

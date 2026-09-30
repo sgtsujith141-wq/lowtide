@@ -87,7 +87,9 @@ export function Timeline({
             <p className="text-sm leading-snug">
               {sentence(entry)}
               {entry.event.source === 'ai-client' && (
-                <span className="ml-1 text-xs text-ink-muted">(reported by an AI client)</span>
+                <span className="ml-1 text-xs text-ink-muted">
+                  (by {entry.event.actor ?? 'an AI client'})
+                </span>
               )}
             </p>
             <p className="text-xs text-ink-muted">

@@ -13,6 +13,7 @@
     "preview": "vite preview",
     "companion:build": "vite build --config companion/vite.config.ts",
     "companion": "npm run companion:build && node companion/dist/lowtide-companion.js",
+    "e2e:companion": "node scripts/e2e-companion.mjs",
     "typecheck": "tsc -b",
     "lint": "eslint .",
     "format": "prettier --write .",
