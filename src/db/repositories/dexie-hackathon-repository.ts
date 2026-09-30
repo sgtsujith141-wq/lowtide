@@ -3,7 +3,7 @@ import type { Hackathon } from '../../types/domain';
 import { hackathonSchema } from '../schema';
 import { checkHackathonDates } from '../rules';
 import { RecordNotFoundError } from './errors';
-import { omitUndefined, resolveDeps, watchQuery, type RepositoryDeps } from './shared';
+import { omitUndefined, resolveDeps, type RepositoryDeps } from './shared';
 import type { HackathonChanges, HackathonRepository } from './types';
 
 const OPTIONAL_FIELDS = [
@@ -29,7 +29,8 @@ function validate(record: Record<string, unknown>): Hackathon {
 }
 
 export function createDexieHackathonRepository(deps: RepositoryDeps): HackathonRepository {
-  const { db, clock, newId } = resolveDeps(deps);
+  const resolved = resolveDeps(deps);
+  const { db, clock, newId, watch } = resolved;
 
   return {
     async create(input) {
@@ -41,6 +42,7 @@ export function createDexieHackathonRepository(deps: RepositoryDeps): HackathonR
         registrationStatus: input.registrationStatus ?? 'not_registered',
         pptStatus: input.pptStatus ?? 'not_started',
         buildStatus: input.buildStatus ?? 'not_started',
+        researchStatus: input.researchStatus,
         createdAt: at,
         updatedAt: at,
       };
@@ -56,7 +58,13 @@ export function createDexieHackathonRepository(deps: RepositoryDeps): HackathonR
         if (!existing) throw new RecordNotFoundError('Hackathon', id);
         const next: Record<string, unknown> = { ...existing, updatedAt: toTimestamp(clock()) };
         if (changes.name !== undefined) next.name = changes.name.trim();
-        for (const key of ['status', 'registrationStatus', 'pptStatus', 'buildStatus'] as const) {
+        for (const key of [
+          'status',
+          'registrationStatus',
+          'pptStatus',
+          'buildStatus',
+          'researchStatus',
+        ] as const) {
           if (changes[key] !== undefined) next[key] = changes[key];
         }
         for (const field of OPTIONAL_FIELDS) {
@@ -74,7 +82,7 @@ export function createDexieHackathonRepository(deps: RepositoryDeps): HackathonR
       });
     },
 
-    watchAll: watchQuery(async () =>
+    watchAll: watch(async () =>
       (await db.hackathons.toArray()).sort(
         (a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id),
       ),

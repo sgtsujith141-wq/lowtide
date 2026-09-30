@@ -3,12 +3,14 @@ import type { Habit } from '../../types/domain';
 import { checkEntryValue, checkHabitTarget } from '../rules';
 import { habitEntrySchema, habitSchema } from '../schema';
 import { RecordNotFoundError, RecordStateError } from './errors';
-import { appendEvent, deleteEventsFor } from './ledger';
-import { omitUndefined, resolveDeps, watchQuery, type RepositoryDeps } from './shared';
+import { deleteEventsFor, eventWriter } from './ledger';
+import { omitUndefined, resolveDeps, type RepositoryDeps } from './shared';
 import type { HabitRepository } from './types';
 
 export function createDexieHabitRepository(deps: RepositoryDeps): HabitRepository {
-  const { db, clock, newId } = resolveDeps(deps);
+  const resolved = resolveDeps(deps);
+  const { db, clock, newId, watch } = resolved;
+  const emit = eventWriter(resolved);
 
   async function getHabit(id: string): Promise<Habit> {
     const habit = await db.habits.get(id);
@@ -61,7 +63,7 @@ export function createDexieHabitRepository(deps: RepositoryDeps): HabitRepositor
     archive: (id) => setArchived(id, true),
     restore: (id) => setArchived(id, false),
 
-    watchAll: watchQuery(() => db.habits.orderBy('createdAt').toArray()),
+    watchAll: watch(() => db.habits.orderBy('createdAt').toArray()),
 
     setEntry(habitId, date, value, note) {
       return db.transaction('rw', db.habits, db.habitEntries, db.events, async () => {
@@ -88,7 +90,7 @@ export function createDexieHabitRepository(deps: RepositoryDeps): HabitRepositor
         // put() replaces by primary key; the unique [habitId+date] index is the
         // final guard against a second entry for the same day.
         await db.habitEntries.put(entry);
-        await appendEvent(db, newId, now, {
+        await emit(now, {
           type: 'habit.logged',
           entityId: entry.id,
           data: { habitId, date },
@@ -108,9 +110,7 @@ export function createDexieHabitRepository(deps: RepositoryDeps): HabitRepositor
     },
 
     watchEntries(start, end) {
-      return watchQuery(() =>
-        db.habitEntries.where('date').between(start, end, true, true).toArray(),
-      );
+      return watch(() => db.habitEntries.where('date').between(start, end, true, true).toArray());
     },
   };
 }

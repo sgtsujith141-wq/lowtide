@@ -3,7 +3,7 @@ import type { CollegeItem } from '../../types/domain';
 import { checkCollegeItem } from '../rules';
 import { collegeItemSchema } from '../schema';
 import { RecordNotFoundError } from './errors';
-import { omitUndefined, resolveDeps, watchQuery, type RepositoryDeps } from './shared';
+import { omitUndefined, resolveDeps, type RepositoryDeps } from './shared';
 import type { CollegeRepository } from './types';
 
 function optionalText(value: string | null | undefined): string | undefined {
@@ -18,7 +18,8 @@ function save(record: Record<string, unknown>): CollegeItem {
 }
 
 export function createDexieCollegeRepository(deps: RepositoryDeps): CollegeRepository {
-  const { db, clock, newId } = resolveDeps(deps);
+  const resolved = resolveDeps(deps);
+  const { db, clock, newId, watch } = resolved;
   return {
     async create(input) {
       const at = toTimestamp(clock());
@@ -58,7 +59,7 @@ export function createDexieCollegeRepository(deps: RepositoryDeps): CollegeRepos
     },
 
     watchRange(start, end) {
-      return watchQuery(async () =>
+      return watch(async () =>
         (await db.collegeItems.where('date').between(start, end, true, true).toArray()).sort(
           (a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title),
         ),

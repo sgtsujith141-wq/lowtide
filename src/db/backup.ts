@@ -25,6 +25,7 @@ import {
   checkWorkSession,
 } from './rules';
 import {
+  noteSchema,
   collegeItemSchema,
   aiSessionSchema,
   decisionSchema,
@@ -72,6 +73,7 @@ const SCHEMAS = {
   progressSnapshots: progressSnapshotSchema,
   aiSessions: aiSessionSchema,
   collegeItems: collegeItemSchema,
+  notes: noteSchema,
 } as const;
 
 const byKeys =
@@ -153,6 +155,7 @@ export function sortBackupData(data: BackupData): BackupData {
         (c) => c.id,
       ),
     ),
+    notes: [...data.notes].sort(byKeys(...CREATED)),
   };
 }
 
@@ -178,7 +181,7 @@ const MAX_ISSUES = 25;
  * 1. parse JSON;
  * 2. check the envelope: marker, format version (newer → reject), schema
  *    version (newer than this build → reject), export time, and every store
- *    that schema has (six before V4, fifteen in V4, sixteen from V5);
+ *    that schema has (six before V4, fifteen in V4, sixteen in V5, seventeen from V6);
  * 3. migrate older-schema data in memory with the database's own migrations;
  * 4. validate every record against the current schemas and the domain rules
  *    the repositories enforce;
@@ -431,4 +434,10 @@ function checkV4Integrity(
   });
 
   data.collegeItems.forEach((c, i) => attempt(`collegeItems[${i}]`, () => checkCollegeItem(c)));
+
+  data.notes.forEach((n, i) => {
+    needProject(`notes[${i}]`, n.projectId);
+    if (n.author === 'ai-client' && !n.client)
+      issues.push(`notes[${i}]: an AI note names its client`);
+  });
 }

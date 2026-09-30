@@ -10,7 +10,7 @@ import type { LowtideDatabase } from '../database';
 import type { Table } from 'dexie';
 import { STORE_NAMES, type StoreName } from '../migrations';
 import { SCHEMA_VERSION } from '../schema';
-import { resolveDeps, watchQuery, type RepositoryDeps } from './shared';
+import { resolveDeps, type RepositoryDeps } from './shared';
 import type { BackupData, BackupRepository } from './types';
 
 /** The typed table for a store (the same object as `db.tasks`, etc.). */
@@ -30,7 +30,8 @@ async function readAll(db: LowtideDatabase): Promise<BackupData> {
 }
 
 export function createDexieBackupRepository(deps: RepositoryDeps): BackupRepository {
-  const { db, clock } = resolveDeps(deps);
+  const resolved = resolveDeps(deps);
+  const { db, clock, watch } = resolved;
 
   return {
     async exportBackup() {
@@ -45,7 +46,7 @@ export function createDexieBackupRepository(deps: RepositoryDeps): BackupReposit
       };
     },
 
-    watchCounts: watchQuery(async () => countBackupData(await readAll(db))),
+    watchCounts: watch(async () => countBackupData(await readAll(db))),
 
     inspect: inspectBackup,
 

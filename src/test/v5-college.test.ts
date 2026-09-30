@@ -61,8 +61,8 @@ describe('schema V4 → V5 (additive, ADR-051)', () => {
 
     const db = openDatabase(name);
     await db.open();
-    expect(SCHEMA_VERSION).toBe(5);
-    expect(db.verno).toBe(5);
+    expect(SCHEMA_VERSION).toBe(6);
+    expect(db.verno).toBe(SCHEMA_VERSION);
     expect(await db.projects.get(id(1))).toEqual(project);
     expect(await db.tasks.get(id(2))).toEqual(task);
     expect(await db.workSessions.get(id(3))).toEqual(session);

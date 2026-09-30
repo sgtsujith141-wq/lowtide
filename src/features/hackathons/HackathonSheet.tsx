@@ -8,10 +8,11 @@ import {
   HACKATHON_STATUSES,
   PPT_STATUSES,
   REGISTRATION_STATUSES,
+  RESEARCH_STATUSES,
   type Hackathon,
   type LocalDate,
 } from '../../types/domain';
-import { BUILD_LABEL, PPT_LABEL, REGISTRATION_LABEL, STATUS_LABEL } from './labels';
+import { BUILD_LABEL, PPT_LABEL, REGISTRATION_LABEL, RESEARCH_LABEL, STATUS_LABEL } from './labels';
 import { formatRange, primaryMoment, type MomentTone } from './schedule';
 import { StageRail } from './StageRail';
 
@@ -23,7 +24,7 @@ const TONE_CLASS: Record<MomentTone, string> = {
   later: 'text-ink-muted',
 };
 
-type StatusField = 'status' | 'registrationStatus' | 'pptStatus' | 'buildStatus';
+type StatusField = 'status' | 'registrationStatus' | 'researchStatus' | 'pptStatus' | 'buildStatus';
 
 const QUICK_STATUS: {
   field: StatusField;
@@ -36,6 +37,12 @@ const QUICK_STATUS: {
     label: 'Registration',
     values: REGISTRATION_STATUSES,
     labels: REGISTRATION_LABEL,
+  },
+  {
+    field: 'researchStatus',
+    label: 'Research',
+    values: RESEARCH_STATUSES,
+    labels: RESEARCH_LABEL,
   },
   { field: 'pptStatus', label: 'PPT', values: PPT_STATUSES, labels: PPT_LABEL },
   { field: 'buildStatus', label: 'Build', values: BUILD_STATUSES, labels: BUILD_LABEL },
@@ -170,7 +177,7 @@ export function HackathonSheet({
           <label key={field} className="inline-flex items-center gap-1">
             <span>{label}</span>
             <select
-              value={h[field]}
+              value={h[field] ?? 'not_started'}
               aria-label={`${label} for ${h.name}`}
               onChange={(e: ChangeEvent<HTMLSelectElement>) => onStatus(field, e.target.value)}
               className="rounded-sm bg-transparent py-0.5 pr-0.5 text-xs font-medium text-ink hover:bg-paper-sunken"

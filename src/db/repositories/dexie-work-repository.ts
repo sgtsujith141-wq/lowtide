@@ -3,14 +3,16 @@ import type { Id, WorkSession } from '../../types/domain';
 import { checkWorkSession } from '../rules';
 import { workSessionSchema } from '../schema';
 import { InvalidInputError, RecordNotFoundError, RecordStateError } from './errors';
-import { appendEvent, deleteEventsFor } from './ledger';
-import { omitUndefined, resolveDeps, watchQuery, type RepositoryDeps } from './shared';
+import { deleteEventsFor, eventWriter } from './ledger';
+import { omitUndefined, resolveDeps, type RepositoryDeps } from './shared';
 import type { WorkRepository } from './types';
 
 const byStart = (a: WorkSession, b: WorkSession) => a.startedAt.localeCompare(b.startedAt);
 
 export function createDexieWorkRepository(deps: RepositoryDeps): WorkRepository {
-  const { db, clock, newId } = resolveDeps(deps);
+  const resolved = resolveDeps(deps);
+  const { db, clock, newId, watch } = resolved;
+  const emit = eventWriter(resolved);
   const tables = [db.workSessions, db.offTimeSessions, db.tasks, db.projects, db.events];
 
   async function getSession(id: Id): Promise<WorkSession> {
@@ -42,7 +44,7 @@ export function createDexieWorkRepository(deps: RepositoryDeps): WorkRepository 
       if (existing.endedAt) throw new RecordStateError('That session has finished');
       const at = toTimestamp(now);
       const session = await save({ ...apply(existing, at), updatedAt: at });
-      await appendEvent(db, newId, now, {
+      await emit(now, {
         type: event,
         entityId: id,
         projectId: session.projectId,
@@ -96,7 +98,7 @@ export function createDexieWorkRepository(deps: RepositoryDeps): WorkRepository 
           createdAt: at,
           updatedAt: at,
         });
-        await appendEvent(db, newId, now, {
+        await emit(now, {
           type: 'work.started',
           entityId: session.id,
           projectId,
@@ -153,10 +155,10 @@ export function createDexieWorkRepository(deps: RepositoryDeps): WorkRepository 
       });
     },
 
-    watchActive: watchQuery(() => findOpen()),
+    watchActive: watch(() => findOpen()),
 
     watchRange(start, end) {
-      return watchQuery(async () =>
+      return watch(async () =>
         (await db.workSessions.where('localDate').between(start, end, true, true).toArray()).sort(
           byStart,
         ),
@@ -164,7 +166,7 @@ export function createDexieWorkRepository(deps: RepositoryDeps): WorkRepository 
     },
 
     watchForProject(projectId) {
-      return watchQuery(async () =>
+      return watch(async () =>
         (await db.workSessions.where('projectId').equals(projectId).toArray()).sort(byStart),
       );
     },

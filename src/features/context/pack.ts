@@ -75,6 +75,7 @@ function eventText(event: LedgerEvent, titles: Map<string, string>): string {
     'project.item_parked': 'Parked',
     'decision.recorded': 'Decision recorded',
     'ai.session.completed': 'AI session',
+    'note.created': 'Note added',
   };
   if (event.type === 'project.updated' && event.data.change === 'state')
     return `${event.at.slice(0, 10)} State ${event.data.from} → ${event.data.to}`;

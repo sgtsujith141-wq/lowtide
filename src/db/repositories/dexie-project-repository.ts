@@ -11,8 +11,8 @@ import type {
 import { checkProjectItem, checkProjectTransition, defaultLane } from '../rules';
 import { decisionSchema, milestoneSchema, projectItemSchema, projectSchema } from '../schema';
 import { InvalidInputError, RecordNotFoundError, RecordStateError } from './errors';
-import { appendEvent, deleteEventsFor, refreshSnapshot } from './ledger';
-import { omitUndefined, resolveDeps, watchQuery, type RepositoryDeps } from './shared';
+import { deleteEventsFor, eventWriter, refreshSnapshot } from './ledger';
+import { omitUndefined, resolveDeps, type RepositoryDeps } from './shared';
 import type { ProjectRepository } from './types';
 
 function optionalText(value: string | null | undefined): string | undefined {
@@ -34,7 +34,9 @@ export function slugify(name: string): string {
 }
 
 export function createDexieProjectRepository(deps: RepositoryDeps): ProjectRepository {
-  const { db, clock, newId } = resolveDeps(deps);
+  const resolved = resolveDeps(deps);
+  const { db, clock, newId, watch, source, actor } = resolved;
+  const emit = eventWriter(resolved);
   const all = [
     db.projects,
     db.milestones,
@@ -122,7 +124,7 @@ export function createDexieProjectRepository(deps: RepositoryDeps): ProjectRepos
           }),
         );
         await db.projects.add(project);
-        await appendEvent(db, newId, now, {
+        await emit(now, {
           type: 'project.updated',
           entityId: project.id,
           projectId: project.id,
@@ -156,7 +158,7 @@ export function createDexieProjectRepository(deps: RepositoryDeps): ProjectRepos
         );
         await db.projects.add(project);
         await db.hackathons.put({ ...hackathon, projectId: project.id, updatedAt: at });
-        await appendEvent(db, newId, now, {
+        await emit(now, {
           type: 'project.updated',
           entityId: project.id,
           projectId: project.id,
@@ -179,7 +181,7 @@ export function createDexieProjectRepository(deps: RepositoryDeps): ProjectRepos
         next.updatedAt = toTimestamp(now);
         const project = projectSchema.parse(omitUndefined(next));
         await db.projects.put(project);
-        await appendEvent(db, newId, now, {
+        await emit(now, {
           type: 'project.updated',
           entityId: id,
           projectId: id,
@@ -220,7 +222,7 @@ export function createDexieProjectRepository(deps: RepositoryDeps): ProjectRepos
           updatedAt: at,
         });
         await db.projects.put(project);
-        await appendEvent(db, newId, now, {
+        await emit(now, {
           type: 'project.updated',
           entityId: id,
           projectId: id,
@@ -240,14 +242,14 @@ export function createDexieProjectRepository(deps: RepositoryDeps): ProjectRepos
 
     get: (id) => db.projects.get(id),
 
-    watchAll: watchQuery(async () =>
+    watchAll: watch(async () =>
       (await db.projects.toArray()).sort(
         (a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id),
       ),
     ),
 
     watchBySlug(slug) {
-      return watchQuery(() => db.projects.where('slug').equals(slug).first());
+      return watch(() => db.projects.where('slug').equals(slug).first());
     },
 
     /* Milestones */
@@ -301,7 +303,7 @@ export function createDexieProjectRepository(deps: RepositoryDeps): ProjectRepos
         const at = toTimestamp(now);
         const milestone = milestoneSchema.parse({ ...existing, completedAt: at, updatedAt: at });
         await db.milestones.put(milestone);
-        await appendEvent(db, newId, now, {
+        await emit(now, {
           type: 'milestone.completed',
           entityId: id,
           projectId: milestone.projectId,
@@ -355,14 +357,14 @@ export function createDexieProjectRepository(deps: RepositoryDeps): ProjectRepos
     },
 
     watchMilestones(projectId) {
-      return watchQuery(async () =>
+      return watch(async () =>
         (await db.milestones.where('projectId').equals(projectId).toArray()).sort(
           (a, b) => a.order - b.order,
         ),
       );
     },
 
-    watchAllMilestones: watchQuery(async () =>
+    watchAllMilestones: watch(async () =>
       (await db.milestones.toArray()).sort(
         (a, b) => a.projectId.localeCompare(b.projectId) || a.order - b.order,
       ),
@@ -485,14 +487,14 @@ export function createDexieProjectRepository(deps: RepositoryDeps): ProjectRepos
     },
 
     watchItems(projectId) {
-      return watchQuery(async () =>
+      return watch(async () =>
         (await db.projectItems.where('projectId').equals(projectId).toArray()).sort(
           (a, b) => a.order - b.order || a.createdAt.localeCompare(b.createdAt),
         ),
       );
     },
 
-    watchAllItems: watchQuery(() => db.projectItems.toArray()),
+    watchAllItems: watch(() => db.projectItems.toArray()),
 
     /* Decisions */
 
@@ -517,12 +519,13 @@ export function createDexieProjectRepository(deps: RepositoryDeps): ProjectRepos
             consequences: optionalText(input.consequences),
             decidedAt: at,
             supersedesId: input.supersedesId,
-            origin: 'owner',
+            origin: source === 'ai-client' ? 'ai-client' : 'owner',
+            client: source === 'ai-client' ? actor : undefined,
             createdAt: at,
           }),
         );
         await db.decisions.add(decision);
-        await appendEvent(db, newId, now, {
+        await emit(now, {
           type: 'decision.recorded',
           entityId: decision.id,
           projectId,
@@ -534,7 +537,7 @@ export function createDexieProjectRepository(deps: RepositoryDeps): ProjectRepos
     },
 
     watchDecisions(projectId) {
-      return watchQuery(async () =>
+      return watch(async () =>
         (await db.decisions.where('projectId').equals(projectId).toArray()).sort((a, b) =>
           b.decidedAt.localeCompare(a.decidedAt),
         ),
@@ -542,7 +545,7 @@ export function createDexieProjectRepository(deps: RepositoryDeps): ProjectRepos
     },
 
     watchSnapshots(projectId) {
-      return watchQuery(async () =>
+      return watch(async () =>
         (await db.progressSnapshots.where('projectId').equals(projectId).toArray()).sort((a, b) =>
           a.localDate.localeCompare(b.localDate),
         ),
@@ -550,7 +553,7 @@ export function createDexieProjectRepository(deps: RepositoryDeps): ProjectRepos
     },
 
     watchTasks(projectId) {
-      return watchQuery(async () =>
+      return watch(async () =>
         (await db.tasks.where('projectId').equals(projectId).toArray()).sort((a, b) =>
           a.createdAt.localeCompare(b.createdAt),
         ),
@@ -561,13 +564,13 @@ export function createDexieProjectRepository(deps: RepositoryDeps): ProjectRepos
   /** `project.approval_requested` / `project.item_parked` when an item enters those lanes. */
   async function laneEvent(item: ProjectItem, now: Date, fromLane?: ProjectLane) {
     if (item.lane === 'needs_approval') {
-      await appendEvent(db, newId, now, {
+      await emit(now, {
         type: 'project.approval_requested',
         entityId: item.id,
         projectId: item.projectId,
       });
     } else if (item.lane === 'parked') {
-      await appendEvent(db, newId, now, {
+      await emit(now, {
         type: 'project.item_parked',
         entityId: item.id,
         projectId: item.projectId,

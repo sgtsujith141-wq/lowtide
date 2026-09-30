@@ -5,9 +5,8 @@ import type { Hackathon } from '../../types/domain';
  * derived only from the hackathon's own fields. No percentage, no time, no
  * tasks, and no link to a Project is needed or implied.
  *
- * Research has no status of its own; it's the stretch between knowing the
- * problem and starting the PPT or build, so its state is positional:
- * active in that stretch, done once either has begun. Nothing else is inferred.
+ * Research reads its own recorded status (schema V6, ADR-056); unset means
+ * not started. Nothing is inferred from other stages.
  */
 export type StageState = 'done' | 'active' | 'todo';
 export type StageKey =
@@ -29,11 +28,12 @@ export interface Stage {
 }
 
 export function hackathonStages(
-  h: Pick<Hackathon, 'registrationStatus' | 'pptStatus' | 'buildStatus' | 'problemStatement'>,
+  h: Pick<
+    Hackathon,
+    'registrationStatus' | 'pptStatus' | 'buildStatus' | 'problemStatement' | 'researchStatus'
+  >,
 ): Stage[] {
   const hasProblem = Boolean(h.problemStatement?.trim());
-  const pptStarted = h.pptStatus === 'in_progress' || h.pptStatus === 'submitted';
-  const buildStarted = h.buildStatus !== 'not_started';
   const stages: Stage[] = [
     {
       key: 'registration',
@@ -47,7 +47,12 @@ export function hackathonStages(
     { key: 'problem', state: hasProblem ? 'done' : 'todo' },
     {
       key: 'research',
-      state: pptStarted || buildStarted ? 'done' : hasProblem ? 'active' : 'todo',
+      state:
+        h.researchStatus === 'done'
+          ? 'done'
+          : h.researchStatus === 'in_progress'
+            ? 'active'
+            : 'todo',
     },
   ];
   // A PPT that isn't needed isn't a stage at all, rather than a free "done".

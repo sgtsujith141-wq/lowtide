@@ -1,5 +1,9 @@
 import { z } from 'zod/mini';
 import {
+  NOTE_AUTHORS,
+  NOTE_KINDS,
+  RESEARCH_STATUSES,
+  type Note,
   COLLEGE_KINDS,
   COLLEGE_STATUSES,
   type CollegeItem,
@@ -106,6 +110,7 @@ export const hackathonSchema = z.object({
   registrationStatus: z.enum(REGISTRATION_STATUSES),
   pptStatus: z.enum(PPT_STATUSES),
   buildStatus: z.enum(BUILD_STATUSES),
+  researchStatus: z.exactOptional(z.enum(RESEARCH_STATUSES)),
   team: z.exactOptional(z.string()),
   problemStatement: z.exactOptional(z.string()),
   nextAction: z.exactOptional(z.string()),
@@ -185,6 +190,7 @@ export const decisionSchema = z.object({
   decidedAt: timestamp,
   supersedesId: z.exactOptional(id),
   origin: z.enum(DECISION_ORIGINS),
+  client: z.exactOptional(text),
   createdAt: timestamp,
 }) satisfies z.ZodMiniType<Decision>;
 
@@ -224,6 +230,7 @@ export const ledgerEventSchema = z.object({
   projectId: z.exactOptional(id),
   data: z.record(z.string(), z.string()),
   source: z.enum(EVENT_SOURCES),
+  actor: z.exactOptional(text),
 }) satisfies z.ZodMiniType<LedgerEvent>;
 
 export const progressSnapshotSchema = z.object({
@@ -248,6 +255,11 @@ export const aiSessionSchema = z.object({
   endedAt: timestamp,
   summary: text,
   filesTouched: z.exactOptional(z.array(text)),
+  taskId: z.exactOptional(id),
+  result: z.exactOptional(text),
+  nextAction: z.exactOptional(text),
+  commits: z.exactOptional(z.array(text)),
+  handoff: z.exactOptional(text),
   createdAt: timestamp,
 }) satisfies z.ZodMiniType<AiSession>;
 
@@ -265,6 +277,20 @@ export const collegeItemSchema = z.object({
   updatedAt: timestamp,
 }) satisfies z.ZodMiniType<CollegeItem>;
 
+/* Schema V6 (ADR-056). */
+
+export const noteSchema = z.object({
+  id,
+  projectId: id,
+  kind: z.enum(NOTE_KINDS),
+  title: text,
+  body: z.string().check(z.maxLength(200_000)),
+  author: z.enum(NOTE_AUTHORS),
+  client: z.exactOptional(text),
+  createdAt: timestamp,
+  updatedAt: timestamp,
+}) satisfies z.ZodMiniType<Note>;
+
 /**
  * IndexedDB name. Changing it abandons existing user data; don't.
  */
@@ -274,7 +300,7 @@ export const DATABASE_NAME = 'lowtide';
  * Current schema version. Bump it (never edit a shipped version) when the
  * store layout or record shape changes; see docs/DATA-MODEL.md#migrations.
  */
-export const SCHEMA_VERSION = 5;
+export const SCHEMA_VERSION = 6;
 
 /**
  * Dexie store definitions for version 1. First entry is the primary key;
@@ -335,4 +361,14 @@ export const STORES_V4 = {
  */
 export const STORES_V5 = {
   collegeItems: 'id, date, kind',
+} as const;
+
+/**
+ * Version 6 (v2 PHASE 008B, ADR-056): a `notes` store; optional
+ * `Hackathon.researchStatus`, `Decision.client`, `LedgerEvent.actor` and
+ * AI-session detail fields. Additive: no existing record is rewritten, and
+ * existing hackathons keep research unset (not started), never guessed.
+ */
+export const STORES_V6 = {
+  notes: 'id, projectId, createdAt',
 } as const;

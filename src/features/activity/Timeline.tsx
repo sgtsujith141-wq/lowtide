@@ -11,6 +11,7 @@ import {
   Scale,
   Sparkles,
   Square,
+  StickyNote,
   type LucideIcon,
 } from 'lucide-react';
 import { useMemo } from 'react';
@@ -35,6 +36,7 @@ const EVENT: Record<EventType, { icon: LucideIcon; text: string }> = {
   'project.item_parked': { icon: ParkingSquare, text: 'Parked' },
   'decision.recorded': { icon: Scale, text: 'Decision recorded' },
   'ai.session.completed': { icon: Bot, text: 'AI session' },
+  'note.created': { icon: StickyNote, text: 'Note added' },
 };
 
 function sentence({ event, title }: TimelineEntry): string {

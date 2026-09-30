@@ -3,9 +3,9 @@ import { toLocalDate, toTimestamp } from '../../lib/time';
 import { PRIVATE_EVENT_TYPES, type LedgerEvent } from '../../types/domain';
 import { checkAiSession } from '../rules';
 import { aiSessionSchema } from '../schema';
-import { RecordNotFoundError } from './errors';
-import { appendEvent } from './ledger';
-import { omitUndefined, resolveDeps, watchQuery, type RepositoryDeps } from './shared';
+import { InvalidInputError, RecordNotFoundError } from './errors';
+import { eventWriter } from './ledger';
+import { omitUndefined, resolveDeps, type RepositoryDeps } from './shared';
 import type { ActivityRepository, AiSessionRepository, EventQuery, EventRepository } from './types';
 
 const newestFirst = (a: LedgerEvent, b: LedgerEvent) =>
@@ -18,7 +18,8 @@ function visible(query: EventQuery | undefined) {
 }
 
 export function createDexieEventRepository(deps: RepositoryDeps): EventRepository {
-  const { db } = resolveDeps(deps);
+  const resolved = resolveDeps(deps);
+  const { db, watch } = resolved;
 
   async function titleOf(event: LedgerEvent): Promise<string | undefined> {
     switch (event.entityType) {
@@ -40,6 +41,8 @@ export function createDexieEventRepository(deps: RepositoryDeps): EventRepositor
         const entry = await db.habitEntries.get(event.entityId);
         return entry ? (await db.habits.get(entry.habitId))?.name : undefined;
       }
+      case 'note':
+        return (await db.notes.get(event.entityId))?.title;
       case 'offTimeSession':
         return undefined;
     }
@@ -55,7 +58,7 @@ export function createDexieEventRepository(deps: RepositoryDeps): EventRepositor
 
   return {
     watchTimeline(query) {
-      return watchQuery(async () => {
+      return watch(async () => {
         const events = await recent(query);
         const names = new Map((await db.projects.toArray()).map((p) => [p.id, p.name]));
         return Promise.all(
@@ -72,10 +75,10 @@ export function createDexieEventRepository(deps: RepositoryDeps): EventRepositor
       });
     },
     watchRecent(query) {
-      return watchQuery(() => recent(query));
+      return watch(() => recent(query));
     },
     watchRange(start, end, query) {
-      return watchQuery(async () => {
+      return watch(async () => {
         const events = (
           await db.events.where('localDate').between(start, end, true, true).toArray()
         )
@@ -88,31 +91,41 @@ export function createDexieEventRepository(deps: RepositoryDeps): EventRepositor
 }
 
 export function createDexieAiSessionRepository(deps: RepositoryDeps): AiSessionRepository {
-  const { db, clock, newId } = resolveDeps(deps);
+  const resolved = resolveDeps(deps);
+  const { db, clock, newId, watch } = resolved;
+  const emit = eventWriter(resolved);
   return {
     record(input) {
-      return db.transaction('rw', [db.aiSessions, db.projects, db.events], async () => {
+      return db.transaction('rw', [db.aiSessions, db.projects, db.tasks, db.events], async () => {
         const now = clock();
         if (input.projectId !== undefined && !(await db.projects.get(input.projectId))) {
           throw new RecordNotFoundError('Project', input.projectId);
+        }
+        if (input.taskId !== undefined) {
+          const task = await db.tasks.get(input.taskId);
+          if (!task) throw new RecordNotFoundError('Task', input.taskId);
+          if (task.projectId !== input.projectId) {
+            throw new InvalidInputError('That task belongs to another project');
+          }
         }
         const session = aiSessionSchema.parse(
           omitUndefined({ ...input, id: newId(), createdAt: toTimestamp(now) }),
         );
         checkAiSession(session);
         await db.aiSessions.add(session);
-        await appendEvent(db, newId, now, {
+        await emit(now, {
           type: 'ai.session.completed',
           entityId: session.id,
           projectId: session.projectId,
           data: { scope: session.scope },
           source: 'ai-client',
+          actor: session.client,
         });
         return session;
       });
     },
     watchForProject(projectId) {
-      return watchQuery(async () =>
+      return watch(async () =>
         (await db.aiSessions.where('projectId').equals(projectId).toArray()).sort((a, b) =>
           b.startedAt.localeCompare(a.startedAt),
         ),
@@ -125,7 +138,8 @@ export function createDexieAiSessionRepository(deps: RepositoryDeps): AiSessionR
 const dayOf = (at: string) => toLocalDate(new Date(at));
 
 export function createDexieActivityRepository(deps: RepositoryDeps): ActivityRepository {
-  const { db } = resolveDeps(deps);
+  const resolved = resolveDeps(deps);
+  const { db, watch } = resolved;
   return {
     watchSources(start, end) {
       const inRange = (at: string | undefined) => {
@@ -133,7 +147,7 @@ export function createDexieActivityRepository(deps: RepositoryDeps): ActivityRep
         const day = dayOf(at);
         return day >= start && day <= end;
       };
-      return watchQuery(async () => {
+      return watch(async () => {
         // Sessions are indexed by their start day; a window that started the
         // evening before `start` can still end inside the range, so read a day early.
         const before = addDays(start, -1);

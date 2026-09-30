@@ -2,7 +2,7 @@ import { toTimestamp } from '../../lib/time';
 import { inboxItemSchema } from '../schema';
 import { buildTask } from './dexie-task-repository';
 import { RecordNotFoundError, RecordStateError } from './errors';
-import { resolveDeps, watchQuery, type RepositoryDeps } from './shared';
+import { resolveDeps, type RepositoryDeps } from './shared';
 import type { InboxRepository } from './types';
 
 function splitContent(content: string): { title: string; notes?: string } {
@@ -12,7 +12,8 @@ function splitContent(content: string): { title: string; notes?: string } {
 }
 
 export function createDexieInboxRepository(deps: RepositoryDeps): InboxRepository {
-  const { db, clock, newId } = resolveDeps(deps);
+  const resolved = resolveDeps(deps);
+  const { db, clock, newId, watch } = resolved;
 
   const unprocessed = () => db.inbox.orderBy('createdAt').filter((item) => !item.processedAt);
   const listUnprocessed = () => unprocessed().toArray();
@@ -36,7 +37,7 @@ export function createDexieInboxRepository(deps: RepositoryDeps): InboxRepositor
     },
 
     listUnprocessed,
-    watchUnprocessed: watchQuery(listUnprocessed),
+    watchUnprocessed: watch(listUnprocessed),
 
     countUnprocessed() {
       return unprocessed().count();

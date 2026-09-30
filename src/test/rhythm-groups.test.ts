@@ -133,7 +133,7 @@ describe('backup regression for PHASE 006 data', () => {
     expect(BACKUP_FORMAT_VERSION).toBe(1);
     // PHASE 006 said "no schema change"; v2 PHASE 002 then added V4 (additive only).
     expect(doc.schemaVersion).toBe(SCHEMA_VERSION);
-    expect(SCHEMA_VERSION).toBe(5);
+    expect(SCHEMA_VERSION).toBe(6);
 
     const targetDb = newDb();
     const target = createDexieRepositories(targetDb);

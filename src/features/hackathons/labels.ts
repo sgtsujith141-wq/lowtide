@@ -1,4 +1,5 @@
 import type {
+  ResearchStatus,
   BuildStatus,
   HackathonStatus,
   PptStatus,
@@ -31,4 +32,10 @@ export const BUILD_LABEL: Record<BuildStatus, string> = {
   in_progress: 'In progress',
   demo_ready: 'Demo ready',
   submitted: 'Submitted',
+};
+
+export const RESEARCH_LABEL: Record<ResearchStatus, string> = {
+  not_started: 'Not started',
+  in_progress: 'In progress',
+  done: 'Done',
 };

@@ -1,6 +1,6 @@
 import { protectedTimeSchema } from '../schema';
 import { RecordNotFoundError } from './errors';
-import { omitUndefined, resolveDeps, watchQuery, type RepositoryDeps } from './shared';
+import { omitUndefined, resolveDeps, type RepositoryDeps } from './shared';
 import type { ProtectedTimeRepository } from './types';
 
 function optionalText(value: string | null | undefined): string | undefined {
@@ -9,10 +9,11 @@ function optionalText(value: string | null | undefined): string | undefined {
 }
 
 export function createDexieProtectedTimeRepository(deps: RepositoryDeps): ProtectedTimeRepository {
-  const { db, newId } = resolveDeps(deps);
+  const resolved = resolveDeps(deps);
+  const { db, newId, watch } = resolved;
 
   const range = (start: string, end: string) =>
-    watchQuery(async () =>
+    watch(async () =>
       (await db.protectedTime.where('date').between(start, end, true, true).toArray()).sort(
         (a, b) =>
           a.date.localeCompare(b.date) ||

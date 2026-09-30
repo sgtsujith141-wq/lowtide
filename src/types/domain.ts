@@ -112,6 +112,10 @@ export type PptStatus = (typeof PPT_STATUSES)[number];
 export const BUILD_STATUSES = ['not_started', 'in_progress', 'demo_ready', 'submitted'] as const;
 export type BuildStatus = (typeof BUILD_STATUSES)[number];
 
+/** Research for a hackathon (schema V6, ADR-056). Absent means not started. */
+export const RESEARCH_STATUSES = ['not_started', 'in_progress', 'done'] as const;
+export type ResearchStatus = (typeof RESEARCH_STATUSES)[number];
+
 /** Overall lifecycle of a hackathon, independent of the per-track statuses above. */
 export const HACKATHON_STATUSES = ['considering', 'active', 'finished', 'dropped'] as const;
 export type HackathonStatus = (typeof HACKATHON_STATUSES)[number];
@@ -127,6 +131,8 @@ export interface Hackathon {
   registrationStatus: RegistrationStatus;
   pptStatus: PptStatus;
   buildStatus: BuildStatus;
+  /** Recorded research progress (schema V6). Absent means not started; never inferred. */
+  researchStatus?: ResearchStatus;
   /** Free text, e.g. teammate names. */
   team?: string;
   problemStatement?: string;
@@ -253,7 +259,7 @@ export interface ProjectItem {
   resolvedAt?: Timestamp;
 }
 
-export const DECISION_ORIGINS = ['owner', 'accepted-proposal'] as const;
+export const DECISION_ORIGINS = ['owner', 'accepted-proposal', 'ai-client'] as const;
 export type DecisionOrigin = (typeof DECISION_ORIGINS)[number];
 
 /** Immutable. Changed only by recording a newer decision that supersedes it. */
@@ -267,6 +273,8 @@ export interface Decision {
   decidedAt: Timestamp;
   supersedesId?: Id;
   origin: DecisionOrigin;
+  /** The AI client that recorded it, when `origin` is `ai-client` (schema V6). */
+  client?: string;
   createdAt: Timestamp;
 }
 
@@ -327,6 +335,7 @@ export const EVENT_TYPES = [
   'project.item_parked',
   'decision.recorded',
   'ai.session.completed',
+  'note.created',
 ] as const;
 export type EventType = (typeof EVENT_TYPES)[number];
 
@@ -340,6 +349,7 @@ export const ENTITY_TYPES = [
   'projectItem',
   'decision',
   'aiSession',
+  'note',
 ] as const;
 export type EntityType = (typeof ENTITY_TYPES)[number];
 
@@ -359,6 +369,7 @@ export const EVENT_ENTITY: Record<EventType, EntityType> = {
   'project.item_parked': 'projectItem',
   'decision.recorded': 'decision',
   'ai.session.completed': 'aiSession',
+  'note.created': 'note',
 };
 
 /** Events that are private life state: never in the workspace, never default AI context. */
@@ -383,6 +394,8 @@ export interface LedgerEvent {
   /** Small immutable facts (e.g. `{ from: 'active', to: 'blocked' }`), never a record copy. */
   data: Record<string, string>;
   source: EventSource;
+  /** Which AI client acted, when `source` is `ai-client` (schema V6). */
+  actor?: string;
 }
 
 export interface ProgressSnapshot {
@@ -411,6 +424,12 @@ export interface AiSession {
   endedAt: Timestamp;
   summary: string;
   filesTouched?: string[];
+  /* Schema V6: what a real session reported, when it reported it. */
+  taskId?: Id;
+  result?: string;
+  nextAction?: string;
+  commits?: string[];
+  handoff?: string;
   createdAt: Timestamp;
 }
 
@@ -439,6 +458,34 @@ export interface CollegeItem {
   /** Free text, e.g. "DBMS" or "Physics 101". */
   course?: string;
   note?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+/* ------------------------------------------------------------------------ */
+/* Schema V6 (v2 PHASE 008B, ADR-056): notes.                               */
+/* ------------------------------------------------------------------------ */
+
+export const NOTE_KINDS = ['note', 'handoff', 'summary', 'research'] as const;
+export type NoteKind = (typeof NOTE_KINDS)[number];
+
+export const NOTE_AUTHORS = ['owner', 'ai-client'] as const;
+export type NoteAuthor = (typeof NOTE_AUTHORS)[number];
+
+/**
+ * A human- or AI-authored document for a project (Markdown text). Canonical
+ * in LOWTIDE; projected into the technical workspace. Kept separate from the
+ * generated PROJECT.md and CONTEXT.md, which no one edits by hand.
+ */
+export interface Note {
+  id: Id;
+  projectId: Id;
+  kind: NoteKind;
+  title: string;
+  body: string;
+  author: NoteAuthor;
+  /** The AI client, when `author` is `ai-client`. */
+  client?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

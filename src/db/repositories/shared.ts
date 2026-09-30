@@ -1,7 +1,7 @@
 import { liveQuery } from 'dexie';
 import { newId } from '../../lib/ids';
 import { systemClock, type Clock } from '../../lib/time';
-import type { Id } from '../../types/domain';
+import type { EventSource, Id } from '../../types/domain';
 import type { LowtideDatabase } from '../database';
 import type { Watch } from './types';
 
@@ -9,10 +9,32 @@ export interface RepositoryDeps {
   db: LowtideDatabase;
   clock?: Clock;
   newId?: () => Id;
+  /** Who is writing: the app (the owner) or an attributed AI client (ADR-056). */
+  source?: EventSource;
+  /** The AI client's name, when `source` is `ai-client`. */
+  actor?: string;
+  /** Turns a query into a live `Watch` (Dexie: liveQuery; SQLite: change listeners). */
+  watch?: <T>(query: () => Promise<T>) => Watch<T>;
 }
 
-export function resolveDeps(deps: RepositoryDeps): Required<RepositoryDeps> {
-  return { clock: systemClock, newId, ...deps };
+export interface ResolvedDeps {
+  db: LowtideDatabase;
+  clock: Clock;
+  newId: () => Id;
+  source: EventSource;
+  actor: string | undefined;
+  watch: <T>(query: () => Promise<T>) => Watch<T>;
+}
+
+export function resolveDeps(deps: RepositoryDeps): ResolvedDeps {
+  return {
+    db: deps.db,
+    clock: deps.clock ?? systemClock,
+    newId: deps.newId ?? newId,
+    source: deps.source ?? 'app',
+    actor: deps.actor,
+    watch: deps.watch ?? watchQuery,
+  };
 }
 
 /**

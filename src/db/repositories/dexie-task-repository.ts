@@ -2,8 +2,8 @@ import { toTimestamp } from '../../lib/time';
 import type { Task, TaskStatus } from '../../types/domain';
 import { taskSchema } from '../schema';
 import { InvalidInputError, RecordNotFoundError, RecordStateError } from './errors';
-import { appendEvent } from './ledger';
-import { omitUndefined, resolveDeps, watchQuery, type RepositoryDeps } from './shared';
+import { eventWriter } from './ledger';
+import { omitUndefined, resolveDeps, type RepositoryDeps } from './shared';
 import type { NewTask, TaskChanges, TaskRepository } from './types';
 
 const OPEN: readonly TaskStatus[] = ['todo', 'doing'];
@@ -52,7 +52,9 @@ function applyChanges(task: Task, changes: TaskChanges): Record<string, unknown>
 }
 
 export function createDexieTaskRepository(deps: RepositoryDeps): TaskRepository {
-  const { db, clock, newId } = resolveDeps(deps);
+  const resolved = resolveDeps(deps);
+  const { db, clock, newId, watch } = resolved;
+  const emit = eventWriter(resolved);
   const tables = [db.tasks, db.projects, db.milestones, db.events];
 
   /** A task's project must exist, and its milestone must be in that project. */
@@ -118,8 +120,8 @@ export function createDexieTaskRepository(deps: RepositoryDeps): TaskRepository 
     },
 
     listOpen,
-    watchOpen: watchQuery(listOpen),
-    watchClosed: watchQuery(listClosed),
+    watchOpen: watch(listOpen),
+    watchClosed: watch(listClosed),
 
     update(id, changes) {
       return modify(id, 'any', (task) => applyChanges(task, changes));
@@ -131,7 +133,7 @@ export function createDexieTaskRepository(deps: RepositoryDeps): TaskRepository 
         OPEN,
         (task, at) => ({ ...task, status: 'done', completedAt: at }),
         (task, now) =>
-          appendEvent(db, newId, now, {
+          emit(now, {
             type: 'task.completed',
             entityId: task.id,
             projectId: task.projectId,
@@ -158,7 +160,7 @@ export function createDexieTaskRepository(deps: RepositoryDeps): TaskRepository 
     },
 
     watchForDay(day) {
-      return watchQuery(async () => {
+      return watch(async () => {
         const [planned, due] = await Promise.all([
           db.tasks.where('plannedFor').equals(day).toArray(),
           // Deadlines are stored as UTC noon of their date (ADR-016), so

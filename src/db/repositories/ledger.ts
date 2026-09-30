@@ -12,6 +12,7 @@ import {
 import type { LowtideDatabase } from '../database';
 import { checkLedgerEvent } from '../rules';
 import { ledgerEventSchema, progressSnapshotSchema } from '../schema';
+import type { ResolvedDeps } from './shared';
 
 /*
  * Ledger and snapshot writes. Called only by repositories, inside the same
@@ -27,6 +28,7 @@ export interface EventInput {
   projectId?: Id | undefined;
   data?: Record<string, string>;
   source?: EventSource;
+  actor?: string | undefined;
 }
 
 export async function appendEvent(
@@ -45,10 +47,24 @@ export async function appendEvent(
     ...(input.projectId ? { projectId: input.projectId } : {}),
     data: input.data ?? {},
     source: input.source ?? 'app',
+    ...(input.actor ? { actor: input.actor } : {}),
   });
   checkLedgerEvent(event);
   await db.events.add(event);
   return event;
+}
+
+/**
+ * An event writer bound to who is acting (ADR-056): events from an AI client
+ * carry `source: 'ai-client'` and the client's name.
+ */
+export function eventWriter(deps: ResolvedDeps) {
+  return (at: Date, input: EventInput) =>
+    appendEvent(deps.db, deps.newId, at, {
+      ...input,
+      source: input.source ?? deps.source,
+      actor: input.actor ?? deps.actor,
+    });
 }
 
 /** Cascade when the owner deletes the entity itself (the only event removal). */

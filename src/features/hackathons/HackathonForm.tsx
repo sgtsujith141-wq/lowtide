@@ -8,9 +8,10 @@ import {
   HACKATHON_STATUSES,
   PPT_STATUSES,
   REGISTRATION_STATUSES,
+  RESEARCH_STATUSES,
   type Hackathon,
 } from '../../types/domain';
-import { BUILD_LABEL, PPT_LABEL, REGISTRATION_LABEL, STATUS_LABEL } from './labels';
+import { BUILD_LABEL, PPT_LABEL, REGISTRATION_LABEL, RESEARCH_LABEL, STATUS_LABEL } from './labels';
 
 type Draft = Required<{ [K in Exclude<keyof HackathonChanges, 'projectId'>]: string }>;
 
@@ -20,6 +21,7 @@ function toDraft(h: Partial<Hackathon>): Draft {
     status: h.status ?? 'considering',
     registrationStatus: h.registrationStatus ?? 'not_registered',
     pptStatus: h.pptStatus ?? 'not_started',
+    researchStatus: h.researchStatus ?? 'not_started',
     buildStatus: h.buildStatus ?? 'not_started',
     registrationDeadline: h.registrationDeadline ?? '',
     eventStart: h.eventStart ?? '',
@@ -152,7 +154,7 @@ export function HackathonForm({
 
       {!quick && (
         <>
-          <fieldset className="grid gap-3 sm:grid-cols-4">
+          <fieldset className="grid gap-3 sm:grid-cols-5">
             <legend className="sr-only">Registration and progress</legend>
             {input('registrationDeadline', 'Registration deadline', { type: 'date' })}
             {select(
@@ -161,6 +163,7 @@ export function HackathonForm({
               REGISTRATION_STATUSES,
               REGISTRATION_LABEL,
             )}
+            {select('researchStatus', 'Research', RESEARCH_STATUSES, RESEARCH_LABEL)}
             {select('pptStatus', 'PPT', PPT_STATUSES, PPT_LABEL)}
             {select('buildStatus', 'Build', BUILD_STATUSES, BUILD_LABEL)}
           </fieldset>

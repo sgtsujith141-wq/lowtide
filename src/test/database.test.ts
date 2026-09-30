@@ -24,6 +24,7 @@ describe('LowtideDatabase', () => {
       'hackathons',
       'inbox',
       'milestones',
+      'notes',
       'offTimeSessions',
       'progressSnapshots',
       'projectItems',

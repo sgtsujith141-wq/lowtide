@@ -13,6 +13,7 @@ describe('Hackathons in v2 (ADR-039, ADR-053)', () => {
       name: 'Autumn hack',
       registrationStatus: 'registered',
       problemStatement: 'Smart irrigation',
+      researchStatus: 'done',
       pptStatus: 'submitted',
       buildStatus: 'in_progress',
     });

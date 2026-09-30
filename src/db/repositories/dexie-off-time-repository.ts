@@ -3,12 +3,14 @@ import type { Id, OffTimeSession } from '../../types/domain';
 import { checkOffTime } from '../rules';
 import { offTimeSessionSchema } from '../schema';
 import { RecordNotFoundError, RecordStateError } from './errors';
-import { appendEvent, deleteEventsFor } from './ledger';
-import { omitUndefined, resolveDeps, watchQuery, type RepositoryDeps } from './shared';
+import { deleteEventsFor, eventWriter } from './ledger';
+import { omitUndefined, resolveDeps, type RepositoryDeps } from './shared';
 import type { OffTimeRepository } from './types';
 
 export function createDexieOffTimeRepository(deps: RepositoryDeps): OffTimeRepository {
-  const { db, clock, newId } = resolveDeps(deps);
+  const resolved = resolveDeps(deps);
+  const { db, clock, newId, watch } = resolved;
+  const emit = eventWriter(resolved);
   const tables = [db.offTimeSessions, db.workSessions, db.events];
 
   const findOpen = () =>
@@ -45,7 +47,7 @@ export function createDexieOffTimeRepository(deps: RepositoryDeps): OffTimeRepos
           createdAt: at,
           updatedAt: at,
         });
-        await appendEvent(db, newId, now, {
+        await emit(now, {
           type: 'offtime.started',
           entityId: session.id,
           data: { kind },
@@ -61,7 +63,7 @@ export function createDexieOffTimeRepository(deps: RepositoryDeps): OffTimeRepos
         if (existing.endedAt) return existing;
         const at = toTimestamp(now);
         const session = await save({ ...existing, endedAt: at, updatedAt: at });
-        await appendEvent(db, newId, now, {
+        await emit(now, {
           type: 'offtime.ended',
           entityId: id,
           data: { kind: session.kind },
@@ -108,10 +110,10 @@ export function createDexieOffTimeRepository(deps: RepositoryDeps): OffTimeRepos
       });
     },
 
-    watchActive: watchQuery(() => findOpen()),
+    watchActive: watch(() => findOpen()),
 
     watchRange(start, end) {
-      return watchQuery(async () =>
+      return watch(async () =>
         (
           await db.offTimeSessions.where('localDate').between(start, end, true, true).toArray()
         ).sort(

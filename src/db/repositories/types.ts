@@ -1,4 +1,7 @@
 import type {
+  ResearchStatus,
+  Note,
+  NoteKind,
   CollegeItem,
   CollegeKind,
   CollegeStatus,
@@ -242,6 +245,8 @@ export interface NewHackathon {
   registrationStatus?: RegistrationStatus;
   pptStatus?: PptStatus;
   buildStatus?: BuildStatus;
+  /** Omitted means research hasn't started (ADR-056). */
+  researchStatus?: ResearchStatus;
   team?: string;
   problemStatement?: string;
   nextAction?: string;
@@ -259,6 +264,7 @@ export type HackathonChanges = {
   registrationStatus?: RegistrationStatus;
   pptStatus?: PptStatus;
   buildStatus?: BuildStatus;
+  researchStatus?: ResearchStatus;
 } & {
   [
     K in
@@ -303,6 +309,7 @@ export interface BackupData {
   progressSnapshots: ProgressSnapshot[];
   aiSessions: AiSession[];
   collegeItems: CollegeItem[];
+  notes: Note[];
 }
 
 export type BackupCounts = Record<keyof BackupData, number>;
@@ -549,6 +556,11 @@ export interface NewAiSession {
   endedAt: Timestamp;
   summary: string;
   filesTouched?: string[];
+  taskId?: Id;
+  result?: string;
+  nextAction?: string;
+  commits?: string[];
+  handoff?: string;
 }
 
 /**
@@ -587,6 +599,27 @@ export interface CollegeRepository {
   remove(id: Id): Promise<void>;
   /** Items dated `start..end` inclusive, by date then title. */
   watchRange(start: LocalDate, end: LocalDate): Watch<CollegeItem[]>;
+}
+
+export interface NewNote {
+  kind?: NoteKind;
+  title: string;
+  body: string;
+}
+
+export type NoteChanges = { title?: string; body?: string };
+
+/**
+ * Project notes (ADR-056): human- or AI-authored Markdown, canonical here and
+ * projected into the technical workspace. The author comes from who is
+ * writing (the owner in the app, or an attributed AI client via the companion).
+ */
+export interface NotesRepository {
+  create(projectId: Id, input: NewNote): Promise<Note>;
+  update(id: Id, changes: NoteChanges): Promise<Note>;
+  remove(id: Id): Promise<void>;
+  /** Newest first. */
+  watchForProject(projectId: Id): Watch<Note[]>;
 }
 
 /** Raw records behind activity grids and the Daily Pulse, for a date range. */
@@ -628,4 +661,5 @@ export interface Repositories {
   aiSessions: AiSessionRepository;
   activity: ActivityRepository;
   college: CollegeRepository;
+  notes: NotesRepository;
 }

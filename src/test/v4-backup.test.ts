@@ -43,6 +43,7 @@ async function seedV4(r: Repositories) {
   await r.protectedTime.create({ title: 'Walk', date: '2026-09-29', kind: 'rest' });
   await r.tasks.complete(t.id);
   await r.college.create({ kind: 'class', title: 'DBMS', date: '2026-09-28', status: 'attended' });
+  await r.notes.create(p.id, { title: 'Design notes', body: '# Bus\n\nUse a queue.' });
 }
 
 function inspectOk(r: Repositories, doc: unknown): ValidatedBackup {
@@ -58,7 +59,7 @@ async function exported() {
 }
 
 describe('V4 backup round trip', () => {
-  it('fills every V4 and V5 store', async () => {
+  it('fills every V4, V5 and V6 store', async () => {
     const { doc } = await exported();
     for (const store of STORE_NAMES) {
       if (store === 'inbox' || store === 'habits' || store === 'habitEntries') continue;
