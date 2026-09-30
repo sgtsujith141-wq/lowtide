@@ -37,3 +37,7 @@ lowtide-backup*.json
 *.db-*
 companion.json
 .lowtide/
+
+# Notion migration manifests, conflicts and reports name personal records
+docs/NOTION-MIGRATION-*.md
+docs/NOTION-MIGRATION-*.json

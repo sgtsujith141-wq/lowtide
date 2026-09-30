@@ -6,6 +6,7 @@ import { hackathonStages, STAGE_LABEL } from '../hackathons/progress';
 import { LANE_LABEL, STATE_LABEL, summariseProject } from '../projects/summary';
 import { buildContextPack, notePath, renderContextMarkdown, type ContextOptions } from './pack';
 import { slugOf } from './slug';
+import { projectSpaceFiles } from './space-files';
 
 /*
  * The technical workspace (ADR-044, ADR-060): human-readable files an AI
@@ -20,6 +21,7 @@ import { slugOf } from './slug';
  *   projects/<slug>/ai/handoffs/*.md       handoffs   │ projected from LOWTIDE's
  *   projects/<slug>/ai/summaries/*.md      summaries  │ notes (canonical there)
  *   projects/<slug>/research/*.md          research   ┘
+ *   projects/<slug>/space/**.md            the project's SPACE pages and tables
  *   projects/<slug>/{planning,docs,files,assets,archive}/   yours: never touched
  *   hackathons/<slug>-<id>.md              technical sheet per hackathon
  *   shared/                                yours: cross-project documents
@@ -167,10 +169,19 @@ export function buildWorkspaceFiles(
       today,
     );
     generated.set(`${root}/PROJECT.md`, projectMarkdown(project, s));
+    const space = projectSpaceFiles(data, project, root, GENERATED_LINE);
+    for (const [path, content] of space) generated.set(path, content);
+    const documents = {
+      ...options.documents,
+      [project.id]: [...(options.documents?.[project.id] ?? []), ...space.keys()].slice(0, 40),
+    };
     generated.set(
       `${root}/CONTEXT.md`,
       renderContextMarkdown(
-        buildContextPack(data, { kind: 'project', projectId: project.id }, now, options),
+        buildContextPack(data, { kind: 'project', projectId: project.id }, now, {
+          ...options,
+          documents,
+        }),
       ),
     );
 

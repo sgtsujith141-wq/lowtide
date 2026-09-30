@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { asStore } from '../db/database';
+import { importNotion } from '../db/import/notion/importer';
 import { STORE_NAMES } from '../db/migrations';
 import {
   createDexieRepositories,
@@ -7,6 +9,7 @@ import {
   type ValidatedBackup,
 } from '../db/repositories';
 import { setupTestDatabase, steppingClock } from './helpers';
+import { fixturePlan, fixtureSnapshot } from './notion-fixture';
 
 const newDb = setupTestDatabase();
 
@@ -53,13 +56,19 @@ function inspectOk(r: Repositories, doc: unknown): ValidatedBackup {
 }
 
 async function exported() {
-  const r = createDexieRepositories(newDb(), { clock: steppingClock() });
+  const db = newDb();
+  const r = createDexieRepositories(db, { clock: steppingClock() });
   await seedV4(r);
+  // SPACE and provenance, the way they really arrive: through an import.
+  await importNotion(asStore(db), fixtureSnapshot(), fixturePlan(), {
+    now: new Date('2026-10-01T00:00:00.000Z'),
+    newId: () => crypto.randomUUID(),
+  });
   return { r, doc: await r.backup.exportBackup() };
 }
 
 describe('V4 backup round trip', () => {
-  it('fills every V4, V5 and V6 store', async () => {
+  it('fills every V4, V5, V6 and V7 store', async () => {
     const { doc } = await exported();
     for (const store of STORE_NAMES) {
       if (store === 'inbox' || store === 'habits' || store === 'habitEntries') continue;

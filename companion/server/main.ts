@@ -1,6 +1,7 @@
 import { parseArgs } from 'node:util';
 import { startCompanion } from './app';
 import { defaultDataDir, loadConfig, rotateOwnerToken } from './config';
+import { runNotionImport, summarise } from './notion-import';
 
 /*
  * lowtide-companion: runs the LOWTIDE companion on 127.0.0.1.
@@ -11,6 +12,8 @@ import { defaultDataDir, loadConfig, rotateOwnerToken } from './config';
  *   npm run companion -- --workspace <dir>  sync the workspace elsewhere (this run)
  *   npm run companion -- pair               print the pairing link and exit
  *   npm run companion -- rotate-token       replace the owner token and exit
+ *   npm run companion -- import-notion --snapshot <dir> --plan <file> [--dry-run]
+ *                                           import a Notion snapshot (companion stopped)
  */
 
 process.umask(0o077); // everything the companion writes is owner-only
@@ -22,11 +25,15 @@ const { values, positionals } = parseArgs({
     port: { type: 'string' },
     workspace: { type: 'string' },
     app: { type: 'string', default: 'http://localhost:5173' },
+    snapshot: { type: 'string' },
+    plan: { type: 'string' },
+    'dry-run': { type: 'boolean' },
     help: { type: 'boolean', short: 'h' },
   },
 });
 
 const HELP = `lowtide-companion [pair | rotate-token] [--data <dir>] [--port <n>] [--workspace <dir>] [--app <url>]
+lowtide-companion import-notion --snapshot <dir> --plan <file> [--dry-run] [--data <dir>]
 
 Runs the local LOWTIDE companion: the SQLite store, the live workspace and the
 MCP endpoint for AI clients, on 127.0.0.1 only.`;
@@ -54,6 +61,22 @@ async function main() {
       `Open this link in the browser where you use LOWTIDE:\n\n  ${pairingLink(values.app!, url, config.ownerToken)}\n`,
     );
     console.log('It carries your owner token: don’t share it or paste it anywhere else.');
+    return;
+  }
+  if (command === 'import-notion') {
+    if (!values.snapshot || !values.plan) {
+      console.error('import-notion needs --snapshot <dir> and --plan <file>');
+      process.exitCode = 2;
+      return;
+    }
+    const run = await runNotionImport({
+      dataDir,
+      snapshotDir: values.snapshot,
+      planFile: values.plan,
+      dryRun: values['dry-run'] === true,
+      ...(values.workspace ? { workspaceDir: values.workspace } : {}),
+    });
+    console.log(summarise(run));
     return;
   }
   if (command !== undefined) {

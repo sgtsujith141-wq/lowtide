@@ -9,6 +9,9 @@ import {
   RecordStateError,
   type Repositories,
 } from '../../../src/db/repositories';
+import { asStore } from '../../../src/db/database';
+import { importNotion } from '../../../src/db/import/notion/importer';
+import { fixturePlan, fixtureSnapshot } from '../../../src/test/notion-fixture';
 import { deterministic, scenario } from '../test-fixtures';
 import { MIGRATIONS } from './migrations';
 import { ConstraintError, SqliteStore } from './store';
@@ -43,7 +46,7 @@ describe('SQLite schema (companion migrations)', () => {
     const meta = store.sql
       .prepare("SELECT value FROM companion_meta WHERE key = 'lowtide_schema_version'")
       .get() as { value: string };
-    expect(meta.value).toBe('6');
+    expect(meta.value).toBe('7');
   });
 
   it('enforces enumerations, types and deferred references in the database itself', async () => {
@@ -146,9 +149,20 @@ describe('repository parity: Dexie and SQLite (ADR-057)', () => {
   it('produces identical records in every store from the same operations', async () => {
     const dexie = openDatabase(`parity-${crypto.randomUUID()}`);
     const onDexie = createDexieRepositories(dexie, deterministic());
-    const onSqlite = createRepositories(sqlite(), deterministic());
+    const sqliteStore = sqlite();
+    const onSqlite = createRepositories(sqliteStore, deterministic());
     await scenario(onDexie);
     await scenario(onSqlite);
+    // The Notion importer writes the same records on both backends.
+    const importInto = (store: Parameters<typeof importNotion>[0]) => {
+      let n = 0;
+      return importNotion(store, fixtureSnapshot(), fixturePlan(), {
+        now: new Date('2026-10-01T00:00:00.000Z'),
+        newId: () => `00000000-0000-4000-9000-${String(++n).padStart(12, '0')}`,
+      });
+    };
+    await importInto(asStore(dexie));
+    await importInto(sqliteStore);
     const a = await onDexie.backup.exportBackup();
     const b = await onSqlite.backup.exportBackup();
     for (const store of STORE_NAMES) expect(b.data[store], store).toEqual(a.data[store]);
