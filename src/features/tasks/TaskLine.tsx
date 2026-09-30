@@ -7,8 +7,8 @@ import { describePlan } from './planning';
 const TONE_CLASS: Record<DeadlineTone, string> = {
   overdue: 'text-warn font-medium',
   today: 'text-accent-ink font-medium',
-  soon: 'text-ink-muted',
-  later: 'text-ink-muted',
+  soon: 'text-fg-muted',
+  later: 'text-fg-muted',
 };
 
 interface Props {
@@ -61,16 +61,16 @@ export function TaskLine({ task, today, busy, onComplete, actions, hidePlan = fa
         </span>
       </button>
       <div className="min-w-0 flex-1">
-        <p className={`break-words ${task.priority === 'low' ? 'text-ink-muted' : ''}`}>
+        <p className={`break-words ${task.priority === 'low' ? 'text-fg-muted' : ''}`}>
           {task.title}
         </p>
         {task.notes && (
-          <p className="mt-0.5 line-clamp-2 text-sm break-words whitespace-pre-wrap text-ink-muted">
+          <p className="mt-0.5 line-clamp-2 text-sm break-words whitespace-pre-wrap text-fg-muted">
             {task.notes}
           </p>
         )}
         {meta.length > 0 && (
-          <p className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-ink-muted [&>*+*]:before:mr-2 [&>*+*]:before:text-ink-faint [&>*+*]:before:content-['·']">
+          <p className="mt-0.5 flex flex-wrap gap-x-2 text-xs text-fg-muted [&>*+*]:before:mr-2 [&>*+*]:before:text-fg-subtle [&>*+*]:before:content-['·']">
             {meta}
           </p>
         )}

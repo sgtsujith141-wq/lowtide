@@ -60,7 +60,7 @@ export function ProtectedTimeForm({
       onKeyDown={onKeyDown}
       noValidate
       aria-label={formLabel}
-      className="my-2 grid gap-3 rounded-md bg-paper-sunken p-2 sm:grid-cols-[1fr_11rem_9rem]"
+      className="my-2 grid gap-3 rounded-md bg-surface p-2 sm:grid-cols-[1fr_11rem_9rem]"
     >
       <div>
         <label htmlFor={`${id}-title`} className={labelClass}>

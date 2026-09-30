@@ -35,7 +35,7 @@ export function RoutineLog({
   return (
     <div>
       <div className="flex min-h-8 items-end justify-between gap-3 border-b border-line pb-1">
-        <h3 className="text-xs font-semibold tracking-wide text-ink-muted uppercase">{title}</h3>
+        <h3 className="text-xs font-semibold text-fg-muted">{title}</h3>
         {!adding && (
           <Button
             ref={addButton}
@@ -70,7 +70,7 @@ export function RoutineLog({
         />
       )}
       {habits.length === 0 && !adding ? (
-        <p className="py-2 text-sm text-ink-muted">{empty}</p>
+        <p className="py-2 text-sm text-fg-muted">{empty}</p>
       ) : (
         <ul>
           {habits.map((habit) => (

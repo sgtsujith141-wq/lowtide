@@ -11,9 +11,9 @@ export function ProjectCards({ today }: { today: LocalDate }) {
   const fortnight = eachDay(addDays(today, -13), today);
   if (!data) return null;
   return (
-    <section aria-labelledby="projects-heading" className="mt-10">
+    <section aria-labelledby="projects-heading" className="mt-10 border-t border-line pt-6">
       <div className="flex items-baseline justify-between">
-        <h2 id="projects-heading" className="font-serif text-lg font-semibold tracking-tight">
+        <h2 id="projects-heading" className="text-section font-semibold">
           Projects
         </h2>
         <Link to="/projects" className="text-sm text-accent-ink hover:underline">
@@ -21,15 +21,14 @@ export function ProjectCards({ today }: { today: LocalDate }) {
         </Link>
       </div>
       {data.summaries.length === 0 ? (
-        <div className="mt-2 rounded-xl border border-dashed border-line p-5 text-sm text-ink-muted">
+        <p className="mt-2 text-sm text-fg-muted">
           No active projects.{' '}
-          <Link to="/projects" className="text-accent-ink hover:underline">
+          <Link to="/projects" className="text-accent-ink underline underline-offset-2">
             Start one
-          </Link>{' '}
-          to see its progress, focus and time here.
-        </div>
+          </Link>
+        </p>
       ) : (
-        <ul className="mt-2 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        <ul className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-3 min-[1800px]:grid-cols-4">
           {data.summaries.map((s) => (
             <ProjectCard
               key={s.project.id}

@@ -5,6 +5,7 @@ import {
   Database,
   HeartPulse,
   Inbox,
+  Library,
   ListTodo,
   Settings,
   Sun,
@@ -15,6 +16,7 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { ModeActions } from '../modes/ModeActions';
 
 const MORE_LINKS: { to: string; label: string; hint: string; icon: LucideIcon }[] = [
+  { to: '/space', label: 'SPACE', hint: 'Project knowledge and documents', icon: Library },
   { to: '/today', label: 'Today', hint: 'Plan, deadlines, capture', icon: Sun },
   { to: '/inbox', label: 'Inbox', hint: 'Sort captured thoughts', icon: Inbox },
   { to: '/tasks', label: 'Tasks', hint: 'Everything open', icon: ListTodo },
@@ -30,21 +32,24 @@ export function MorePage() {
   useDocumentTitle('More');
   return (
     <>
-      <h1 className="font-serif text-xl font-semibold tracking-tight">More</h1>
+      <h1 className="text-page font-semibold">More</h1>
       <div className="mt-4">
         <ModeActions />
       </div>
       <nav aria-label="More" className="mt-6">
-        <ul className="divide-y divide-line rounded-xl border border-line bg-paper-raised">
+        <ul className="divide-y divide-line border-y border-line">
           {MORE_LINKS.map(({ to, label, hint, icon: Icon }) => (
             <li key={to}>
-              <Link to={to} className="flex items-center gap-3 px-4 py-3 hover:bg-paper">
-                <Icon aria-hidden className="size-5 text-ink-muted" />
+              <Link
+                to={to}
+                className="flex items-center gap-3 px-1 py-3 transition-colors hover:bg-hover"
+              >
+                <Icon aria-hidden className="size-5 text-fg-muted" />
                 <span className="min-w-0 flex-1">
                   <span className="block font-medium">{label}</span>
-                  <span className="block text-xs text-ink-muted">{hint}</span>
+                  <span className="block text-xs text-fg-muted">{hint}</span>
                 </span>
-                <ChevronRight aria-hidden className="size-4 text-ink-faint" />
+                <ChevronRight aria-hidden className="size-4 text-fg-subtle" />
               </Link>
             </li>
           ))}

@@ -205,7 +205,7 @@ function AmountRow({
           aria-describedby={error ? `${id}-error` : `${id}-hint`}
           className={`${fieldClass} max-w-20 shrink-0 py-1 text-right text-sm tabular-nums`}
         />
-        <span id={`${id}-hint`} className="w-16 shrink-0 text-xs text-ink-muted tabular-nums">
+        <span id={`${id}-hint`} className="w-16 shrink-0 text-xs text-fg-muted tabular-nums">
           {unitWord}
           {habit.target ? ` / ${habit.target}` : ''}
           <span className="sr-only">. Saves on Enter or when you leave the field.</span>

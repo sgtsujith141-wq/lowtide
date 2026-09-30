@@ -27,7 +27,7 @@ export function ContextPanel({ project }: { project: Project }) {
         <h3 id="context-heading" className="text-sm font-semibold">
           Context for AI clients
         </h3>
-        <p className="text-xs text-ink-muted">
+        <p className="text-xs text-fg-muted">
           Project scope: only this project’s technical context. Protected time and private life
           records are never included. Nothing is sent anywhere; copy it, download it, or export the
           workspace for a connected client.

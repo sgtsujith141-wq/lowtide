@@ -74,25 +74,25 @@ export function Timeline({
   const entries = useWatch(watch);
   const now = new Date();
   if (entries.status !== 'ready') return null;
-  if (entries.data.length === 0) return <p className="py-2 text-sm text-ink-muted">{emptyText}</p>;
+  if (entries.data.length === 0) return <p className="py-2 text-sm text-fg-muted">{emptyText}</p>;
   return (
     <ol className="relative ml-2 border-l border-line">
       {entries.data.map((entry) => {
         const Icon = EVENT[entry.event.type].icon;
         return (
           <li key={entry.event.id} className="relative pb-3 pl-5 last:pb-0">
-            <span className="absolute top-0.5 -left-[9px] grid size-[18px] place-items-center rounded-full border border-line bg-paper-raised">
-              <Icon aria-hidden className="size-2.5 text-ink-muted" />
+            <span className="absolute top-0.5 -left-[9px] grid size-[18px] place-items-center rounded-full border border-line bg-raised">
+              <Icon aria-hidden className="size-2.5 text-fg-muted" />
             </span>
             <p className="text-sm leading-snug">
               {sentence(entry)}
               {entry.event.source === 'ai-client' && (
-                <span className="ml-1 text-xs text-ink-muted">
+                <span className="ml-1 text-xs text-fg-muted">
                   (by {entry.event.actor ?? 'an AI client'})
                 </span>
               )}
             </p>
-            <p className="text-xs text-ink-muted">
+            <p className="text-xs text-fg-muted">
               <time dateTime={entry.event.at} title={formatFull(entry.event.at)}>
                 {formatWhen(entry.event.at, now)}
               </time>

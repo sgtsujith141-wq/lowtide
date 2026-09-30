@@ -107,8 +107,8 @@ export function RhythmPage() {
 
   return (
     <>
-      <h1 className="font-serif text-xl font-semibold tracking-tight">Rhythm</h1>
-      <p className="mt-1 text-sm text-ink-muted">Where you’ve been showing up.</p>
+      <h1 className="text-page font-semibold">Rhythm</h1>
+      <p className="mt-1 text-sm text-fg-muted">Where you’ve been showing up.</p>
 
       {all.status === 'error' && (
         <ErrorNotice>Couldn’t read your rhythms. Try reloading.</ErrorNotice>
@@ -116,7 +116,7 @@ export function RhythmPage() {
       {error && <ErrorNotice>{error}</ErrorNotice>}
 
       {habitList.length === 0 && !adding && (
-        <p className="mt-6 text-sm text-ink-muted">
+        <p className="mt-6 text-sm text-fg-muted">
           Nothing here yet. Add something you’d like to see yourself show up for: coding, study, the
           gym, reading. Each day you record it becomes a square.
         </p>
@@ -125,10 +125,10 @@ export function RhythmPage() {
       {habitList.length > 0 && (
         <section aria-labelledby="grid-heading" className="mt-5">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <h2 id="grid-heading" className="text-sm font-medium text-ink-muted">
+            <h2 id="grid-heading" className="text-section font-semibold">
               History
             </h2>
-            <label htmlFor={selectId} className="flex items-center gap-2 text-xs text-ink-muted">
+            <label htmlFor={selectId} className="flex items-center gap-2 text-xs text-fg-muted">
               Show
               <select
                 id={selectId}
@@ -177,7 +177,7 @@ export function RhythmPage() {
             days={days}
             palette={viewPalette(view, habitList)}
             showDetail
-            surface="paper"
+            surface="canvas"
           />
         </section>
       )}
@@ -186,7 +186,7 @@ export function RhythmPage() {
         <section aria-labelledby="today-log-heading" className="mt-7">
           <h2
             id="today-log-heading"
-            className="border-b border-line pb-1.5 text-sm font-medium text-ink-muted"
+            className="border-b border-line pb-2 text-section font-semibold"
           >
             Today
           </h2>
@@ -206,7 +206,7 @@ export function RhythmPage() {
 
       <section aria-labelledby="rhythms-heading" className="mt-7">
         <div className="flex min-h-8 items-end justify-between gap-3 border-b border-line pb-1">
-          <h2 id="rhythms-heading" className="text-sm font-medium text-ink-muted">
+          <h2 id="rhythms-heading" className="text-section font-semibold">
             Your rhythms
           </h2>
           {!adding && (
@@ -280,7 +280,7 @@ export function RhythmPage() {
               <li key={habit.id} className="flex items-center gap-2 border-b border-line py-1.5">
                 <span className="min-w-0 flex-1">
                   <span className="break-words">{habit.name}</span>
-                  <span className="ml-1 text-xs text-ink-muted"> {describeHabit(habit)}</span>
+                  <span className="ml-1 text-xs text-fg-muted"> {describeHabit(habit)}</span>
                 </span>
                 <IconButton
                   label={`Edit ${habit.name}`}
@@ -300,16 +300,16 @@ export function RhythmPage() {
 
         {archived.length > 0 && (
           <details className="mt-4">
-            <summary className="cursor-pointer text-sm text-ink-muted select-none hover:text-ink">
+            <summary className="cursor-pointer text-sm text-fg-muted select-none hover:text-fg">
               Archived · {archived.length}
             </summary>
-            <p className="mt-1 text-xs text-ink-muted">
+            <p className="mt-1 text-xs text-fg-muted">
               Archived rhythms keep their history; pick one under “Show” to see it.
             </p>
             <ul className="mt-1">
               {archived.map((habit) => (
                 <li key={habit.id} className="flex items-center gap-2 border-b border-line py-1.5">
-                  <span className="min-w-0 flex-1 text-ink-muted">
+                  <span className="min-w-0 flex-1 text-fg-muted">
                     <span className="break-words">{habit.name}</span>
                     <span className="ml-1 text-xs"> {describeHabit(habit)}</span>
                   </span>

@@ -24,16 +24,16 @@ export function PulseSection({ today }: { today: LocalDate }) {
   return (
     <section aria-labelledby="pulse-heading" className="mt-6">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4">
-        <h2 id="pulse-heading" className="font-serif text-lg font-semibold tracking-tight">
+        <h2 id="pulse-heading" className="text-section font-semibold">
           Daily Pulse
         </h2>
-        <p className="text-xs text-ink-muted">
+        <p className="text-xs text-fg-muted">
           {status === 'ready'
             ? `${activeDays} day${activeDays === 1 ? '' : 's'} with a pulse in the last year`
             : ' '}
         </p>
       </div>
-      <div className="mt-2 min-w-0 rounded-xl border border-line bg-paper-raised p-3 sm:p-4">
+      <div className="mt-3 min-w-0">
         <ContributionGrid
           label="Daily Pulse, last 12 months"
           today={today}
@@ -82,7 +82,7 @@ function DayDetail({
       <div className="flex items-baseline justify-between gap-3">
         <p className="text-sm font-medium">
           {longDay(date)}
-          <span className="ml-2 text-xs font-normal text-ink-muted">
+          <span className="ml-2 text-xs font-normal text-fg-muted">
             {PULSE_WORD[day?.pulse.level ?? 0]}
             {day?.pulse.dayOffApplied ? ' · rest day' : ''}
           </span>
@@ -90,18 +90,18 @@ function DayDetail({
         <button
           type="button"
           onClick={onClose}
-          className="text-xs text-ink-muted hover:text-ink hover:underline"
+          className="text-xs text-fg-muted hover:text-fg hover:underline"
         >
           Close
         </button>
       </div>
       {facts.length === 0 ? (
-        <p className="mt-1 text-sm text-ink-muted">Nothing recorded that day.</p>
+        <p className="mt-1 text-sm text-fg-muted">Nothing recorded that day.</p>
       ) : (
         <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-sm sm:grid-cols-3">
           {facts.map(([k, v]) => (
             <div key={k} className="min-w-0">
-              <dt className="text-[11px] text-ink-muted">{k}</dt>
+              <dt className="text-[11px] text-fg-muted">{k}</dt>
               <dd className="truncate">{v}</dd>
             </div>
           ))}
@@ -128,14 +128,10 @@ export function SecondaryGrids({ today }: { today: LocalDate }) {
   const { ref, near } = useNearViewport<HTMLElement>();
   return (
     <section ref={ref} aria-labelledby="rhythms-heading" className="mt-10">
-      <h2 id="rhythms-heading" className="text-sm font-medium text-ink-muted">
+      <h2 id="rhythms-heading" className="text-section font-semibold">
         Individual rhythms
       </h2>
-      {near ? (
-        <SecondaryGridList today={today} />
-      ) : (
-        <div aria-hidden className="mt-2 h-96 rounded-lg border border-dashed border-line" />
-      )}
+      {near ? <SecondaryGridList today={today} /> : <div aria-hidden className="mt-2 h-96" />}
     </section>
   );
 }
@@ -144,7 +140,7 @@ function SecondaryGridList({ today }: { today: LocalDate }) {
   const start = gridStart(today, YEAR_WEEKS);
   const { days } = useDaySummaries(start, today);
   return (
-    <div className="mt-2 grid gap-4 xl:grid-cols-2">
+    <div className="mt-3 grid gap-x-10 gap-y-6 lg:grid-cols-2 2xl:grid-cols-3">
       {SECONDARY.map(({ grid, title }) => (
         <SecondaryGrid key={grid} grid={grid} title={title} today={today} days={days} />
       ))}
@@ -166,10 +162,10 @@ function SecondaryGrid({
   const cells = useMemo(() => gridDays(days, grid), [days, grid]);
   const active = cells.size;
   return (
-    <div className="min-w-0 rounded-lg border border-line bg-paper-raised p-3">
-      <p className="mb-1 flex items-baseline justify-between text-sm font-medium">
+    <div className="min-w-0 border-t border-line pt-3">
+      <p className="mb-2 flex items-baseline justify-between text-[13px] font-medium">
         {title}
-        <span className="text-[11px] font-normal text-ink-muted">
+        <span className="text-[11px] font-normal text-fg-muted">
           {active} active day{active === 1 ? '' : 's'}
         </span>
       </p>

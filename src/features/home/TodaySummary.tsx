@@ -22,22 +22,22 @@ export function TodaySummary({ today }: { today: LocalDate }) {
   const list = sections ? [...sections.attention, ...sections.planned] : [];
 
   return (
-    <section aria-labelledby="today-summary-heading" className="mt-10">
+    <section aria-labelledby="today-summary-heading" className="mt-10 border-t border-line pt-6">
       <div className="flex items-baseline justify-between">
-        <h2 id="today-summary-heading" className="font-serif text-lg font-semibold tracking-tight">
+        <h2 id="today-summary-heading" className="text-section font-semibold">
           Today
         </h2>
         <Link to="/today" className="text-sm text-accent-ink hover:underline">
           Open Today
         </Link>
       </div>
-      <div className="mt-2 grid gap-3 sm:grid-cols-3">
-        <div className="rounded-lg border border-line bg-paper-raised p-3">
-          <p className="flex items-center gap-1.5 text-xs text-ink-muted">
+      <div className="mt-3 grid gap-y-5 sm:grid-cols-3 sm:divide-x sm:divide-line [&>*]:min-w-0 sm:[&>*]:px-5 sm:[&>*:first-child]:pl-0">
+        <div>
+          <p className="flex items-center gap-1.5 text-xs text-fg-muted">
             <ListChecks aria-hidden className="size-3.5" /> Plan and deadlines
           </p>
           {list.length === 0 ? (
-            <p className="mt-1 text-sm text-ink-muted">Nothing planned.</p>
+            <p className="mt-1 text-sm text-fg-muted">Nothing planned.</p>
           ) : (
             <ul className="mt-1 space-y-0.5 text-sm">
               {list.slice(0, 4).map((t) => (
@@ -46,26 +46,23 @@ export function TodaySummary({ today }: { today: LocalDate }) {
                 </li>
               ))}
               {list.length > 4 && (
-                <li className="text-xs text-ink-muted">+{list.length - 4} more</li>
+                <li className="text-xs text-fg-muted">+{list.length - 4} more</li>
               )}
             </ul>
           )}
         </div>
-        <Link
-          to="/inbox"
-          className="rounded-lg border border-line bg-paper-raised p-3 hover:border-line-strong"
-        >
-          <p className="flex items-center gap-1.5 text-xs text-ink-muted">
+        <Link to="/inbox" className="group block rounded-md transition-colors duration-150">
+          <p className="flex items-center gap-1.5 text-xs text-fg-muted">
             <Inbox aria-hidden className="size-3.5" /> Inbox
           </p>
-          <p className="mt-1 font-serif text-2xl font-semibold tabular-nums">
+          <p className="figure mt-1 text-2xl font-semibold group-hover:underline">
             {waiting.status === 'ready' ? waiting.data.length : '–'}
           </p>
-          <p className="text-xs text-ink-muted">thoughts to sort</p>
+          <p className="text-xs text-fg-muted">thoughts to sort</p>
         </Link>
-        <div className="rounded-lg border border-line bg-paper-raised p-3">
-          <p className="flex items-center gap-1.5 text-xs text-ink-muted">
-            <Heart aria-hidden className="size-3.5" /> Kept for people and rest
+        <div>
+          <p className="flex items-center gap-1.5 text-xs text-fg-muted">
+            <Heart aria-hidden className="size-3.5 text-personal-4" /> Kept for people and rest
           </p>
           {kept.status === 'ready' && kept.data.length > 0 ? (
             <ul className="mt-1 space-y-0.5 text-sm">
@@ -76,7 +73,7 @@ export function TodaySummary({ today }: { today: LocalDate }) {
               ))}
             </ul>
           ) : (
-            <p className="mt-1 text-sm text-ink-muted">Nothing set aside today.</p>
+            <p className="mt-1 text-sm text-fg-muted">Nothing set aside today.</p>
           )}
         </div>
       </div>

@@ -2,7 +2,7 @@ import { Moon, Play, Search } from 'lucide-react';
 import { useId, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Button } from '../../components/ui/Button';
 import { ErrorNotice } from '../../components/ui/Notice';
-import { fieldClass, labelClass } from '../../components/ui/styles';
+import { fieldClass, labelClass, segmentClass, segmentedClass } from '../../components/ui/styles';
 import { RecordStateError } from '../../db/repositories';
 import { useRepositories } from '../../hooks/useRepositories';
 import { useWatch } from '../../hooks/useWatch';
@@ -57,25 +57,25 @@ export function ModeActions({ onAsk }: { onAsk?: () => void }) {
           aria-controls={panelId}
           disabled={busy}
           onClick={() => setOpen((v) => !v)}
-          className="h-10 px-4"
+          className="h-9 px-3.5"
         >
           <Play aria-hidden className="size-4" /> Start Work
         </Button>
         <Button
           onClick={() => void sleep()}
           disabled={modes.offTime !== undefined}
-          className="h-10 px-4"
+          className="h-9 px-3.5"
         >
           <Moon aria-hidden className="size-4" /> Sleep Mode
         </Button>
         {onAsk && (
-          <Button onClick={onAsk} className="h-10 px-4">
+          <Button onClick={onAsk} className="h-9 px-3.5">
             <Search aria-hidden className="size-4" /> Ask LOWTIDE
           </Button>
         )}
       </div>
       {modes.work && (
-        <p className="mt-1.5 text-xs text-ink-muted">
+        <p className="mt-1.5 text-xs text-fg-muted">
           A work session is running (see the bar above).
         </p>
       )}
@@ -162,20 +162,13 @@ function StartWorkForm({ onStarted, onCancel }: { onStarted: () => void; onCance
         }
       }}
       aria-label="Start work"
-      className="mt-3 max-w-md space-y-3 rounded-lg border border-line bg-paper-raised p-3"
+      className="mt-3 max-w-md space-y-3 rounded-lg border border-line bg-raised p-4"
     >
       <fieldset>
         <legend className={labelClass}>What kind of work?</legend>
-        <div className="flex flex-wrap gap-1.5">
+        <div className={segmentedClass}>
           {KINDS.map((k) => (
-            <label
-              key={k.kind}
-              className={`cursor-pointer rounded-full border px-3 py-1 text-sm has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${
-                kind === k.kind
-                  ? 'border-work-3 bg-work-1 font-medium'
-                  : 'border-line text-ink-muted hover:border-line-strong'
-              }`}
-            >
+            <label key={k.kind} className={segmentClass(kind === k.kind)}>
               <input
                 type="radio"
                 name="work-kind"
@@ -211,7 +204,7 @@ function StartWorkForm({ onStarted, onCancel }: { onStarted: () => void; onCance
             ))}
           </select>
           {active.length === 0 && (
-            <p className="mt-1 text-xs text-ink-muted">No active projects yet.</p>
+            <p className="mt-1 text-xs text-fg-muted">No active projects yet.</p>
           )}
         </div>
       )}
@@ -234,7 +227,7 @@ function StartWorkForm({ onStarted, onCancel }: { onStarted: () => void; onCance
             ))}
           </select>
           {openTasks.length === 0 && (
-            <p className="mt-1 text-xs text-ink-muted">This project has no open tasks.</p>
+            <p className="mt-1 text-xs text-fg-muted">This project has no open tasks.</p>
           )}
         </div>
       )}

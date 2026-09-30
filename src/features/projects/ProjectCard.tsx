@@ -1,4 +1,4 @@
-import { AlertOctagon, Clock, Hand, Hourglass, Target } from 'lucide-react';
+import { AlertOctagon, ArrowRight, Clock, Hand, Hourglass, Target } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Chip, ProgressBar, Sparkline } from '../../components/shared/visuals';
@@ -24,9 +24,9 @@ export function ProjectCard({
   const approvals = s.lanes.needs_approval;
   const blocked = s.lanes.blocked;
   return (
-    <li className="flex min-w-0 flex-col gap-3 rounded-xl border border-line bg-paper-raised p-4">
+    <li className="flex min-w-0 flex-col gap-3 rounded-lg bg-surface p-4 transition-colors duration-150 hover:bg-raised">
       <div className="flex items-start justify-between gap-2">
-        <Heading className="min-w-0 font-medium leading-snug">
+        <Heading className="min-w-0 text-[15px] leading-snug font-semibold">
           <Link to={`/projects/${s.project.slug}`} className="hover:underline">
             {s.project.name}
           </Link>
@@ -37,10 +37,12 @@ export function ProjectCard({
       {s.completion ? (
         <div>
           <div className="mb-1 flex items-baseline justify-between text-xs">
-            <span className="text-ink-muted">
+            <span className="text-fg-muted">
               {s.currentMilestone ? `Now: ${s.currentMilestone.title}` : 'All milestones done'}
             </span>
-            <span className="font-semibold tabular-nums">{s.completion.percent}%</span>
+            <span className="figure text-sm font-semibold text-projects-4">
+              {s.completion.percent}%
+            </span>
           </div>
           <ProgressBar
             percent={s.completion.percent}
@@ -48,31 +50,24 @@ export function ProjectCard({
           />
         </div>
       ) : (
-        <p className="text-xs text-ink-muted">No milestones yet</p>
+        <p className="text-xs text-fg-muted">No milestones yet</p>
       )}
 
       <dl className="space-y-1 text-sm">
         {focus && (
-          <Row icon={<Target aria-hidden className="size-3.5 text-accent" />} term="Now">
+          <Row icon={<Target aria-hidden className="size-3.5 text-fg" />} term="Now">
             {focus.title}
           </Row>
         )}
         {next && (
-          <Row
-            icon={
-              <span aria-hidden className="text-ink-faint">
-                →
-              </span>
-            }
-            term="Next"
-          >
+          <Row icon={<ArrowRight aria-hidden className="size-3.5 text-fg-subtle" />} term="Next">
             {next}
           </Row>
         )}
         {waiting.length > 0 && (
-          <Row icon={<Hourglass aria-hidden className="size-3.5 text-ink-muted" />} term="Waiting">
+          <Row icon={<Hourglass aria-hidden className="size-3.5 text-fg-muted" />} term="Waiting">
             {waiting[0]!.title}
-            {waiting.length > 1 && <span className="text-ink-muted"> +{waiting.length - 1}</span>}
+            {waiting.length > 1 && <span className="text-fg-muted"> +{waiting.length - 1}</span>}
           </Row>
         )}
         {approvals.length > 0 && (
@@ -89,13 +84,13 @@ export function ProjectCard({
         )}
       </dl>
 
-      <div className="mt-auto flex items-end justify-between gap-3 border-t border-line pt-2 text-xs text-ink-muted">
+      <div className="mt-auto flex items-end justify-between gap-3 border-t border-line pt-2 text-xs text-fg-muted">
         <span className="flex items-center gap-1">
           <Clock aria-hidden className="size-3" /> {formatDuration(s.minutesThisWeek)} this week
         </span>
         <Sparkline values={spark} label={`${s.project.name}: work minutes, last 14 days`} />
       </div>
-      <p className="-mt-2 text-[11px] text-ink-muted">
+      <p className="-mt-2 text-[11px] text-fg-muted">
         Moved {formatWhen(s.lastUpdate, new Date())}
       </p>
     </li>

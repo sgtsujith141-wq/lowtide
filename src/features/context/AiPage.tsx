@@ -68,10 +68,10 @@ export function AiPage() {
 
   return (
     <>
-      <h1 className="font-serif text-2xl font-semibold tracking-tight">AI &amp; workspace</h1>
+      <h1 className="text-page font-semibold">AI &amp; workspace</h1>
       {client ? (
         <>
-          <p className="mt-1 max-w-2xl text-sm text-ink-muted">
+          <p className="mt-1 max-w-2xl text-sm text-fg-muted">
             LOWTIDE has no AI built in. Through the companion on this computer, the AI clients you
             allow can read and change LOWTIDE over MCP, each only within the scope you give it.
             Every change is attributed to the client that made it and recorded below.
@@ -80,7 +80,7 @@ export function AiPage() {
         </>
       ) : (
         <>
-          <p className="mt-1 max-w-2xl text-sm text-ink-muted">
+          <p className="mt-1 max-w-2xl text-sm text-fg-muted">
             LOWTIDE has no AI built in and makes no network requests. Here you prepare the context
             an AI may see, and export the technical workspace. To let AI clients like Claude Code
             work with LOWTIDE directly, move LOWTIDE into the companion in{' '}
@@ -89,17 +89,14 @@ export function AiPage() {
             </Link>
             .
           </p>
-          <section
-            aria-labelledby="workspace-heading"
-            className="mt-6 rounded-xl border border-line bg-paper-raised p-4"
-          >
+          <section aria-labelledby="workspace-heading" className="mt-8 border-t border-line pt-6">
             <h2
               id="workspace-heading"
-              className="flex items-center gap-2 font-serif text-lg font-semibold"
+              className="flex items-center gap-2 text-section font-semibold"
             >
-              <FolderDown aria-hidden className="size-5 text-ink-muted" /> Technical workspace
+              <FolderDown aria-hidden className="size-5 text-fg-muted" /> Technical workspace
             </h2>
-            <p className="mt-1 text-sm text-ink-muted">
+            <p className="mt-1 text-sm text-fg-muted">
               A folder of Markdown for every project (PROJECT.md, CONTEXT.md, decisions, notes, AI
               sessions) and hackathons. Unzip it where your tools can read it. With the companion,
               it stays up to date by itself instead.
@@ -117,11 +114,8 @@ export function AiPage() {
         </>
       )}
 
-      <section
-        aria-labelledby="context-heading"
-        className="mt-6 rounded-xl border border-line bg-paper-raised p-4"
-      >
-        <h2 id="context-heading" className="font-serif text-lg font-semibold">
+      <section aria-labelledby="context-heading" className="mt-8 border-t border-line pt-6">
+        <h2 id="context-heading" className="text-section font-semibold">
           Context packs
         </h2>
         <fieldset className="mt-2">
@@ -172,7 +166,7 @@ export function AiPage() {
 
         {scopeKind === 'global' && (
           <fieldset className="mt-3 rounded-md border border-line p-3">
-            <legend className="px-1 text-xs font-medium text-ink-muted">
+            <legend className="px-1 text-xs font-medium text-fg-muted">
               Private areas this assistant may see (off unless you tick them)
             </legend>
             <div className="grid gap-1 text-sm sm:grid-cols-2">
@@ -187,7 +181,7 @@ export function AiPage() {
                 </label>
               ))}
             </div>
-            <p className="mt-2 text-xs text-ink-muted">
+            <p className="mt-2 text-xs text-fg-muted">
               Protected time can’t be granted: it is never part of any context.
             </p>
           </fieldset>
@@ -204,9 +198,7 @@ export function AiPage() {
             />
           )}
           {data && !scope && (
-            <p className="text-sm text-ink-muted">
-              No projects yet. Create one to get its context.
-            </p>
+            <p className="text-sm text-fg-muted">No projects yet. Create one to get its context.</p>
           )}
         </div>
       </section>

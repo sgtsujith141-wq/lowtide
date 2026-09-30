@@ -28,12 +28,12 @@ export function TodayHackathons({ today }: { today: LocalDate }) {
             <Link to="/hackathons" className="font-medium break-words hover:underline">
               {hackathon.name}
             </Link>
-            <p className="mt-0.5 text-sm text-ink-muted">
+            <p className="mt-0.5 text-sm text-fg-muted">
               {label}
               {hackathon.nextAction && (
                 <>
                   {' · '}
-                  <span className="text-ink">Next: {hackathon.nextAction}</span>
+                  <span className="text-fg">Next: {hackathon.nextAction}</span>
                 </>
               )}
             </p>
@@ -42,7 +42,7 @@ export function TodayHackathons({ today }: { today: LocalDate }) {
       </ul>
       {more > 0 && (
         <p className="mt-1.5 text-xs">
-          <Link to="/hackathons" className="text-accent-ink hover:underline">
+          <Link to="/hackathons" className="text-accent-ink underline underline-offset-2">
             See all hackathons ({more} more coming up)
           </Link>
         </p>

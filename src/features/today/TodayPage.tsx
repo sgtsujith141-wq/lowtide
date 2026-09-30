@@ -91,8 +91,8 @@ export function TodayPage() {
   return (
     <>
       <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-        <h1 className="font-serif text-xl font-semibold tracking-tight">Today</h1>
-        <p className="text-sm text-ink-muted">
+        <h1 className="text-page font-semibold">Today</h1>
+        <p className="text-sm text-fg-muted">
           <time dateTime={today}>{format(fromLocalDate(today), 'EEEE d MMMM')}</time>
         </p>
       </div>
@@ -101,7 +101,7 @@ export function TodayPage() {
         <CaptureComposer autoFocus />
         {waitingCount > 0 && (
           <p className="mt-1 text-xs">
-            <Link to="/inbox" className="text-accent-ink hover:underline">
+            <Link to="/inbox" className="text-accent-ink underline underline-offset-2">
               {waitingCount === 1 ? '1 thought' : `${waitingCount} thoughts`} waiting in your inbox
             </Link>
           </p>
@@ -118,7 +118,7 @@ export function TodayPage() {
           <section aria-labelledby="attention-heading" className="mt-7">
             <SectionHeading id="attention-heading">Needs attention</SectionHeading>
             {sections.attention.length === 0 ? (
-              <p className="py-2 text-sm text-ink-muted">Nothing pressing today.</p>
+              <p className="py-2 text-sm text-fg-muted">Nothing pressing today.</p>
             ) : (
               <ul>
                 {sections.attention.map((task) => renderTask(task, 'attention-heading', false))}
@@ -129,7 +129,7 @@ export function TodayPage() {
           <section aria-labelledby="plan-heading" className="mt-7">
             <SectionHeading id="plan-heading">My plan</SectionHeading>
             {sections.planned.length === 0 ? (
-              <p className="py-2 text-sm text-ink-muted">Nothing else planned.</p>
+              <p className="py-2 text-sm text-fg-muted">Nothing else planned.</p>
             ) : (
               <ul>{sections.planned.map((task) => renderTask(task, 'plan-heading', true))}</ul>
             )}

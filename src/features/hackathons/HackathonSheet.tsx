@@ -17,11 +17,11 @@ import { formatRange, primaryMoment, type MomentTone } from './schedule';
 import { StageRail } from './StageRail';
 
 const TONE_CLASS: Record<MomentTone, string> = {
-  past: 'text-ink-muted',
+  past: 'text-fg-muted',
   now: 'text-accent-ink font-medium',
   today: 'text-accent-ink font-medium',
-  soon: 'text-ink',
-  later: 'text-ink-muted',
+  soon: 'text-fg',
+  later: 'text-fg-muted',
 };
 
 type StatusField = 'status' | 'registrationStatus' | 'researchStatus' | 'pptStatus' | 'buildStatus';
@@ -110,8 +110,8 @@ export function HackathonSheet({
       {(moment || range) && (
         <p className="mt-0.5 text-sm">
           {moment && <span className={TONE_CLASS[moment.tone]}>{moment.text}</span>}
-          {moment && range && <span className="text-ink-faint"> · </span>}
-          {range && <span className="text-ink-muted">{range}</span>}
+          {moment && range && <span className="text-fg-subtle"> · </span>}
+          {range && <span className="text-fg-muted">{range}</span>}
         </p>
       )}
 
@@ -165,14 +165,14 @@ export function HackathonSheet({
             type="button"
             onClick={() => setEditingNext(true)}
             aria-label={`Add a next action for ${h.name}`}
-            className="text-sm text-ink-muted underline decoration-line-strong underline-offset-2 hover:text-ink"
+            className="text-sm text-fg-muted underline decoration-line-strong underline-offset-2 hover:text-fg"
           >
             Add a next action
           </button>
         )}
       </div>
 
-      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-muted">
+      <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-fg-muted">
         {QUICK_STATUS.map(({ field, label, values, labels }) => (
           <label key={field} className="inline-flex items-center gap-1">
             <span>{label}</span>
@@ -180,7 +180,7 @@ export function HackathonSheet({
               value={h[field] ?? 'not_started'}
               aria-label={`${label} for ${h.name}`}
               onChange={(e: ChangeEvent<HTMLSelectElement>) => onStatus(field, e.target.value)}
-              className="rounded-sm bg-transparent py-0.5 pr-0.5 text-xs font-medium text-ink hover:bg-paper-sunken"
+              className="rounded-sm bg-transparent py-0.5 pr-0.5 text-xs font-medium text-fg hover:bg-surface"
             >
               {values.map((v) => (
                 <option key={v} value={v}>
@@ -192,7 +192,7 @@ export function HackathonSheet({
         ))}
       </div>
 
-      <p className="mt-1.5 flex flex-wrap items-center gap-x-2 text-xs text-ink-muted">
+      <p className="mt-1.5 flex flex-wrap items-center gap-x-2 text-xs text-fg-muted">
         {project ? (
           <>
             <FolderKanban aria-hidden className="size-3.5" />
@@ -205,7 +205,7 @@ export function HackathonSheet({
             <button
               type="button"
               onClick={onUnlinkProject}
-              className="underline decoration-line-strong underline-offset-2 hover:text-ink"
+              className="underline decoration-line-strong underline-offset-2 hover:text-fg"
             >
               Unlink
             </button>
@@ -214,7 +214,7 @@ export function HackathonSheet({
           <button
             type="button"
             onClick={onTrackProject}
-            className="inline-flex items-center gap-1 underline decoration-line-strong underline-offset-2 hover:text-ink"
+            className="inline-flex items-center gap-1 underline decoration-line-strong underline-offset-2 hover:text-fg"
           >
             <FolderKanban aria-hidden className="size-3.5" />
             Track the build as a project
@@ -224,7 +224,7 @@ export function HackathonSheet({
 
       {hasDetails && (
         <details className="mt-1.5 text-sm">
-          <summary className="cursor-pointer text-xs text-ink-muted select-none hover:text-ink">
+          <summary className="cursor-pointer text-xs text-fg-muted select-none hover:text-fg">
             {[h.problemStatement && 'Problem statement', h.team && 'Team', h.notes && 'Notes']
               .filter(Boolean)
               .join(', ')}
@@ -232,19 +232,19 @@ export function HackathonSheet({
           <dl className="mt-1 grid gap-1.5 border-l-2 border-line pl-3">
             {h.problemStatement && (
               <div>
-                <dt className="text-xs text-ink-muted">Problem statement</dt>
+                <dt className="text-xs text-fg-muted">Problem statement</dt>
                 <dd className="break-words whitespace-pre-wrap">{h.problemStatement}</dd>
               </div>
             )}
             {h.team && (
               <div>
-                <dt className="text-xs text-ink-muted">Team</dt>
+                <dt className="text-xs text-fg-muted">Team</dt>
                 <dd className="break-words">{h.team}</dd>
               </div>
             )}
             {h.notes && (
               <div>
-                <dt className="text-xs text-ink-muted">Notes</dt>
+                <dt className="text-xs text-fg-muted">Notes</dt>
                 <dd className="break-words whitespace-pre-wrap">{h.notes}</dd>
               </div>
             )}

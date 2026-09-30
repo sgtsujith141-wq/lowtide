@@ -71,7 +71,7 @@ export function TasksPage() {
 
   return (
     <>
-      <h1 className="font-serif text-xl font-semibold tracking-tight">Tasks</h1>
+      <h1 className="text-page font-semibold">Tasks</h1>
       <NewTaskForm projects={projects} onCreated={(title) => setAnnouncement(`Added: ${title}`)} />
 
       {error && <ErrorNotice>{error}</ErrorNotice>}
@@ -80,14 +80,11 @@ export function TasksPage() {
       )}
 
       <section aria-labelledby="open-heading" className="mt-6">
-        <h2
-          id="open-heading"
-          className="border-b border-line pb-1.5 text-sm font-medium text-ink-muted"
-        >
+        <h2 id="open-heading" className="border-b border-line pb-2 text-section font-semibold">
           Open{open.status === 'ready' && openTasks.length > 0 ? ` · ${openTasks.length}` : ''}
         </h2>
         {open.status === 'ready' && openTasks.length === 0 && (
-          <p className="py-3 text-sm text-ink-muted">
+          <p className="py-3 text-sm text-fg-muted">
             No open tasks. Add one above, or make one from a thought in your inbox.
           </p>
         )}
@@ -122,7 +119,7 @@ export function TasksPage() {
 
       {closedTasks.length > 0 && (
         <details className="group mt-6">
-          <summary className="cursor-pointer text-sm font-medium text-ink-muted select-none hover:text-ink">
+          <summary className="cursor-pointer text-sm font-medium text-fg-muted select-none hover:text-fg">
             Finished · {closedTasks.length}
           </summary>
           <ul className="mt-1.5 border-t border-line">
@@ -133,11 +130,11 @@ export function TasksPage() {
               >
                 <span className="min-w-0 flex-1">
                   <span
-                    className={`break-words ${task.status === 'done' ? 'text-ink-muted line-through decoration-line-strong' : 'text-ink-muted'}`}
+                    className={`break-words ${task.status === 'done' ? 'text-fg-muted line-through decoration-line-strong' : 'text-fg-muted'}`}
                   >
                     {task.title}
                   </span>
-                  <span className="ml-1 text-xs whitespace-nowrap text-ink-muted">
+                  <span className="ml-1 text-xs whitespace-nowrap text-fg-muted">
                     {' '}
                     {task.status === 'done' ? 'Done' : 'Dropped'}{' '}
                     <time dateTime={task.updatedAt} title={formatFull(task.updatedAt)}>

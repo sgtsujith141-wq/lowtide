@@ -12,7 +12,7 @@ export function SectionHeading({
 }) {
   return (
     <div className="flex min-h-8 items-end justify-between gap-3 border-b border-line pb-1">
-      <h2 id={id} tabIndex={-1} className="text-sm font-medium text-ink-muted">
+      <h2 id={id} tabIndex={-1} className="text-section font-semibold">
         {children}
       </h2>
       {action}

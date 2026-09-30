@@ -176,8 +176,8 @@ export function HackathonsPage() {
 
   return (
     <>
-      <h1 className="font-serif text-xl font-semibold tracking-tight">Hackathons</h1>
-      <p className="mt-1 text-sm text-ink-muted">What’s coming up, and the next step for each.</p>
+      <h1 className="text-page font-semibold">Hackathons</h1>
+      <p className="mt-1 text-sm text-fg-muted">What’s coming up, and the next step for each.</p>
 
       {all.status === 'error' && (
         <ErrorNotice>Couldn’t read your hackathons. Try reloading.</ErrorNotice>
@@ -186,7 +186,7 @@ export function HackathonsPage() {
 
       <section aria-labelledby="coming-up-heading" className="mt-5">
         <div className="flex min-h-8 items-end justify-between gap-3 border-b border-line pb-1">
-          <h2 id="coming-up-heading" className="text-sm font-medium text-ink-muted">
+          <h2 id="coming-up-heading" className="text-section font-semibold">
             Coming up{open.length > 0 ? ` · ${open.length}` : ''}
           </h2>
           {!adding && (
@@ -226,7 +226,7 @@ export function HackathonsPage() {
         )}
 
         {open.length === 0 && !adding && (
-          <p className="py-3 text-sm text-ink-muted">
+          <p className="py-3 text-sm text-fg-muted">
             Nothing on the radar. When a hackathon comes up, add it here; a name and a date are
             enough to start.
           </p>
@@ -238,7 +238,7 @@ export function HackathonsPage() {
         <details className="mt-6">
           <summary
             ref={pastSummary}
-            className="cursor-pointer text-sm font-medium text-ink-muted select-none hover:text-ink"
+            className="cursor-pointer text-sm font-medium text-fg-muted select-none hover:text-fg"
           >
             Past · {past.length}
           </summary>

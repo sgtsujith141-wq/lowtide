@@ -72,23 +72,21 @@ export function Lanes({
 
   return (
     <div>
-      <div className="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
         {PROJECT_LANES.map((lane) => {
           const entries = lane === 'done' ? lanes.done.slice(-6).reverse() : lanes[lane];
           return (
             <section
               key={lane}
               aria-label={LANE_LABEL[lane]}
-              className={`rounded-lg border border-t-4 border-line bg-paper-raised p-2.5 ${LANE_STYLE[lane]} ${
-                entries.length === 0 ? 'border-dashed' : ''
-              }`}
+              className={`min-w-0 border-t-2 pt-2.5 ${entries.length === 0 ? 'border-t-line' : LANE_STYLE[lane]}`}
             >
-              <h3 className="flex items-baseline justify-between text-xs font-semibold tracking-wide text-ink-muted uppercase">
+              <h3 className="flex items-baseline justify-between text-xs font-semibold text-fg-muted">
                 {LANE_LABEL[lane]}
-                <span className="font-normal tabular-nums">{lanes[lane].length}</span>
+                <span className="figure font-normal">{lanes[lane].length}</span>
               </h3>
               {entries.length === 0 ? (
-                <p className="mt-1 text-xs text-ink-muted">Empty</p>
+                <p className="mt-1 text-xs text-fg-muted">Empty</p>
               ) : (
                 <ul className="mt-1.5 space-y-1.5">
                   {entries.map((entry) => {
@@ -96,23 +94,17 @@ export function Lanes({
                     return (
                       <li
                         key={`${entry.kind}-${entry.id}`}
-                        className="rounded-md bg-paper px-2 py-1.5 text-sm leading-snug"
+                        className="rounded-md bg-surface px-2 py-1.5 text-sm leading-snug"
                       >
                         <p
                           className={
-                            lane === 'done'
-                              ? 'text-ink-muted line-through decoration-ink-faint'
-                              : ''
+                            lane === 'done' ? 'text-fg-muted line-through decoration-fg-subtle' : ''
                           }
                         >
                           {entry.title}
                         </p>
-                        {entry.detail && (
-                          <p className="text-xs text-ink-muted">on {entry.detail}</p>
-                        )}
-                        {entry.kind === 'task' && (
-                          <p className="text-[10px] text-ink-muted uppercase">task</p>
-                        )}
+                        {entry.detail && <p className="text-xs text-fg-muted">on {entry.detail}</p>}
+                        {entry.kind === 'task' && <p className="text-[10px] text-fg-muted">Task</p>}
                         {item && (
                           <ItemControls
                             item={item}
@@ -184,7 +176,7 @@ function ItemControls({
           aria-label={`Move ${item.title} to`}
           value=""
           onChange={(e) => e.target.value && onMove(e.target.value as Exclude<ProjectLane, 'done'>)}
-          className="h-7 max-w-28 rounded border border-line bg-paper-raised px-1 text-xs text-ink-muted"
+          className="h-7 max-w-28 rounded-md border border-line bg-surface px-1 text-xs text-fg-muted"
         >
           <option value="">Move…</option>
           {MOVABLE.filter((l) => l !== item.lane).map((l) => (
@@ -251,7 +243,7 @@ function NewItemForm({
     <form
       aria-label="Add to the board"
       onSubmit={(e) => void submit(e)}
-      className="grid max-w-2xl gap-3 rounded-lg border border-line bg-paper-raised p-3 sm:grid-cols-[10rem_1fr]"
+      className="grid max-w-2xl gap-3 rounded-lg border border-line bg-raised p-4 sm:grid-cols-[10rem_1fr]"
     >
       <div>
         <label htmlFor={ids.kind} className={labelClass}>

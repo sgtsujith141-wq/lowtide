@@ -79,11 +79,9 @@ export function OffTimeArea({ today }: { today: LocalDate }) {
       {error && <ErrorNotice>{error}</ErrorNotice>}
 
       <div>
-        <h3 className="text-xs font-semibold tracking-wide text-ink-muted uppercase">
-          Recent windows
-        </h3>
+        <h3 className="text-xs font-semibold text-fg-muted">Recent windows</h3>
         {windows.length === 0 ? (
-          <p className="py-2 text-sm text-ink-muted">No off time marked in the last two weeks.</p>
+          <p className="py-2 text-sm text-fg-muted">No off time marked in the last two weeks.</p>
         ) : (
           <ul className="mt-1 divide-y divide-line">
             {windows.map((w) => {
@@ -92,7 +90,7 @@ export function OffTimeArea({ today }: { today: LocalDate }) {
               );
               return (
                 <li key={w.id} className="flex items-baseline gap-3 py-1.5 text-sm">
-                  <span className="w-24 shrink-0 text-ink-muted">
+                  <span className="w-24 shrink-0 text-fg-muted">
                     {format(fromLocalDate(w.localDate), 'EEE d MMM')}
                   </span>
                   <span className="min-w-0 flex-1">
@@ -105,13 +103,13 @@ export function OffTimeArea({ today }: { today: LocalDate }) {
             })}
           </ul>
         )}
-        <p className="mt-1 text-[11px] text-ink-muted">
+        <p className="mt-1 text-[11px] text-fg-muted">
           Lengths are the windows you marked, not how long you slept.
         </p>
       </div>
 
       <div>
-        <h3 className="text-xs font-semibold tracking-wide text-ink-muted uppercase">Days off</h3>
+        <h3 className="text-xs font-semibold text-fg-muted">Days off</h3>
         <form onSubmit={(e) => void declare(e)} className="mt-1 flex flex-wrap items-end gap-2">
           <div>
             <label htmlFor={dateId} className={labelClass}>
@@ -134,7 +132,7 @@ export function OffTimeArea({ today }: { today: LocalDate }) {
               <li key={d.id} className="flex items-center gap-2 py-1 text-sm">
                 <span className="flex-1">
                   {format(fromLocalDate(d.localDate), 'EEEE d MMMM')}
-                  {d.localDate === today && <span className="ml-1 text-ink-muted">(today)</span>}
+                  {d.localDate === today && <span className="ml-1 text-fg-muted">(today)</span>}
                 </span>
                 <IconButton
                   label={`Remove day off ${format(fromLocalDate(d.localDate), 'EEEE d MMMM')}`}
@@ -145,7 +143,7 @@ export function OffTimeArea({ today }: { today: LocalDate }) {
             ))}
           </ul>
         )}
-        <p className="mt-1 text-[11px] text-ink-muted">
+        <p className="mt-1 text-[11px] text-fg-muted">
           A declared day off can still have a strong Daily Pulse: rest counts.
         </p>
       </div>

@@ -140,7 +140,7 @@ export function HackathonForm({
       onKeyDown={onKeyDown}
       noValidate
       aria-label={formLabel}
-      className="my-2 grid gap-3 rounded-md bg-paper-sunken p-2"
+      className="my-2 grid gap-3 rounded-md bg-surface p-2"
     >
       <div className="grid gap-3 sm:grid-cols-[1fr_9rem_9rem]">
         {input('name', 'Name', {

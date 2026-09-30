@@ -6,7 +6,7 @@ import { Chip, Stat } from '../../components/shared/visuals';
 import { formatDuration } from '../../lib/duration';
 import { Button } from '../../components/ui/Button';
 import { ErrorNotice } from '../../components/ui/Notice';
-import { fieldClass, labelClass } from '../../components/ui/styles';
+import { compactFieldClass, fieldClass, labelClass, tabClass } from '../../components/ui/styles';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useRepositories } from '../../hooks/useRepositories';
 import { useToday } from '../../hooks/useToday';
@@ -49,9 +49,9 @@ export function ProjectRoom() {
   if (project.status === 'error' || !project.data)
     return (
       <>
-        <h1 className="font-serif text-xl font-semibold">Project not found</h1>
+        <h1 className="text-page font-semibold">Project not found</h1>
         <p className="mt-2 text-sm">
-          <Link to="/projects" className="text-accent-ink hover:underline">
+          <Link to="/projects" className="text-accent-ink underline underline-offset-2">
             Back to projects
           </Link>
         </p>
@@ -113,17 +113,14 @@ function Room({ project }: { project: Project }) {
   return (
     <>
       <p className="text-sm">
-        <Link
-          to="/projects"
-          className="inline-flex items-center gap-1 text-ink-muted hover:text-ink"
-        >
+        <Link to="/projects" className="inline-flex items-center gap-1 text-fg-muted hover:text-fg">
           <ArrowLeft aria-hidden className="size-3.5" /> Projects
         </Link>
       </p>
       <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <h1 className="font-serif text-2xl font-semibold tracking-tight">{project.name}</h1>
+        <h1 className="text-page font-semibold">{project.name}</h1>
         <Chip tone={STATE_TONE[project.state]}>{STATE_LABEL[project.state]}</Chip>
-        {project.phase && <span className="text-sm text-ink-muted">Phase: {project.phase}</span>}
+        {project.phase && <span className="text-sm text-fg-muted">Phase: {project.phase}</span>}
         <StartHere project={project} />
         <StateSelect project={project} />
       </div>
@@ -131,7 +128,7 @@ function Room({ project }: { project: Project }) {
       <div
         role="tablist"
         aria-label="Project sections"
-        className="relative mt-5 flex gap-1 overflow-x-auto border-b border-line"
+        className="relative mt-6 flex overflow-x-auto border-b border-line"
       >
         {TABS.map((t, i) => (
           <button
@@ -146,11 +143,7 @@ function Room({ project }: { project: Project }) {
             tabIndex={tab === t ? 0 : -1}
             onClick={() => setTab(t)}
             onKeyDown={(e) => onTabKey(e, i)}
-            className={`-mb-px shrink-0 border-b-2 px-3 py-2 text-sm ${
-              tab === t
-                ? 'border-projects-3 font-semibold text-ink'
-                : 'border-transparent text-ink-muted hover:text-ink'
-            }`}
+            className={tabClass(tab === t)}
           >
             {t}
           </button>
@@ -197,7 +190,7 @@ function Room({ project }: { project: Project }) {
 
             {summary.milestones.length > 0 && (
               <section aria-labelledby={`${baseId}-pipeline`}>
-                <h2 id={`${baseId}-pipeline`} className="mb-2 text-sm font-medium text-ink-muted">
+                <h2 id={`${baseId}-pipeline`} className="mb-3 text-sm font-semibold">
                   Milestones
                 </h2>
                 <MilestonePipeline milestones={summary.milestones} />
@@ -205,7 +198,7 @@ function Room({ project }: { project: Project }) {
             )}
 
             <section aria-labelledby={`${baseId}-lanes`}>
-              <h2 id={`${baseId}-lanes`} className="mb-2 text-sm font-medium text-ink-muted">
+              <h2 id={`${baseId}-lanes`} className="mb-3 text-sm font-semibold">
                 Command board
               </h2>
               <Lanes
@@ -216,23 +209,23 @@ function Room({ project }: { project: Project }) {
               />
             </section>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-x-10 gap-y-8 md:grid-cols-2">
               <section
                 aria-labelledby={`${baseId}-progress`}
-                className="rounded-lg border border-line bg-paper-raised p-3"
+                className="min-w-0 border-t border-line pt-4"
               >
-                <h2 id={`${baseId}-progress`} className="mb-2 text-sm font-medium">
+                <h2 id={`${baseId}-progress`} className="mb-3 text-sm font-semibold">
                   Progress over time
                 </h2>
                 <ProgressChart points={progressSeries(snapshots.data, today)} />
               </section>
               <section
                 aria-labelledby={`${baseId}-time`}
-                className="rounded-lg border border-line bg-paper-raised p-3"
+                className="min-w-0 border-t border-line pt-4"
               >
                 <h2
                   id={`${baseId}-time`}
-                  className="mb-2 flex items-center gap-1.5 text-sm font-medium"
+                  className="mb-3 flex items-center gap-1.5 text-sm font-semibold"
                 >
                   <Clock aria-hidden className="size-3.5" /> Time invested
                 </h2>
@@ -242,9 +235,9 @@ function Room({ project }: { project: Project }) {
 
             <section
               aria-labelledby={`${baseId}-calendar`}
-              className="rounded-lg border border-line bg-paper-raised p-3"
+              className="min-w-0 border-t border-line pt-4"
             >
-              <h2 id={`${baseId}-calendar`} className="mb-1 text-sm font-medium">
+              <h2 id={`${baseId}-calendar`} className="mb-3 text-sm font-semibold">
                 Project activity
               </h2>
               <ContributionGrid
@@ -256,7 +249,7 @@ function Room({ project }: { project: Project }) {
             </section>
 
             <section aria-labelledby={`${baseId}-recent`}>
-              <h2 id={`${baseId}-recent`} className="mb-3 text-sm font-medium text-ink-muted">
+              <h2 id={`${baseId}-recent`} className="mb-3 text-sm font-semibold">
                 Recent activity
               </h2>
               <Timeline projectId={project.id} limit={10} showProject={false} />
@@ -335,7 +328,7 @@ function StateSelect({ project }: { project: Project }) {
               ),
             );
         }}
-        className="h-8 rounded-md border border-line bg-paper-raised px-2 text-sm"
+        className={compactFieldClass}
       >
         {PROJECT_STATES.map((s) => (
           <option key={s} value={s}>
@@ -375,11 +368,11 @@ function ProjectSummaryCard({ project }: { project: Project }) {
     return (
       <div className="text-sm">
         <dl className="grid gap-x-4 gap-y-1 sm:grid-cols-[7rem_1fr]">
-          <dt className="text-ink-muted">Objective</dt>
-          <dd>{project.objective ?? <span className="text-ink-muted">Not set</span>}</dd>
-          <dt className="text-ink-muted">Next action</dt>
+          <dt className="text-fg-muted">Objective</dt>
+          <dd>{project.objective ?? <span className="text-fg-muted">Not set</span>}</dd>
+          <dt className="text-fg-muted">Next action</dt>
           <dd className="font-medium">
-            {project.nextAction ?? <span className="font-normal text-ink-muted">Not set</span>}
+            {project.nextAction ?? <span className="font-normal text-fg-muted">Not set</span>}
           </dd>
         </dl>
         <button
@@ -418,7 +411,7 @@ function ProjectSummaryCard({ project }: { project: Project }) {
     <form
       aria-label="Project details"
       onSubmit={(e) => void save(e)}
-      className="grid max-w-xl gap-3 rounded-lg border border-line bg-paper-raised p-3"
+      className="grid max-w-xl gap-3 rounded-lg border border-line bg-raised p-4"
     >
       {field('objective', ids.objective, 'Objective')}
       {field('phase', ids.phase, 'Current phase')}

@@ -49,7 +49,7 @@ export function TaskEditor({
       onKeyDown={onKeyDown}
       noValidate
       aria-label={`Edit task: ${task.title}`}
-      className="-mx-2 my-1 rounded-md bg-paper-sunken p-2"
+      className="-mx-2 my-1 rounded-md bg-surface p-2"
     >
       <label htmlFor={`${id}-title`} className={labelClass}>
         Title

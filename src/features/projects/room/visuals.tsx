@@ -27,16 +27,16 @@ export function CompletionRing({ percent, label }: { percent: number | null; lab
       </svg>
       <p className="relative text-center" role="img" aria-label={label}>
         {percent === null ? (
-          <span className="block px-3 text-[11px] leading-tight text-ink-muted">
+          <span className="block px-3 text-[11px] leading-tight text-fg-muted">
             No milestones yet
           </span>
         ) : (
           <>
-            <span className="block font-serif text-3xl leading-none font-semibold tabular-nums">
+            <span className="figure block text-figure leading-none font-semibold">
               {percent}
               <span className="text-base">%</span>
             </span>
-            <span className="text-[10px] text-ink-muted">of milestones</span>
+            <span className="text-[10px] text-fg-muted">of milestones</span>
           </>
         )}
       </p>
@@ -70,10 +70,10 @@ export function MilestonePipeline({ milestones }: { milestones: readonly Milesto
                 <span
                   className={`grid size-6 place-items-center rounded-full border-2 ${
                     done
-                      ? 'border-projects-3 bg-projects-3 text-paper'
+                      ? 'border-projects-3 bg-projects-3 text-canvas'
                       : now
                         ? 'border-projects-3 bg-projects-1'
-                        : 'border-line bg-paper-raised'
+                        : 'border-line bg-raised'
                   }`}
                 >
                   {done ? (
@@ -83,7 +83,7 @@ export function MilestonePipeline({ milestones }: { milestones: readonly Milesto
                   ) : null}
                 </span>
                 <span
-                  className={`text-xs leading-tight ${now ? 'font-semibold' : done ? '' : 'text-ink-muted'}`}
+                  className={`text-xs leading-tight ${now ? 'font-semibold' : done ? '' : 'text-fg-muted'}`}
                 >
                   {m.title}
                   <span className="sr-only">
@@ -91,7 +91,7 @@ export function MilestonePipeline({ milestones }: { milestones: readonly Milesto
                   </span>
                 </span>
                 {m.weight !== 1 && (
-                  <span className="text-[10px] text-ink-muted">weight {m.weight}</span>
+                  <span className="text-[10px] text-fg-muted">weight {m.weight}</span>
                 )}
               </span>
             </li>
@@ -105,7 +105,7 @@ export function MilestonePipeline({ milestones }: { milestones: readonly Milesto
 /** Progress over time from real snapshots (step line; carried days are dashed). */
 export function ProgressChart({ points }: { points: readonly ProgressPoint[] }) {
   if (points.length === 0)
-    return <p className="text-sm text-ink-muted">Progress is tracked from the first change on.</p>;
+    return <p className="text-sm text-fg-muted">Progress is tracked from the first change on.</p>;
   const w = 320;
   const h = 90;
   const n = Math.max(1, points.length - 1);
@@ -153,7 +153,7 @@ export function ProgressChart({ points }: { points: readonly ProgressPoint[] }) 
           />
         )}
       </svg>
-      <figcaption className="mt-1 flex justify-between text-[11px] text-ink-muted">
+      <figcaption className="mt-1 flex justify-between text-[11px] text-fg-muted">
         <span>Since {format(fromLocalDate(first), 'd MMM')}</span>
         <span>
           {points.length} day{points.length === 1 ? '' : 's'} tracked
@@ -189,7 +189,7 @@ export function TimeChart({ weeks }: { weeks: readonly WeekBar[] }) {
           </div>
         ))}
       </div>
-      <figcaption className="mt-1 flex justify-between text-[11px] text-ink-muted">
+      <figcaption className="mt-1 flex justify-between text-[11px] text-fg-muted">
         <span>{format(fromLocalDate(weeks[0]!.weekStart), 'd MMM')}</span>
         <span>
           {formatDuration(total)} in {weeks.length} weeks

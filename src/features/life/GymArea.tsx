@@ -56,7 +56,7 @@ export function GymArea({
   return (
     <div className="space-y-4">
       {types.length === 0 && !adding ? (
-        <p className="text-sm text-ink-muted">
+        <p className="text-sm text-fg-muted">
           Add the kinds of session you do (strength, cardio, yoga…) to log them here.
         </p>
       ) : (
@@ -127,7 +127,7 @@ export function GymArea({
             return (
               <li key={t.id} className="flex items-baseline gap-2 py-1.5">
                 <span className="font-medium">{t.name}</span>
-                <span className="text-ink-muted">
+                <span className="text-fg-muted">
                   {t.unit === 'minutes'
                     ? formatDuration(entry.value)
                     : t.unit === 'count'
@@ -135,7 +135,7 @@ export function GymArea({
                       : 'done'}
                 </span>
                 {entry.note && (
-                  <span className="min-w-0 truncate text-ink-muted">· {entry.note}</span>
+                  <span className="min-w-0 truncate text-fg-muted">· {entry.note}</span>
                 )}
               </li>
             );

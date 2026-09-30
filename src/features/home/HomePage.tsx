@@ -25,8 +25,8 @@ export function HomePage() {
   return (
     <>
       <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-        <h1 className="font-serif text-2xl font-semibold tracking-tight">Home</h1>
-        <p className="text-sm text-ink-muted">
+        <h1 className="text-page font-semibold">Home</h1>
+        <p className="text-sm text-fg-muted">
           <time dateTime={today}>{format(fromLocalDate(today), 'EEEE d MMMM')}</time>
         </p>
       </div>
@@ -41,8 +41,12 @@ export function HomePage() {
       <NeedsYou today={today} />
       <TodaySummary today={today} />
 
-      <section aria-labelledby="recent-heading" className="mt-10" data-nonessential>
-        <h2 id="recent-heading" className="font-serif text-lg font-semibold tracking-tight">
+      <section
+        aria-labelledby="recent-heading"
+        className="mt-10 border-t border-line pt-6"
+        data-nonessential
+      >
+        <h2 id="recent-heading" className="text-section font-semibold">
           Recent activity
         </h2>
         <div className="mt-3">

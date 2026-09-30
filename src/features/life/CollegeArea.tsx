@@ -90,21 +90,19 @@ export function CollegeArea({ today }: { today: LocalDate }) {
 
   const row = (item: CollegeItem) => (
     <li key={item.id} className="flex flex-wrap items-center gap-2 py-1.5 text-sm">
-      <span className="w-20 shrink-0 text-[11px] text-ink-muted uppercase">
-        {KIND_LABEL[item.kind]}
-      </span>
+      <span className="w-20 shrink-0 text-[11px] text-fg-muted">{KIND_LABEL[item.kind]}</span>
       <span className="min-w-0 flex-1">
-        <span className={item.status === 'cancelled' ? 'text-ink-muted line-through' : ''}>
+        <span className={item.status === 'cancelled' ? 'text-fg-muted line-through' : ''}>
           {item.title}
         </span>
-        {item.course && <span className="ml-1 text-xs text-ink-muted">· {item.course}</span>}
+        {item.course && <span className="ml-1 text-xs text-fg-muted">· {item.course}</span>}
         {item.date !== today && (
-          <span className="ml-1 text-xs text-ink-muted">
+          <span className="ml-1 text-xs text-fg-muted">
             · {format(fromLocalDate(item.date), 'EEE d MMM')}
           </span>
         )}
         {item.status !== 'planned' && (
-          <span className="ml-2 text-xs text-ink-muted">({STATUS_LABEL[item.status]})</span>
+          <span className="ml-2 text-xs text-fg-muted">({STATUS_LABEL[item.status]})</span>
         )}
       </span>
       {attendable(item) ? (
@@ -142,10 +140,8 @@ export function CollegeArea({ today }: { today: LocalDate }) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-4">
         <p className="text-sm">
-          <span className="font-serif text-2xl font-semibold tabular-nums">
-            {formatDuration(studyMinutes)}
-          </span>
-          <span className="ml-2 text-xs text-ink-muted">studied this week</span>
+          <span className="figure text-2xl font-semibold">{formatDuration(studyMinutes)}</span>
+          <span className="ml-2 text-xs text-fg-muted">studied this week</span>
         </p>
         {!modes.work && !modes.offTime && (
           <Button onClick={() => void startStudy()}>
@@ -156,9 +152,9 @@ export function CollegeArea({ today }: { today: LocalDate }) {
       {error && <ErrorNotice>{error}</ErrorNotice>}
 
       <section aria-label="College today">
-        <h3 className="text-xs font-semibold tracking-wide text-ink-muted uppercase">Today</h3>
+        <h3 className="text-xs font-semibold text-fg-muted">Today</h3>
         {todays.length === 0 ? (
-          <p className="py-2 text-sm text-ink-muted">Nothing scheduled today.</p>
+          <p className="py-2 text-sm text-fg-muted">Nothing scheduled today.</p>
         ) : (
           <ul className="divide-y divide-line">{todays.map(row)}</ul>
         )}
@@ -166,9 +162,7 @@ export function CollegeArea({ today }: { today: LocalDate }) {
 
       {(overdue.length > 0 || upcoming.length > 0) && (
         <section aria-label="College coming up">
-          <h3 className="text-xs font-semibold tracking-wide text-ink-muted uppercase">
-            Coming up
-          </h3>
+          <h3 className="text-xs font-semibold text-fg-muted">Coming up</h3>
           <ul className="divide-y divide-line">
             {overdue.map(row)}
             {upcoming.map(row)}
@@ -211,7 +205,7 @@ function NewCollegeItem({ today, onDone }: { today: LocalDate; onDone: () => voi
     <form
       aria-label="Add to college"
       onSubmit={(e) => void submit(e)}
-      className="grid max-w-2xl gap-3 rounded-lg border border-line bg-paper-raised p-3 sm:grid-cols-2"
+      className="grid max-w-2xl gap-3 rounded-lg border border-line bg-raised p-4 sm:grid-cols-2"
     >
       <div>
         <label htmlFor={ids.kind} className={labelClass}>

@@ -40,8 +40,8 @@ export function LifePage() {
 
   return (
     <>
-      <h1 className="font-serif text-2xl font-semibold tracking-tight">Life</h1>
-      <p className="mt-1 text-sm text-ink-muted">
+      <h1 className="text-page font-semibold">Life</h1>
+      <p className="mt-1 text-sm text-fg-muted">
         Routines, rest, movement and college. Recorded, never scored against you.
       </p>
 
@@ -57,7 +57,7 @@ export function LifePage() {
             empty="Add routines such as tablets (done or not), face wash (a count), a morning or night routine."
             onChange={setAnnouncement}
           />
-          <p className="mt-2 text-[11px] text-ink-muted">
+          <p className="mt-2 text-[11px] text-fg-muted">
             Medication and tablets: LOWTIDE records only whether you took them, and gives no dosage
             advice.
           </p>
@@ -98,12 +98,9 @@ function Area({
   const cells = useMemo(() => gridDays(days, grid), [days, grid]);
   const headingId = `life-${grid}`;
   return (
-    <section
-      aria-labelledby={headingId}
-      className="min-w-0 rounded-xl border border-line bg-paper-raised p-4"
-    >
-      <h2 id={headingId} className="flex items-center gap-2 font-serif text-lg font-semibold">
-        <Icon aria-hidden className="size-5 text-ink-muted" /> {title}
+    <section aria-labelledby={headingId} className="min-w-0 border-t border-line pt-5">
+      <h2 id={headingId} className="flex items-center gap-2 text-section font-semibold">
+        <Icon aria-hidden className="size-5 text-fg-muted" /> {title}
       </h2>
       <div className="mt-2">
         <RangeGrid name={title} today={today} days={cells} palette={grid} initial="90" />

@@ -152,23 +152,20 @@ export function DataPage() {
 
   return (
     <>
-      <h1 className="font-serif text-xl font-semibold tracking-tight">Data &amp; backup</h1>
-      <p className="mt-1 text-sm text-ink-muted">
+      <h1 className="text-page font-semibold">Data &amp; backup</h1>
+      <p className="mt-1 text-sm text-fg-muted">
         {companion
           ? 'LOWTIDE is local-first. Your data lives in the LOWTIDE companion’s database on this computer (see Settings); backups and restores work the same way.'
           : 'LOWTIDE is local-first. Your data lives in this browser unless you export a copy.'}
       </p>
 
       <section aria-labelledby={`${id}-backup`} className="mt-6">
-        <h2
-          id={`${id}-backup`}
-          className="border-b border-line pb-1.5 text-sm font-medium text-ink-muted"
-        >
+        <h2 id={`${id}-backup`} className="border-b border-line pb-2 text-section font-semibold">
           Backup
         </h2>
         <p className="mt-2 text-sm">Export a copy of everything in LOWTIDE as a JSON file.</p>
-        <p className="mt-1 text-sm text-ink-muted">
-          <strong className="font-medium text-ink">Backup files are not encrypted.</strong> Anyone
+        <p className="mt-1 text-sm text-fg-muted">
+          <strong className="font-medium text-fg">Backup files are not encrypted.</strong> Anyone
           with the file can read everything in it: tasks, notes, protected time, rhythms and
           hackathons. Keep it somewhere you trust.
         </p>
@@ -177,17 +174,14 @@ export function DataPage() {
           Download backup
         </Button>
         {/* Always present so screen readers announce the text when it arrives. */}
-        <p role="status" className="mt-2 min-h-5 text-sm text-ink-muted">
+        <p role="status" className="mt-2 min-h-5 text-sm text-fg-muted">
           {exportStatus?.ok ? exportStatus.text : ''}
         </p>
         {exportStatus && !exportStatus.ok && <ErrorNotice>{exportStatus.text}</ErrorNotice>}
       </section>
 
       <section aria-labelledby={`${id}-restore`} className="mt-7">
-        <h2
-          id={`${id}-restore`}
-          className="border-b border-line pb-1.5 text-sm font-medium text-ink-muted"
-        >
+        <h2 id={`${id}-restore`} className="border-b border-line pb-2 text-section font-semibold">
           Restore
         </h2>
         <p className="mt-2 text-sm">
@@ -206,7 +200,7 @@ export function DataPage() {
           onChange={(e) => void onFile(e)}
           aria-describedby={fileError ? `${id}-file-error` : undefined}
           aria-invalid={fileError ? true : undefined}
-          className="mt-1 block w-full max-w-full text-sm text-ink-muted file:mr-3 file:rounded-md file:border file:border-line file:bg-paper-raised file:px-2.5 file:py-1 file:text-sm file:text-ink"
+          className="mt-1 block w-full max-w-full text-sm text-fg-muted file:mr-3 file:rounded-md file:border file:border-line file:bg-raised file:px-2.5 file:py-1 file:text-sm file:text-fg"
         />
         {fileError && <ErrorNotice id={`${id}-file-error`}>{fileError}</ErrorNotice>}
 
@@ -222,17 +216,17 @@ export function DataPage() {
         )}
 
         {preview && (
-          <div className="mt-4 rounded-md border border-line bg-paper-raised p-3">
+          <div className="mt-4 rounded-lg border border-line bg-raised p-4">
             <h3 ref={previewHeading} tabIndex={-1} className="font-medium">
               Backup from {format(new Date(preview.backup.exportedAt), 'd MMM yyyy, HH:mm')}
             </h3>
-            <p className="mt-0.5 text-xs text-ink-muted">
+            <p className="mt-0.5 text-xs text-fg-muted">
               {preview.fileName} · {describeSourceSchema(preview.backup.sourceSchemaVersion)}
             </p>
             <table className="mt-3 w-full max-w-sm text-sm">
               <caption className="sr-only">Records in the backup and in this browser now</caption>
               <thead>
-                <tr className="text-left text-xs text-ink-muted">
+                <tr className="text-left text-xs text-fg-muted">
                   <th scope="col" className="py-1 font-normal">
                     <span className="sr-only">Kind</span>
                   </th>
@@ -251,7 +245,7 @@ export function DataPage() {
                       {label}
                     </th>
                     <td className="py-1 text-right">{preview.backup.counts[key]}</td>
-                    <td className="py-1 text-right text-ink-muted">
+                    <td className="py-1 text-right text-fg-muted">
                       {current ? current[key] : '–'}
                     </td>
                   </tr>
@@ -295,10 +289,7 @@ export function DataPage() {
 
       {!companion && (
         <section aria-labelledby={`${id}-storage`} className="mt-7">
-          <h2
-            id={`${id}-storage`}
-            className="border-b border-line pb-1.5 text-sm font-medium text-ink-muted"
-          >
+          <h2 id={`${id}-storage`} className="border-b border-line pb-2 text-section font-semibold">
             Browser storage
           </h2>
           {persistence && (
@@ -316,7 +307,7 @@ export function DataPage() {
               Ask browser to keep LOWTIDE data
             </Button>
           )}
-          <p className="mt-2 text-xs text-ink-muted">
+          <p className="mt-2 text-xs text-fg-muted">
             Persistent storage only makes the browser less likely to clear LOWTIDE when space runs
             low. It doesn’t survive clearing site data, deleting the browser profile or losing the
             device, so backups still matter.

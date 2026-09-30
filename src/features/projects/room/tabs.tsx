@@ -121,11 +121,11 @@ function TaskList({
 }) {
   return (
     <section aria-label={`${title} tasks`}>
-      <h3 className="text-xs font-semibold tracking-wide text-ink-muted uppercase">
+      <h3 className="text-xs font-semibold text-fg-muted">
         {title} ({tasks.length})
       </h3>
       {tasks.length === 0 ? (
-        <p className="py-1 text-sm text-ink-muted">None.</p>
+        <p className="py-1 text-sm text-fg-muted">None.</p>
       ) : (
         <ul className="mt-1 divide-y divide-line">
           {tasks.map((t) => (
@@ -139,10 +139,8 @@ function TaskList({
               ) : (
                 <Check aria-hidden className="size-4 text-pulse-3" />
               )}
-              <span className={`text-sm ${onComplete ? '' : 'text-ink-muted'}`}>{t.title}</span>
-              {t.status === 'doing' && (
-                <span className="text-[10px] text-accent-ink uppercase">now</span>
-              )}
+              <span className={`text-sm ${onComplete ? '' : 'text-fg-muted'}`}>{t.title}</span>
+              {t.status === 'doing' && <span className="text-[10px] text-accent-ink">Now</span>}
             </li>
           ))}
         </ul>
@@ -183,12 +181,9 @@ export function MilestonesTab({
 
   return (
     <div className="space-y-5">
-      <ol
-        aria-label="Milestones"
-        className="divide-y divide-line rounded-lg border border-line bg-paper-raised"
-      >
+      <ol aria-label="Milestones" className="divide-y divide-line border-y border-line">
         {milestones.length === 0 && (
-          <li className="p-3 text-sm text-ink-muted">
+          <li className="p-3 text-sm text-fg-muted">
             No milestones yet. Completion is shown only once there are milestones, and only from
             them.
           </li>
@@ -212,11 +207,11 @@ export function MilestonesTab({
             />
             <span className="min-w-0 flex-1">
               <span
-                className={`text-sm ${m.completedAt ? 'text-ink-muted line-through' : 'font-medium'}`}
+                className={`text-sm ${m.completedAt ? 'text-fg-muted line-through' : 'font-medium'}`}
               >
                 {m.title}
               </span>
-              <span className="ml-2 text-xs text-ink-muted">
+              <span className="ml-2 text-xs text-fg-muted">
                 weight {m.weight}
                 {m.dueOn ? ` · due ${m.dueOn}` : ''}
                 {m.completedAt ? ` · done ${formatWhen(m.completedAt, new Date())}` : ''}
@@ -338,27 +333,27 @@ export function DocsTab({ project }: { project: Project }) {
         <h3 id="decisions-heading" className="text-sm font-semibold">
           Decision log
         </h3>
-        <p className="text-xs text-ink-muted">
+        <p className="text-xs text-fg-muted">
           Decisions are never edited; a newer one supersedes an older one.
         </p>
         {list.length === 0 ? (
-          <p className="mt-2 text-sm text-ink-muted">No decisions recorded yet.</p>
+          <p className="mt-2 text-sm text-fg-muted">No decisions recorded yet.</p>
         ) : (
           <ol className="mt-2 space-y-2">
             {list.map((d) => (
               <li
                 key={d.id}
-                className={`rounded-lg border border-line bg-paper-raised p-3 ${superseded.has(d.id) ? 'opacity-60' : ''}`}
+                className={`border-b border-line py-4 first:pt-0 ${superseded.has(d.id) ? 'opacity-60' : ''}`}
               >
                 <p className="text-sm font-medium">
                   {d.title}
                   {superseded.has(d.id) && (
-                    <span className="ml-2 text-xs font-normal text-ink-muted">superseded</span>
+                    <span className="ml-2 text-xs font-normal text-fg-muted">superseded</span>
                   )}
                 </p>
                 <p className="mt-0.5 text-sm">{d.decision}</p>
-                {d.context && <p className="mt-1 text-xs text-ink-muted">Context: {d.context}</p>}
-                <p className="mt-1 text-[11px] text-ink-muted">
+                {d.context && <p className="mt-1 text-xs text-fg-muted">Context: {d.context}</p>}
+                <p className="mt-1 text-[11px] text-fg-muted">
                   <time dateTime={d.decidedAt} title={formatFull(d.decidedAt)}>
                     {formatWhen(d.decidedAt, new Date())}
                   </time>
@@ -376,7 +371,7 @@ export function DocsTab({ project }: { project: Project }) {
       <form
         aria-label="Record a decision"
         onSubmit={(e) => void record(e)}
-        className="max-w-2xl space-y-3 rounded-lg border border-line bg-paper-raised p-3"
+        className="max-w-2xl space-y-3 rounded-lg border border-line bg-raised p-4"
       >
         <div>
           <label htmlFor={ids.title} className={labelClass}>
@@ -438,7 +433,7 @@ export function DocsTab({ project }: { project: Project }) {
         </Button>
       </form>
       <Notes project={project} />
-      <p className="text-xs text-ink-muted">
+      <p className="text-xs text-fg-muted">
         Notes and decisions also appear in the project’s workspace folder (
         <code>projects/{project.slug}/</code>): kept up to date by the companion, or in a workspace
         export.
@@ -482,16 +477,16 @@ function Notes({ project }: { project: Project }) {
         Notes
       </h3>
       {list.status === 'ready' && items.length === 0 && (
-        <p className="text-sm text-ink-muted">No notes yet.</p>
+        <p className="text-sm text-fg-muted">No notes yet.</p>
       )}
       {items.length > 0 && (
         <ol className="space-y-2">
           {items.map((n) => (
-            <li key={n.id} className="rounded-lg border border-line bg-paper-raised p-3">
+            <li key={n.id} className="border-b border-line py-4 first:pt-0">
               <details>
                 <summary className="cursor-pointer text-sm font-medium">
                   {n.title}{' '}
-                  <span className="text-xs font-normal text-ink-muted">
+                  <span className="text-xs font-normal text-fg-muted">
                     {NOTE_KIND_LABEL[n.kind]} ·{' '}
                     {n.author === 'ai-client' ? `by ${n.client ?? 'an AI client'}` : 'by you'} ·{' '}
                     <time dateTime={n.createdAt} title={formatFull(n.createdAt)}>
@@ -508,7 +503,7 @@ function Notes({ project }: { project: Project }) {
       <form
         aria-label="Add a note"
         onSubmit={(e) => void add(e)}
-        className="max-w-2xl space-y-3 rounded-lg border border-line bg-paper-raised p-3"
+        className="max-w-2xl space-y-3 rounded-lg border border-line bg-raised p-4"
       >
         <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
           <div>
@@ -570,7 +565,7 @@ export function AiSessionsList({ project }: { project: Project }) {
   if (sessions.status !== 'ready') return null;
   if (sessions.data.length === 0)
     return (
-      <p className="text-sm text-ink-muted">
+      <p className="text-sm text-fg-muted">
         No AI sessions have been reported for this project. LOWTIDE never invents them: a session
         appears here only when a connected, authorised AI client reports one.
       </p>
@@ -578,21 +573,21 @@ export function AiSessionsList({ project }: { project: Project }) {
   return (
     <ol className="space-y-2">
       {sessions.data.map((s) => (
-        <li key={s.id} className="rounded-lg border border-line bg-paper-raised p-3 text-sm">
+        <li key={s.id} className="border-b border-line py-4 text-sm first:pt-0">
           <p className="font-medium">{s.client}</p>
           <p className="mt-0.5">{s.summary}</p>
           {s.result && <p className="mt-1 text-xs">Result: {s.result}</p>}
           {s.nextAction && <p className="mt-0.5 text-xs">Next: {s.nextAction}</p>}
           {s.commits?.length ? (
-            <p className="mt-0.5 font-mono text-[11px] text-ink-muted">{s.commits.join(' ')}</p>
+            <p className="mt-0.5 font-mono text-[11px] text-fg-muted">{s.commits.join(' ')}</p>
           ) : null}
           {s.handoff && (
             <details className="mt-1 text-xs">
-              <summary className="cursor-pointer text-ink-muted">Handoff</summary>
+              <summary className="cursor-pointer text-fg-muted">Handoff</summary>
               <pre className="mt-1 font-sans whitespace-pre-wrap">{s.handoff}</pre>
             </details>
           )}
-          <p className="mt-1 text-[11px] text-ink-muted">
+          <p className="mt-1 text-[11px] text-fg-muted">
             {formatWhen(s.startedAt, new Date())} · scope {s.scope}
           </p>
         </li>
@@ -622,9 +617,9 @@ export function GithubTab({ project }: { project: Project }) {
           </a>
         </p>
       ) : (
-        <p className="text-ink-muted">No repository set. Add one in the project details.</p>
+        <p className="text-fg-muted">No repository set. Add one in the project details.</p>
       )}
-      <p className="text-ink-muted">
+      <p className="text-fg-muted">
         LOWTIDE fetches nothing from GitHub. A read-only, repository-scoped connection is planned
         through the local companion, with the token kept outside the browser (ADR-041).
       </p>
@@ -637,7 +632,7 @@ export function GithubTab({ project }: { project: Project }) {
 export function HistoryTab({ project }: { project: Project }) {
   return (
     <div>
-      <p className="mb-3 text-xs text-ink-muted">
+      <p className="mb-3 text-xs text-fg-muted">
         Everything that happened in {project.name}, newest first, from the timeline ledger.
       </p>
       <Timeline projectId={project.id} limit={200} showProject={false} />

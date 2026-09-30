@@ -87,7 +87,7 @@ export function HabitForm({
       onKeyDown={onKeyDown}
       noValidate
       aria-label={formLabel}
-      className="my-2 grid gap-3 rounded-md bg-paper-sunken p-2 sm:grid-cols-2"
+      className="my-2 grid gap-3 rounded-md bg-surface p-2 sm:grid-cols-2"
     >
       <div className="sm:col-span-2">
         <label htmlFor={`${id}-name`} className={labelClass}>

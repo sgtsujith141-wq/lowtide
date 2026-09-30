@@ -18,10 +18,10 @@ interface Need {
 }
 
 const TONE = {
-  approval: { icon: Hand, ring: 'border-l-work-3', label: 'Needs approval' },
-  blocked: { icon: AlertOctagon, ring: 'border-l-danger', label: 'Blocked' },
-  due: { icon: CalendarClock, ring: 'border-l-warn', label: 'Due' },
-  hackathon: { icon: Trophy, ring: 'border-l-accent', label: 'Hackathon' },
+  approval: { icon: Hand, tint: 'text-warn', label: 'Needs approval' },
+  blocked: { icon: AlertOctagon, tint: 'text-danger', label: 'Blocked' },
+  due: { icon: CalendarClock, tint: 'text-warn', label: 'Due' },
+  hackathon: { icon: Trophy, tint: 'text-accent-ink', label: 'Hackathon' },
 } as const;
 
 /**
@@ -113,19 +113,17 @@ export function NeedsYou({ today }: { today: LocalDate }) {
 
   if (!needs) return null;
   return (
-    <section aria-labelledby="needs-heading" className="mt-10">
-      <h2 id="needs-heading" className="font-serif text-lg font-semibold tracking-tight">
+    <section aria-labelledby="needs-heading" className="mt-10 border-t border-line pt-6">
+      <h2 id="needs-heading" className="flex items-baseline gap-2 text-section font-semibold">
         Needs you
         {needs.length > 0 && (
-          <span className="ml-2 rounded-full bg-work-1 px-2 py-0.5 align-middle font-sans text-xs font-semibold text-warn">
-            {needs.length}
-          </span>
+          <span className="figure text-sm font-semibold text-warn">{needs.length}</span>
         )}
       </h2>
       {needs.length === 0 ? (
-        <p className="mt-2 text-sm text-ink-muted">Nothing is waiting on you.</p>
+        <p className="mt-2 text-sm text-fg-muted">Nothing is waiting on you.</p>
       ) : (
-        <ul className="mt-2 grid gap-2 sm:grid-cols-2">
+        <ul className="mt-3 grid gap-x-8 border-t border-line sm:grid-cols-2 [&>li]:border-b [&>li]:border-line">
           {needs.map((need) => {
             const tone = TONE[need.tone];
             const Icon = tone.icon;
@@ -133,14 +131,14 @@ export function NeedsYou({ today }: { today: LocalDate }) {
               <li key={need.key}>
                 <Link
                   to={need.to}
-                  className={`flex items-start gap-3 rounded-lg border border-l-4 border-line ${tone.ring} bg-paper-raised px-3 py-2.5 hover:border-line-strong`}
+                  className="-mx-2 flex items-start gap-3 rounded-md px-2 py-2.5 transition-colors duration-150 hover:bg-hover"
                 >
-                  <Icon aria-hidden className="mt-0.5 size-4 shrink-0 text-ink-muted" />
+                  <Icon aria-hidden className={`mt-0.5 size-4 shrink-0 ${tone.tint}`} />
                   <span className="min-w-0">
                     <span className="block text-sm leading-snug font-medium">{need.title}</span>
-                    <span className="block text-xs text-ink-muted">
-                      <span className="sr-only">{tone.label}: </span>
-                      {need.context}
+                    <span className="block text-xs text-fg-muted">
+                      <span className={tone.tint}>{tone.label}</span>
+                      <span className="ml-2">{need.context}</span>
                     </span>
                   </span>
                 </Link>

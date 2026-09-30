@@ -125,7 +125,7 @@ export function ProtectedTimeSection({ date: today }: { date: LocalDate }) {
         <Icon aria-hidden className="mt-1 size-4 shrink-0 text-accent-ink" />
         <div className="min-w-0 flex-1">
           <p className="break-words">{entry.title}</p>
-          <p className="mt-0.5 text-xs break-words text-ink-muted">
+          <p className="mt-0.5 text-xs break-words text-fg-muted">
             {KIND_LABEL[entry.kind]}
             {entry.notes && <span> · {entry.notes}</span>}
           </p>
@@ -150,7 +150,7 @@ export function ProtectedTimeSection({ date: today }: { date: LocalDate }) {
   return (
     <section aria-labelledby="protected-heading" className="mt-7">
       <SectionHeading id="protected-heading">Protected time</SectionHeading>
-      <p className="mt-1 text-xs text-ink-muted">This week: today and the next six days.</p>
+      <p className="mt-1 text-xs text-fg-muted">This week: today and the next six days.</p>
 
       {error && <ErrorNotice>{error}</ErrorNotice>}
       {entries.status === 'error' && (
@@ -171,11 +171,11 @@ export function ProtectedTimeSection({ date: today }: { date: LocalDate }) {
                   <span className={day.heading === 'Today' ? 'font-medium' : ''}>
                     {day.heading}
                   </span>{' '}
-                  <span className="block text-xs text-ink-muted">{day.short}</span>
+                  <span className="block text-xs text-fg-muted">{day.short}</span>
                 </h3>
                 <div className="min-w-0 flex-1">
                   {dayEntries.length === 0 ? (
-                    <p className="pt-0.5 text-sm text-ink-muted">Nothing planned here yet.</p>
+                    <p className="pt-0.5 text-sm text-fg-muted">Nothing planned here yet.</p>
                   ) : (
                     <ul className="border-l-2 border-accent-soft pl-3">
                       {dayEntries.map((entry) => renderEntry(entry, day))}

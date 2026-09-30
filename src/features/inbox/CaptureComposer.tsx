@@ -57,7 +57,7 @@ export function CaptureComposer({ autoFocus = false }: { autoFocus?: boolean }) 
 
   return (
     <form onSubmit={onSubmit}>
-      <h2 className="mb-1.5 text-sm font-medium text-ink-muted">
+      <h2 className="mb-2 text-section font-semibold">
         <label htmlFor={`${id}-text`}>What’s taking up space?</label>
       </h2>
       <textarea
@@ -74,7 +74,7 @@ export function CaptureComposer({ autoFocus = false }: { autoFocus?: boolean }) 
         className={`${fieldClass} max-h-[40vh] min-h-[4rem] resize-none text-base leading-relaxed [field-sizing:content]`}
       />
       <div className="mt-1.5 flex items-center justify-between gap-3">
-        <p id={`${id}-hint`} className="text-xs text-ink-muted">
+        <p id={`${id}-hint`} className="text-xs text-fg-muted">
           <kbd className="font-sans">Enter</kbd> saves ·{' '}
           <kbd className="font-sans">Shift+Enter</kbd> new line
         </p>

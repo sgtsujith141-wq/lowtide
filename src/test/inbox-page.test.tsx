@@ -63,7 +63,13 @@ describe('Inbox page', () => {
     const [task] = await repositories.tasks.listOpen();
     expect(task).toMatchObject({ title: 'Book the dentist', notes: 'after 5pm' });
 
-    await user.click(screen.getByRole('link', { name: 'Tasks' }));
+    // Tasks is a secondary destination, behind the rail's launcher.
+    await user.click(screen.getByRole('button', { name: 'More destinations' }));
+    await user.click(
+      within(screen.getByRole('navigation', { name: 'More destinations' })).getByRole('link', {
+        name: 'Tasks',
+      }),
+    );
     expect(await screen.findByText('Book the dentist')).toBeInTheDocument();
     expect(screen.getByText('after 5pm')).toBeInTheDocument();
   });

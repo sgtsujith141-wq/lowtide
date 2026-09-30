@@ -69,14 +69,14 @@ export function InboxPage() {
   return (
     <>
       <div className="flex items-baseline justify-between gap-3">
-        <h1 ref={heading} tabIndex={-1} className="font-serif text-xl font-semibold tracking-tight">
+        <h1 ref={heading} tabIndex={-1} className="text-page font-semibold">
           Inbox
         </h1>
         {items.status === 'ready' && items.data.length > 0 && (
-          <p className="text-sm text-ink-muted tabular-nums">{items.data.length} to sort</p>
+          <p className="text-sm text-fg-muted tabular-nums">{items.data.length} to sort</p>
         )}
       </div>
-      <p className="mt-1 text-sm text-ink-muted">
+      <p className="mt-1 text-sm text-fg-muted">
         Make each one a task, or clear it if it needs nothing more.
       </p>
 
@@ -86,7 +86,7 @@ export function InboxPage() {
       )}
 
       {items.status === 'ready' && items.data.length === 0 && (
-        <p className="mt-6 text-sm text-ink-muted">
+        <p className="mt-6 text-sm text-fg-muted">
           Nothing waiting. When something’s on your mind,{' '}
           <Link to="/" className="text-accent-ink underline underline-offset-2">
             put it down here
@@ -115,7 +115,7 @@ export function InboxPage() {
                   <time
                     dateTime={item.createdAt}
                     title={formatFull(item.createdAt)}
-                    className="text-xs text-ink-muted tabular-nums"
+                    className="text-xs text-fg-muted tabular-nums"
                   >
                     {formatWhen(item.createdAt, now)}
                   </time>

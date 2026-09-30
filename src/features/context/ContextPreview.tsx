@@ -63,7 +63,7 @@ export function ContextPreview({
       <pre
         tabIndex={0}
         aria-label="Context preview"
-        className="mt-3 max-h-96 overflow-auto rounded-lg border border-line bg-paper-sunken p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap"
+        className="mt-3 max-h-96 overflow-auto rounded-lg border border-line bg-surface p-3 font-mono text-xs leading-relaxed whitespace-pre-wrap"
       >
         {markdown || 'Nothing to show for this scope.'}
       </pre>

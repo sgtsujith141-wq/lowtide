@@ -28,8 +28,8 @@ export function StageRail({ hackathon }: { hackathon: Hackathon }) {
               stage.state === 'done'
                 ? 'bg-accent-soft text-accent-ink'
                 : stage.state === 'active'
-                  ? 'bg-work-1 font-medium text-ink'
-                  : 'text-ink-muted'
+                  ? 'bg-work-1 font-medium text-fg'
+                  : 'text-fg-muted'
             }`}
           >
             {stage.state === 'done' ? (
@@ -38,7 +38,7 @@ export function StageRail({ hackathon }: { hackathon: Hackathon }) {
               <span
                 aria-hidden
                 className={`size-1.5 rounded-full ${
-                  stage.state === 'active' ? 'bg-work-3' : 'border border-ink-faint'
+                  stage.state === 'active' ? 'bg-work-3' : 'border border-fg-subtle'
                 }`}
               />
             )}

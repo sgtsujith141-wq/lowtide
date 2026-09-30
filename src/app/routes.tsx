@@ -1,4 +1,5 @@
 import type { ComponentType } from 'react';
+import { Page, type PageWidth } from '../components/layout';
 import type { RouteObject } from 'react-router';
 import { NotFound } from './NotFound';
 import { RouteError } from './RouteError';
@@ -24,6 +25,7 @@ const screens = {
   calendar: () => import('../features/calendar/CalendarPage'),
   ai: () => import('../features/context/AiPage'),
   settings: () => import('../features/settings/SettingsPage'),
+  space: () => import('../features/space/SpacePage'),
 };
 
 /** Warms every screen chunk. Safe to call more than once; resolves when all have loaded. */
@@ -31,13 +33,16 @@ export async function prefetchScreens(): Promise<void> {
   await Promise.all(Object.values(screens).map((load) => load()));
 }
 
-/** v0.1 screens keep their reading width inside the wider v2 frame. */
-function narrow(Page: ComponentType): ComponentType {
-  return function Narrow() {
+/**
+ * Each screen in its frame (v2 PHASE 011): `reading` for forms and prose,
+ * `standard` for lists, `wide` for grids, boards and calendars.
+ */
+function framed(Screen: ComponentType, width: PageWidth): ComponentType {
+  return function Framed() {
     return (
-      <div className="max-w-2xl">
-        <Page />
-      </div>
+      <Page width={width}>
+        <Screen />
+      </Page>
     );
   };
 }
@@ -51,46 +56,69 @@ export const routes: RouteObject[] = [
     // Rendered only while the very first screen chunk loads (milliseconds, locally).
     HydrateFallback: () => null,
     children: [
-      { index: true, lazy: async () => ({ Component: (await screens.home()).HomePage }) },
+      {
+        index: true,
+        lazy: async () => ({ Component: framed((await screens.home()).HomePage, 'wide') }),
+      },
       {
         path: 'projects',
-        lazy: async () => ({ Component: (await screens.projects()).ProjectsPage }),
+        lazy: async () => ({ Component: framed((await screens.projects()).ProjectsPage, 'wide') }),
       },
       {
         path: 'projects/:slug',
-        lazy: async () => ({ Component: (await screens.room()).ProjectRoom }),
+        lazy: async () => ({ Component: framed((await screens.room()).ProjectRoom, 'wide') }),
       },
       {
         path: 'today',
-        lazy: async () => ({ Component: narrow((await screens.today()).TodayPage) }),
+        lazy: async () => ({ Component: framed((await screens.today()).TodayPage, 'standard') }),
       },
       {
         path: 'inbox',
-        lazy: async () => ({ Component: narrow((await screens.inbox()).InboxPage) }),
+        lazy: async () => ({ Component: framed((await screens.inbox()).InboxPage, 'reading') }),
       },
       {
         path: 'tasks',
-        lazy: async () => ({ Component: narrow((await screens.tasks()).TasksPage) }),
+        lazy: async () => ({ Component: framed((await screens.tasks()).TasksPage, 'standard') }),
       },
       {
         path: 'rhythm',
-        lazy: async () => ({ Component: narrow((await screens.rhythm()).RhythmPage) }),
+        lazy: async () => ({ Component: framed((await screens.rhythm()).RhythmPage, 'standard') }),
       },
-      { path: 'data', lazy: async () => ({ Component: narrow((await screens.data()).DataPage) }) },
+      {
+        path: 'data',
+        lazy: async () => ({ Component: framed((await screens.data()).DataPage, 'reading') }),
+      },
       {
         path: 'hackathons',
-        lazy: async () => ({ Component: narrow((await screens.hackathons()).HackathonsPage) }),
+        lazy: async () => ({
+          Component: framed((await screens.hackathons()).HackathonsPage, 'standard'),
+        }),
       },
-      { path: 'more', lazy: async () => ({ Component: (await screens.more()).MorePage }) },
-      { path: 'life', lazy: async () => ({ Component: (await screens.life()).LifePage }) },
-      { path: 'ai', lazy: async () => ({ Component: (await screens.ai()).AiPage }) },
+      {
+        path: 'more',
+        lazy: async () => ({ Component: framed((await screens.more()).MorePage, 'reading') }),
+      },
+      {
+        path: 'life',
+        lazy: async () => ({ Component: framed((await screens.life()).LifePage, 'wide') }),
+      },
+      {
+        path: 'ai',
+        lazy: async () => ({ Component: framed((await screens.ai()).AiPage, 'standard') }),
+      },
       {
         path: 'settings',
-        lazy: async () => ({ Component: narrow((await screens.settings()).SettingsPage) }),
+        lazy: async () => ({
+          Component: framed((await screens.settings()).SettingsPage, 'reading'),
+        }),
       },
       {
         path: 'calendar',
-        lazy: async () => ({ Component: (await screens.calendar()).CalendarPage }),
+        lazy: async () => ({ Component: framed((await screens.calendar()).CalendarPage, 'wide') }),
+      },
+      {
+        path: 'space',
+        lazy: async () => ({ Component: framed((await screens.space()).SpacePage, 'standard') }),
       },
       { path: '*', element: <NotFound /> },
     ],

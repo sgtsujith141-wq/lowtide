@@ -59,21 +59,21 @@ function WorkStrip({ session }: { session: WorkSession }) {
   return (
     <section
       aria-label="Work session"
-      className="border-b border-line bg-work-1/40 px-4 py-2 md:px-10"
+      className="border-b border-line bg-canvas/95 px-4 py-2 shadow-[inset_0_-1px_0_var(--lt-work-2)] backdrop-blur sm:px-6 md:px-8 xl:px-12"
     >
-      <div className="flex max-w-5xl flex-wrap items-center gap-x-3 gap-y-1.5">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
         <span
           aria-hidden
-          className={`size-2 rounded-full bg-work-3 ${paused ? '' : 'motion-safe:animate-pulse'}`}
+          className={`size-2 rounded-full bg-work-4 ${paused ? 'opacity-50' : 'motion-safe:animate-pulse'}`}
         />
         <p className="min-w-0 flex-1 text-sm">
           <span className="font-medium">{paused ? 'Paused' : 'Working'}</span>
-          <span className="text-ink-muted"> · {label}</span>
+          <span className="ml-2 text-fg-muted">{label}</span>
         </p>
-        <p className="font-mono text-sm tabular-nums" aria-label="Session time">
+        <p className="figure text-base font-semibold text-work-4" aria-label="Session time">
           {clock(activeMs(session, now))}
         </p>
-        <p className="text-xs text-ink-muted tabular-nums">today {clock(todayMs)}</p>
+        <p className="figure text-xs text-fg-muted">today {clock(todayMs)}</p>
         <div className="flex gap-1.5">
           {paused ? (
             <Button
@@ -121,18 +121,17 @@ function OffTimeStrip({ session }: { session: OffTimeSession }) {
   return (
     <section
       aria-label="Off time"
-      className="border-b border-sleep-2 bg-sleep-1 px-4 py-3 text-ink md:px-10"
+      className="border-b border-line bg-dormant-bar px-4 py-3 text-fg sm:px-6 md:px-8 xl:px-12"
     >
-      <div className="flex max-w-5xl flex-wrap items-center gap-x-3 gap-y-2">
-        <Moon aria-hidden className="size-5 text-sleep-4" />
-        <p className="min-w-0 flex-1">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Moon aria-hidden className="size-4 text-sleep-4" />
+        <p className="min-w-0 flex-1 text-sm">
           <span className="font-medium">{session.kind === 'sleep' ? 'Sleep Mode' : 'Resting'}</span>
-          <span>
-            {' '}
-            · off for {h ? `${h} h ` : ''}
+          <span className="figure ml-2 text-fg-muted">
+            off for {h ? `${h} h ` : ''}
             {minutes % 60} m
           </span>
-          <span className="block text-xs">
+          <span className="block text-xs text-fg-muted">
             A marked window, not a sleep measurement. Everything still works.
           </span>
         </p>

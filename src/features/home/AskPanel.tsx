@@ -74,11 +74,11 @@ export function AskPanel({ onClose }: { onClose: () => void }) {
   return (
     <div
       role="search"
-      className="mt-3 rounded-lg border border-line bg-paper-raised p-3"
+      className="mt-3 rounded-lg border border-line bg-raised p-4"
       onKeyDown={(e) => e.key === 'Escape' && onClose()}
     >
       <label htmlFor={inputId} className="flex items-center gap-2 text-sm font-medium">
-        <Search aria-hidden className="size-4 text-ink-muted" /> Ask LOWTIDE
+        <Search aria-hidden className="size-4 text-fg-muted" /> Ask LOWTIDE
       </label>
       <input
         id={inputId}
@@ -88,18 +88,18 @@ export function AskPanel({ onClose }: { onClose: () => void }) {
         placeholder="Search projects, milestones, tasks, hackathons…"
         className={`${fieldClass} mt-1.5`}
       />
-      <p className="mt-1 text-[11px] text-ink-muted">
+      <p className="mt-1 text-[11px] text-fg-muted">
         Local search only. No AI is connected, and nothing leaves this device.
       </p>
       {query.trim().length >= 2 && (
         <ul aria-label="Results" className="mt-2 divide-y divide-line">
           {hits.length === 0 ? (
-            <li className="py-2 text-sm text-ink-muted">No matches.</li>
+            <li className="py-2 text-sm text-fg-muted">No matches.</li>
           ) : (
             hits.map((hit) => (
               <li key={`${hit.kind}-${hit.key}`} className="py-1.5">
                 <Link to={hit.to} className="flex items-baseline gap-2 text-sm hover:underline">
-                  <span className="w-24 shrink-0 text-[11px] text-ink-muted">{hit.kind}</span>
+                  <span className="w-24 shrink-0 text-[11px] text-fg-muted">{hit.kind}</span>
                   <span className="min-w-0 truncate">{hit.title}</span>
                 </Link>
               </li>

@@ -118,7 +118,7 @@ function Candidates({
   return (
     <div id={id} className="mt-1 mb-2">
       {candidates.length === 0 ? (
-        <p className="py-1 text-sm text-ink-muted">
+        <p className="py-1 text-sm text-fg-muted">
           No other open tasks.{' '}
           <Link to="/tasks" className="text-accent-ink underline underline-offset-2">
             Add one in Tasks
@@ -129,7 +129,7 @@ function Candidates({
         <ul
           ref={list}
           aria-label="Open tasks you could plan for today"
-          className="max-h-72 overflow-y-auto rounded-md border border-line bg-paper-raised"
+          className="max-h-72 overflow-y-auto rounded-md border border-line bg-raised"
         >
           {candidates.map((task, index) => (
             <li
@@ -139,7 +139,7 @@ function Candidates({
               <span className="min-w-0 flex-1 text-sm">
                 <span className="break-words">{task.title}</span>
                 {task.dueAt && (
-                  <span className="ml-1 text-xs whitespace-nowrap text-ink-muted">
+                  <span className="ml-1 text-xs whitespace-nowrap text-fg-muted">
                     {' '}
                     {describeDeadline(task.dueAt, today).text}
                   </span>

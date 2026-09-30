@@ -26,14 +26,14 @@ const THEME_OPTIONS: { value: Theme; label: string; hint: string; icon: typeof S
   { value: 'dark', label: 'Dark', hint: 'Always dark', icon: Moon },
 ];
 
-const sectionClass = 'mt-6 rounded-xl border border-line bg-paper-raised p-4';
+const sectionClass = 'mt-8 border-t border-line pt-6';
 
 /** Settings (ADR-058, ADR-061): appearance, and where LOWTIDE keeps its data. */
 export function SettingsPage() {
   useDocumentTitle('Settings');
   return (
     <>
-      <h1 className="font-serif text-2xl font-semibold tracking-tight">Settings</h1>
+      <h1 className="text-page font-semibold">Settings</h1>
       <Appearance />
       <Storage />
     </>
@@ -45,7 +45,7 @@ function Appearance() {
   const name = useId();
   return (
     <section aria-labelledby="appearance-heading" className={sectionClass}>
-      <h2 id="appearance-heading" className="font-serif text-lg font-semibold">
+      <h2 id="appearance-heading" className="text-section font-semibold">
         Appearance
       </h2>
       <fieldset className="mt-2">
@@ -54,7 +54,7 @@ function Appearance() {
           {THEME_OPTIONS.map(({ value, label, hint, icon: Icon }) => (
             <label
               key={value}
-              className="flex cursor-pointer items-center gap-2 rounded-lg border border-line px-3 py-2 text-sm has-[:checked]:border-accent has-[:checked]:bg-paper"
+              className="flex cursor-pointer items-center gap-2 rounded-lg border border-line px-3 py-2 text-sm has-[:checked]:border-accent has-[:checked]:bg-canvas"
             >
               <input
                 type="radio"
@@ -66,16 +66,16 @@ function Appearance() {
                   saveTheme(value);
                 }}
               />
-              <Icon aria-hidden className="size-4 text-ink-muted" />
+              <Icon aria-hidden className="size-4 text-fg-muted" />
               <span>
                 <span className="block font-medium">{label}</span>
-                <span className="block text-xs text-ink-muted">{hint}</span>
+                <span className="block text-xs text-fg-muted">{hint}</span>
               </span>
             </label>
           ))}
         </div>
       </fieldset>
-      <p className="mt-2 text-xs text-ink-muted">
+      <p className="mt-2 text-xs text-fg-muted">
         Sleep Mode dims whichever theme is showing and leaves this setting alone.
       </p>
     </section>
@@ -86,11 +86,11 @@ function Storage() {
   const { backend } = useCompanion();
   return (
     <section aria-labelledby="storage-heading" className={sectionClass}>
-      <h2 id="storage-heading" className="flex items-center gap-2 font-serif text-lg font-semibold">
+      <h2 id="storage-heading" className="flex items-center gap-2 text-section font-semibold">
         {backend.kind === 'companion' ? (
-          <Server aria-hidden className="size-5 text-ink-muted" />
+          <Server aria-hidden className="size-5 text-fg-muted" />
         ) : (
-          <HardDrive aria-hidden className="size-5 text-ink-muted" />
+          <HardDrive aria-hidden className="size-5 text-fg-muted" />
         )}
         Where LOWTIDE keeps your data
       </h2>
@@ -146,19 +146,19 @@ function OnCompanion() {
       {problem && <ErrorNotice>{problem}</ErrorNotice>}
       {status && (
         <dl className="grid gap-x-4 gap-y-1 text-xs sm:grid-cols-[max-content_1fr]">
-          <dt className="text-ink-muted">Records</dt>
+          <dt className="text-fg-muted">Records</dt>
           <dd>{total}</dd>
-          <dt className="text-ink-muted">Database</dt>
+          <dt className="text-fg-muted">Database</dt>
           <dd className="break-all">{status.database}</dd>
-          <dt className="text-ink-muted">Workspace</dt>
+          <dt className="text-fg-muted">Workspace</dt>
           <dd className="break-all">{status.workspaceDir}</dd>
-          <dt className="text-ink-muted">Moved in</dt>
+          <dt className="text-fg-muted">Moved in</dt>
           <dd>
             {status.migration
               ? new Date(status.migration.migratedAt).toLocaleString()
               : 'Not moved from a browser (started empty)'}
           </dd>
-          <dt className="text-ink-muted">Companion</dt>
+          <dt className="text-fg-muted">Companion</dt>
           <dd>
             version {status.version}, schema {status.schemaVersion}
           </dd>
@@ -166,7 +166,7 @@ function OnCompanion() {
       )}
       <div className="rounded-lg border border-line p-3">
         <h3 className="font-medium">Go back to this browser’s storage</h3>
-        <p className="mt-1 text-ink-muted">
+        <p className="mt-1 text-fg-muted">
           This browser still holds LOWTIDE as it was when you moved, untouched. Anything changed
           since then is only in the companion: to take it with you,{' '}
           <Link to="/data" className="text-accent-ink underline underline-offset-2">
@@ -302,7 +302,7 @@ function MoveToCompanion() {
       <ol className="list-decimal space-y-4 pl-5">
         <li>
           <h3 className="font-medium">Start and pair the companion</h3>
-          <p className="text-ink-muted">
+          <p className="text-fg-muted">
             In the LOWTIDE folder run <code>npm run companion</code>, then{' '}
             <code>npm run companion -- pair</code> and open the link it prints.
           </p>
@@ -359,7 +359,7 @@ function MoveToCompanion() {
         {step.kind === 'paired' && !step.status.empty && (
           <li>
             <h3 className="font-medium">The companion already holds LOWTIDE data</h3>
-            <p className="text-ink-muted">
+            <p className="text-fg-muted">
               {Object.values(step.status.counts).reduce((a, b) => a + b, 0)} records
               {step.status.migration
                 ? `, moved in on ${new Date(step.status.migration.migratedAt).toLocaleString()}`
@@ -381,7 +381,7 @@ function MoveToCompanion() {
           <>
             <li>
               <h3 className="font-medium">Save a backup first</h3>
-              <p className="text-ink-muted">
+              <p className="text-fg-muted">
                 A complete backup file of this browser’s LOWTIDE, checked the same way a restore is,
                 is required before anything moves.
               </p>
@@ -392,14 +392,12 @@ function MoveToCompanion() {
                     {saved.name}
                   </p>
                   <details className="mt-1">
-                    <summary className="cursor-pointer text-xs text-ink-muted">
-                      What’s in it
-                    </summary>
+                    <summary className="cursor-pointer text-xs text-fg-muted">What’s in it</summary>
                     <table className="mt-1 text-xs">
                       <tbody>
                         {COUNT_ROWS.map(({ key, label }) => (
                           <tr key={key}>
-                            <th scope="row" className="pr-4 text-left font-normal text-ink-muted">
+                            <th scope="row" className="pr-4 text-left font-normal text-fg-muted">
                               {label}
                             </th>
                             <td className="text-right tabular-nums">{saved.counts[key]}</td>
@@ -417,7 +415,7 @@ function MoveToCompanion() {
             </li>
             <li>
               <h3 className="font-medium">Move LOWTIDE into the companion</h3>
-              <p className="text-ink-muted">
+              <p className="text-fg-muted">
                 The companion checks the backup again, copies every record with its id, compares the
                 copy with the backup record by record, and keeps an exact copy of the file. If
                 anything differs, nothing is kept.
@@ -482,7 +480,7 @@ function MigrationResult({
         <table className="mt-2 text-xs">
           <caption className="sr-only">Records per store</caption>
           <thead>
-            <tr className="text-ink-muted">
+            <tr className="text-fg-muted">
               <th scope="col" className="pr-4 text-left font-normal">
                 Store
               </th>
@@ -524,7 +522,7 @@ function MigrationResult({
         ))}
       </ul>
       {report.savedCopy && (
-        <p className="mt-2 text-xs text-ink-muted">
+        <p className="mt-2 text-xs text-fg-muted">
           The companion kept an exact copy at <code className="break-all">{report.savedCopy}</code>.
         </p>
       )}

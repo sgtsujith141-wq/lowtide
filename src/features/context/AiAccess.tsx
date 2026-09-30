@@ -31,7 +31,7 @@ import type { Project } from '../../types/domain';
 
 /** Heard from within this window counts as connected (the bridge pings every minute). */
 const CONNECTED_MS = 2 * 60_000;
-const box = 'mt-6 rounded-xl border border-line bg-paper-raised p-4';
+const box = 'mt-8 border-t border-line pt-6';
 
 interface Loaded {
   status: CompanionStatus | null;
@@ -134,10 +134,10 @@ function Clients({ clients }: { clients: ClientStatus[] }) {
   const now = useNow(true, 30_000);
   return (
     <section aria-labelledby="clients-heading" className={box}>
-      <h2 id="clients-heading" className="font-serif text-lg font-semibold">
+      <h2 id="clients-heading" className="text-section font-semibold">
         AI clients
       </h2>
-      <p className="mt-1 text-xs text-ink-muted">
+      <p className="mt-1 text-xs text-fg-muted">
         Connected means LOWTIDE heard from it in the last two minutes over MCP. Having access isn’t
         the same as being connected.
       </p>
@@ -151,12 +151,12 @@ function Clients({ clients }: { clients: ClientStatus[] }) {
               <p className="flex items-center justify-between gap-2">
                 <span className="font-medium">{CLIENT_LABEL[kind]}</span>
                 <span
-                  className={`rounded-full px-2 py-0.5 text-xs ${connected ? 'bg-accent-soft text-accent-ink' : 'bg-paper-sunken text-ink-muted'}`}
+                  className={`rounded-full px-2 py-0.5 text-xs ${connected ? 'bg-accent-soft text-accent-ink' : 'bg-surface text-fg-muted'}`}
                 >
                   {connected ? 'Connected' : seen ? 'Not connected' : 'Never connected'}
                 </span>
               </p>
-              <p className="mt-1 text-xs text-ink-muted">
+              <p className="mt-1 text-xs text-fg-muted">
                 {status?.grants.length
                   ? `${status.grants.length} active access ${status.grants.length === 1 ? 'grant' : 'grants'}`
                   : 'No access given'}
@@ -230,8 +230,8 @@ function NewGrant({
   const radio = 'inline-flex items-center gap-1.5';
   return (
     <section aria-labelledby="grant-heading" className={box}>
-      <h2 id="grant-heading" className="flex items-center gap-2 font-serif text-lg font-semibold">
-        <KeyRound aria-hidden className="size-5 text-ink-muted" /> Give an AI client access
+      <h2 id="grant-heading" className="flex items-center gap-2 text-section font-semibold">
+        <KeyRound aria-hidden className="size-5 text-fg-muted" /> Give an AI client access
       </h2>
       <form
         aria-label="Give an AI client access"
@@ -313,7 +313,7 @@ function NewGrant({
         )}
         {scope === 'global' && (
           <fieldset className="rounded-md border border-line p-3">
-            <legend className="px-1 text-xs font-medium text-ink-muted">
+            <legend className="px-1 text-xs font-medium text-fg-muted">
               Private areas it may also see (off unless you tick them)
             </legend>
             <div className="grid gap-1 sm:grid-cols-2">
@@ -332,7 +332,7 @@ function NewGrant({
                 </label>
               ))}
             </div>
-            <p className="mt-2 text-xs text-ink-muted">
+            <p className="mt-2 text-xs text-fg-muted">
               Protected time can’t be shared with any AI client.
             </p>
           </fieldset>
@@ -370,7 +370,7 @@ function NewGrant({
             />
             <span>
               May also resolve approval requests
-              <span className="block text-xs text-ink-muted">
+              <span className="block text-xs text-fg-muted">
                 Approvals are yours to give. Tick this only for a client you trust to act for you.
               </span>
             </span>
@@ -435,7 +435,7 @@ function TokenOnce({
   };
   return (
     <section aria-labelledby={id} className={`${box} border-accent`}>
-      <h2 id={id} className="font-serif text-lg font-semibold">
+      <h2 id={id} className="text-section font-semibold">
         Token for {grant.label}
       </h2>
       <p className="mt-1 text-sm">
@@ -465,8 +465,8 @@ function TokenOnce({
       </div>
       {commands[grant.clientKind].map((c) => (
         <div key={c.title} className="mt-3 text-sm">
-          <p className="text-ink-muted">{c.title}</p>
-          <pre className="mt-1 overflow-x-auto rounded-md bg-paper-sunken p-2 text-xs whitespace-pre-wrap break-all">
+          <p className="text-fg-muted">{c.title}</p>
+          <pre className="mt-1 overflow-x-auto rounded-md bg-surface p-2 text-xs whitespace-pre-wrap break-all">
             {c.text}
           </pre>
         </div>
@@ -499,18 +499,18 @@ function Grants({
   const revoked = grants.filter((g) => g.revokedAt);
   return (
     <section aria-labelledby="grants-heading" className={box}>
-      <h2 id="grants-heading" className="font-serif text-lg font-semibold">
+      <h2 id="grants-heading" className="text-section font-semibold">
         Access you’ve given
       </h2>
       {active.length === 0 ? (
-        <p className="mt-1 text-sm text-ink-muted">No AI client can use LOWTIDE right now.</p>
+        <p className="mt-1 text-sm text-fg-muted">No AI client can use LOWTIDE right now.</p>
       ) : (
         <ul className="mt-2 divide-y divide-line text-sm">
           {active.map((g) => (
             <li key={g.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
               <span>
                 <span className="font-medium">{g.label}</span>{' '}
-                <span className="text-ink-muted">
+                <span className="text-fg-muted">
                   ({CLIENT_LABEL[g.clientKind]}) · {scopeText(g, projects)} ·{' '}
                   {g.access === 'write' ? 'read and change' : 'read only'}
                   {g.allowResolveApprovals ? ' · may resolve approvals' : ''}
@@ -534,7 +534,7 @@ function Grants({
       )}
       {error && <ErrorNotice>{error}</ErrorNotice>}
       {revoked.length > 0 && (
-        <details className="mt-2 text-xs text-ink-muted">
+        <details className="mt-2 text-xs text-fg-muted">
           <summary className="cursor-pointer">{revoked.length} revoked</summary>
           <ul className="mt-1 space-y-0.5">
             {revoked.map((g) => (
@@ -588,7 +588,7 @@ function AuditLog({ entries, projects }: { entries: AuditEntry[]; projects: Proj
       : scope;
   return (
     <section aria-labelledby="audit-heading" className={box}>
-      <h2 id="audit-heading" className="font-serif text-lg font-semibold">
+      <h2 id="audit-heading" className="text-section font-semibold">
         What AI clients did
       </h2>
       <label className="mt-1 inline-flex items-center gap-2 text-sm">
@@ -600,7 +600,7 @@ function AuditLog({ entries, projects }: { entries: AuditEntry[]; projects: Proj
         Changes and refusals only
       </label>
       {shown.length === 0 ? (
-        <p className="mt-2 text-sm text-ink-muted">Nothing yet.</p>
+        <p className="mt-2 text-sm text-fg-muted">Nothing yet.</p>
       ) : (
         <ol className="mt-2 divide-y divide-line text-sm" aria-label="AI activity">
           {shown.map((e) => (
@@ -617,11 +617,11 @@ function AuditLog({ entries, projects }: { entries: AuditEntry[]; projects: Proj
               </p>
               {(e.before || e.after) && (
                 <p className="mt-0.5 text-xs">
-                  {e.before && <span className="text-ink-muted">{e.before} → </span>}
+                  {e.before && <span className="text-fg-muted">{e.before} → </span>}
                   {e.after}
                 </p>
               )}
-              <p className="mt-0.5 text-[11px] text-ink-muted">
+              <p className="mt-0.5 text-[11px] text-fg-muted">
                 <time dateTime={e.at} title={formatFull(e.at)}>
                   {formatWhen(e.at, now)}
                 </time>{' '}
@@ -644,14 +644,14 @@ function Workspace({ info, onInit }: { info: WorkspaceInfo | null; onInit: () =>
     <section aria-labelledby="live-workspace-heading" className={box}>
       <h2
         id="live-workspace-heading"
-        className="flex items-center gap-2 font-serif text-lg font-semibold"
+        className="flex items-center gap-2 text-section font-semibold"
       >
-        <FolderGit2 aria-hidden className="size-5 text-ink-muted" /> Technical workspace
+        <FolderGit2 aria-hidden className="size-5 text-fg-muted" /> Technical workspace
       </h2>
       <p className="mt-1 text-sm">
         <code className="break-all">{info.dir}</code>
       </p>
-      <p className="mt-1 text-sm text-ink-muted">
+      <p className="mt-1 text-sm text-fg-muted">
         Kept up to date by the companion after every change: PROJECT.md, CONTEXT.md, decisions,
         notes and AI sessions for each project. Your own files there are never changed.
         {info.lastSync && (
@@ -688,7 +688,7 @@ function Workspace({ info, onInit }: { info: WorkspaceInfo | null; onInit: () =>
           </p>
         ) : (
           <>
-            <p className="text-ink-muted">
+            <p className="text-fg-muted">
               Make it a private Git repository to keep its history. LOWTIDE adds a .gitignore, never
               adds a remote and never commits for you.
             </p>

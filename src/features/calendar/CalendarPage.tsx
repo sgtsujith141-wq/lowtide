@@ -27,7 +27,7 @@ const DOT: Record<CalendarKind, string> = {
   hackathon: 'bg-accent',
   milestone: 'bg-projects-3',
   deadline: 'bg-danger',
-  planned: 'bg-ink-faint',
+  planned: 'bg-fg-subtle',
   work: 'bg-work-3',
 };
 
@@ -107,7 +107,7 @@ export function CalendarPage() {
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-serif text-2xl font-semibold tracking-tight">Calendar</h1>
+        <h1 className="text-page font-semibold">Calendar</h1>
         <div className="flex items-center gap-1">
           <IconButton
             label="Previous month"
@@ -136,7 +136,7 @@ export function CalendarPage() {
 
       <ul
         aria-label="Legend"
-        className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-ink-muted"
+        className="mt-3 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-fg-muted"
       >
         {CALENDAR_KINDS.map((k) => (
           <li key={k} className="flex items-center gap-1">
@@ -151,7 +151,7 @@ export function CalendarPage() {
         <thead>
           <tr>
             {WEEKDAYS.map((d) => (
-              <th key={d} scope="col" className="pb-1 text-[11px] font-normal text-ink-muted">
+              <th key={d} scope="col" className="pb-1 text-[11px] font-normal text-fg-muted">
                 {d}
               </th>
             ))}
@@ -177,14 +177,14 @@ export function CalendarPage() {
       </table>
 
       <section aria-labelledby="agenda-heading" className="mt-6">
-        <h2 id="agenda-heading" className="font-serif text-lg font-semibold">
+        <h2 id="agenda-heading" className="text-section font-semibold">
           {format(fromLocalDate(selected), 'EEEE d MMMM')}
           {selected === today && (
-            <span className="ml-2 text-sm font-normal text-ink-muted">today</span>
+            <span className="ml-2 text-sm font-normal text-fg-muted">today</span>
           )}
         </h2>
         {agenda.length === 0 ? (
-          <p className="mt-1 text-sm text-ink-muted">Nothing on this day.</p>
+          <p className="mt-1 text-sm text-fg-muted">Nothing on this day.</p>
         ) : (
           <ul className="mt-2 divide-y divide-line">
             {agenda.map((e) => (
@@ -224,12 +224,12 @@ function DayCell({
         aria-pressed={isSelected}
         aria-current={isToday ? 'date' : undefined}
         className={`flex size-full flex-col items-stretch gap-0.5 p-1 text-left ${
-          isSelected ? 'bg-accent-soft' : inMonth ? 'hover:bg-paper-raised' : 'bg-paper-sunken/50'
-        } ${inMonth ? '' : 'text-ink-muted'}`}
+          isSelected ? 'bg-accent-soft' : inMonth ? 'hover:bg-raised' : 'bg-surface/50'
+        } ${inMonth ? '' : 'text-fg-muted'}`}
       >
         <span
           className={`self-start rounded-full px-1 text-xs tabular-nums ${
-            isToday ? 'bg-ink font-semibold text-paper' : inMonth ? '' : 'text-ink-muted'
+            isToday ? 'bg-fg font-semibold text-canvas' : inMonth ? '' : 'text-fg-muted'
           }`}
         >
           {Number(date.slice(8, 10))}
@@ -242,7 +242,7 @@ function DayCell({
             </span>
           ))}
           {entries.length > 3 && (
-            <span className="text-[10px] text-ink-muted">+{entries.length - 3} more</span>
+            <span className="text-[10px] text-fg-muted">+{entries.length - 3} more</span>
           )}
         </span>
         <span className="flex flex-wrap gap-0.5 sm:hidden" aria-hidden>
@@ -261,7 +261,7 @@ function AgendaRow({ entry }: { entry: CalendarEntry }) {
       <span aria-hidden className={`mt-1.5 size-2 shrink-0 rounded-full ${DOT[entry.kind]}`} />
       <span className="min-w-0 flex-1">
         <span className="block">{entry.title}</span>
-        <span className="block text-xs text-ink-muted">
+        <span className="block text-xs text-fg-muted">
           {KIND_LABEL[entry.kind]}
           {entry.detail ? ` · ${entry.detail}` : ''}
         </span>
