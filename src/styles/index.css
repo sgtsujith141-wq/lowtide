@@ -1,208 +1,233 @@
 @import 'tailwindcss';
 
 /*
- * LOWTIDE design tokens — "warm paper at low tide".
+ * LOWTIDE design tokens (v2 PHASE 011): low tide at night.
  *
- * Components use semantic tokens only (bg-paper, text-ink, border-line,
- * text-accent …), never raw colors. Theme = the values below.
+ * A cold, neutral instrument panel. The shell is monochrome graphite; colour
+ * belongs to data (the Daily Pulse, projects, work, sleep, college, personal,
+ * gym). Components use semantic tokens only, never raw colours:
  *
- * Theme selection:
- *   - default follows the OS (prefers-color-scheme)
- *   - <html data-theme="light|dark"> forces one (for a future switcher)
+ *   surfaces  bg-canvas · bg-surface · bg-raised · bg-hover
+ *   text      text-fg · text-fg-muted · text-fg-subtle
+ *   lines     border-line · border-line-strong
+ *   brand     accent (focus, current place, links) · primary (the one filled action)
+ *   status    warn · danger · success
+ *   data      grid-0 and <palette>-1…4 for every contribution grid
+ *
+ * Theme: Auto follows the OS; <html data-theme="light|dark"> forces one
+ * (ADR-061). Dark is the reference design; light is its cool daylight twin.
+ * Every text token is ≥ 4.5:1 on every surface of its theme.
  */
 
 :root {
   color-scheme: light;
 
-  /* Surfaces: warm paper, never pure white */
-  --lt-paper: #f4efe6;
-  --lt-paper-raised: #faf7f1;
-  --lt-paper-sunken: #ebe4d8;
+  --lt-canvas: #f7f8fa;
+  --lt-surface: #eff1f4;
+  --lt-raised: #ffffff;
+  --lt-hover: #e6e9ed;
 
-  /* Text: warm charcoal, never pure black */
-  --lt-ink: #2b2825;
-  --lt-ink-muted: #6b645b;
-  --lt-ink-faint: #9a9185;
+  --lt-fg: #0e1217;
+  --lt-fg-muted: #454d57;
+  --lt-fg-subtle: #5f6874;
 
-  /* Lines */
-  --lt-line: #ddd4c6;
-  --lt-line-strong: #c4b8a6;
+  --lt-line: rgb(14 18 23 / 0.09);
+  --lt-line-strong: rgb(14 18 23 / 0.17);
 
-  /* Accent: restrained sea glass */
-  --lt-accent: #3f7f7a;
-  --lt-accent-ink: #2f6a65;
-  --lt-accent-soft: #dbe9e5;
+  --lt-accent: #3d6c92;
+  --lt-accent-ink: #2f5878;
+  --lt-accent-soft: rgb(61 108 146 / 0.12);
+  --lt-on-accent: #ffffff;
+  --lt-primary: #0e1217;
+  --lt-on-primary: #f7f8fa;
 
-  /* Text/icons on an accent-ink fill (primary buttons) */
-  --lt-on-accent: #faf7f1;
+  --lt-warn: #8a5a12;
+  --lt-danger: #b23b2c;
+  --lt-success: #186b36;
+  --lt-focus: #3d6c92;
 
-  /* Status (muted on purpose; nothing shouts). All ≥ 4.5:1 on every paper surface. */
-  --lt-warn: #8a5a1c;
-  --lt-danger: #a4473b;
+  --lt-scrim: rgb(14 18 23 / 0.32);
+  /* Sleep Mode: the dormant canvas and the off-time bar. */
+  --lt-dormant: #eceef1;
+  --lt-dormant-bar: #e3e6ea;
+  --lt-shadow: 0 12px 32px -12px rgb(14 18 23 / 0.28), 0 0 0 1px rgb(14 18 23 / 0.08);
 
-  --lt-focus: #3f7f7a;
-
-  /* Activity squares (Rhythm): a quiet sea-glass ramp, level 0 = nothing recorded */
-  --lt-activity-0: #e4ddd0;
-  --lt-activity-1: #b5d2c9;
-  --lt-activity-2: #7fb2a7;
-  --lt-activity-3: #4b8b82;
-  --lt-activity-4: #285c57;
-
-  /* v2 grid palettes (ADR-042). Level 0 is the theme's inactive cell. */
-  --lt-grid-0: #e6dfd3;
-  --lt-pulse-1: #b9dca8;
-  --lt-pulse-2: #7cbf7c;
-  --lt-pulse-3: #3f9652;
-  --lt-pulse-4: #226537;
-  --lt-work-1: #f1d8a0;
-  --lt-work-2: #e2b15c;
-  --lt-work-3: #c3862b;
+  /* Contribution grids: inactive cell, then four levels per palette. */
+  --lt-grid-0: #e9ecf0;
+  --lt-pulse-1: #a8e3b5;
+  --lt-pulse-2: #5cc47a;
+  --lt-pulse-3: #2e9a50;
+  --lt-pulse-4: #1b6a36;
+  --lt-work-1: #f3dca6;
+  --lt-work-2: #e3b35a;
+  --lt-work-3: #c1852a;
   --lt-work-4: #8a5913;
-  --lt-sleep-1: #dad2ef;
-  --lt-sleep-2: #b3a4de;
+  --lt-sleep-1: #ddd6f3;
+  --lt-sleep-2: #b5a8e2;
   --lt-sleep-3: #8573c4;
   --lt-sleep-4: #574797;
-  --lt-personal-1: #c0e2dc;
-  --lt-personal-2: #7fc3b7;
-  --lt-personal-3: #3f998c;
-  --lt-personal-4: #22655c;
-  --lt-gym-1: #f1cbbf;
-  --lt-gym-2: #de937e;
-  --lt-gym-3: #bf5f46;
-  --lt-gym-4: #883a28;
-  --lt-college-1: #c8d8ef;
-  --lt-college-2: #8fb2de;
-  --lt-college-3: #5183bf;
-  --lt-college-4: #2d568d;
-  --lt-projects-1: #efe0a6;
-  --lt-projects-2: #d9bd5c;
-  --lt-projects-3: #b4922b;
-  --lt-projects-4: #7a6115;
+  --lt-personal-1: #bfe5de;
+  --lt-personal-2: #7cc6b9;
+  --lt-personal-3: #3a998b;
+  --lt-personal-4: #1f655b;
+  --lt-gym-1: #efcfc7;
+  --lt-gym-2: #d99a89;
+  --lt-gym-3: #b86452;
+  --lt-gym-4: #803b2d;
+  --lt-college-1: #cddcf2;
+  --lt-college-2: #92b4e1;
+  --lt-college-3: #5083c1;
+  --lt-college-4: #2c558c;
+  --lt-projects-1: #efe2ab;
+  --lt-projects-2: #d7bd5f;
+  --lt-projects-3: #b0902c;
+  --lt-projects-4: #765d14;
+  /* Rhythm's per-habit ramp. */
+  --lt-activity-0: var(--lt-grid-0);
+  --lt-activity-1: var(--lt-pulse-1);
+  --lt-activity-2: var(--lt-pulse-2);
+  --lt-activity-3: var(--lt-pulse-3);
+  --lt-activity-4: var(--lt-pulse-4);
 }
 
+/* Dark: the reference design. Written once, applied for Auto-in-dark and forced Dark. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
-    --lt-paper: #1f1d1a;
-    --lt-paper-raised: #292622;
-    --lt-paper-sunken: #181614;
-    --lt-ink: #ece5d8;
-    --lt-ink-muted: #b0a797;
-    --lt-ink-faint: #7f776b;
-    --lt-line: #38342e;
-    --lt-line-strong: #4b463e;
-    --lt-accent: #7bb8b0;
-    --lt-accent-ink: #98cbc4;
-    --lt-accent-soft: #24332f;
-    --lt-on-accent: #1f1d1a;
-    --lt-warn: #d6a15a;
-    --lt-danger: #d98474;
-    --lt-focus: #7bb8b0;
-    --lt-activity-0: #2c2925;
-    --lt-activity-1: #27403b;
-    --lt-activity-2: #2f6258;
-    --lt-activity-3: #4f9489;
-    --lt-activity-4: #93cfc4;
-    --lt-grid-0: #38342e;
-    --lt-pulse-1: #1f4a2c;
-    --lt-pulse-2: #2c6e3d;
-    --lt-pulse-3: #409b53;
-    --lt-pulse-4: #74cc80;
-    --lt-work-1: #4a3818;
-    --lt-work-2: #7a5a1f;
-    --lt-work-3: #b88630;
-    --lt-work-4: #e8b85c;
-    --lt-sleep-1: #2e2745;
-    --lt-sleep-2: #473b73;
-    --lt-sleep-3: #6f5eb0;
-    --lt-sleep-4: #a898e0;
-    --lt-personal-1: #1c3d38;
-    --lt-personal-2: #265f56;
-    --lt-personal-3: #3a8f82;
-    --lt-personal-4: #74c9bb;
-    --lt-gym-1: #47261f;
-    --lt-gym-2: #733a2c;
-    --lt-gym-3: #b05a42;
-    --lt-gym-4: #e3907a;
-    --lt-college-1: #1e2d45;
-    --lt-college-2: #2b4670;
-    --lt-college-3: #4671ad;
-    --lt-college-4: #86aee6;
-    --lt-projects-1: #3f3715;
-    --lt-projects-2: #6b5b1d;
-    --lt-projects-3: #a58a2c;
-    --lt-projects-4: #dcc35c;
+    --lt-canvas: #07090c;
+    --lt-surface: #0c0f13;
+    --lt-raised: #11151a;
+    --lt-hover: #171c22;
+    --lt-fg: #e6eaef;
+    --lt-fg-muted: #a1aab5;
+    --lt-fg-subtle: #808a96;
+    --lt-line: rgb(226 232 240 / 0.07);
+    --lt-line-strong: rgb(226 232 240 / 0.13);
+    --lt-accent: #9db9d2;
+    --lt-accent-ink: #a9c3da;
+    --lt-accent-soft: rgb(157 185 210 / 0.12);
+    --lt-on-accent: #07090c;
+    --lt-primary: #e6eaef;
+    --lt-on-primary: #07090c;
+    --lt-warn: #e0a955;
+    --lt-danger: #ee8b7c;
+    --lt-success: #6fd08c;
+    --lt-focus: #9db9d2;
+    --lt-scrim: rgb(0 0 0 / 0.55);
+    --lt-dormant: #030405;
+    --lt-dormant-bar: #000000;
+    --lt-shadow: 0 16px 40px -12px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(226 232 240 / 0.08);
+    --lt-grid-0: #151a20;
+    --lt-pulse-1: #103b25;
+    --lt-pulse-2: #1a6a3a;
+    --lt-pulse-3: #2fa356;
+    --lt-pulse-4: #56d37a;
+    --lt-work-1: #3d2a0b;
+    --lt-work-2: #6e4b12;
+    --lt-work-3: #b07a1f;
+    --lt-work-4: #e8b04e;
+    --lt-sleep-1: #2a2345;
+    --lt-sleep-2: #463a7a;
+    --lt-sleep-3: #6f5fb8;
+    --lt-sleep-4: #a597e6;
+    --lt-personal-1: #0f3431;
+    --lt-personal-2: #195a53;
+    --lt-personal-3: #2c8c80;
+    --lt-personal-4: #5fc7b8;
+    --lt-gym-1: #3a1d19;
+    --lt-gym-2: #66332a;
+    --lt-gym-3: #9e5242;
+    --lt-gym-4: #d48877;
+    --lt-college-1: #16263d;
+    --lt-college-2: #234272;
+    --lt-college-3: #3c6cb3;
+    --lt-college-4: #7fa9e8;
+    --lt-projects-1: #3a3112;
+    --lt-projects-2: #66561b;
+    --lt-projects-3: #a38a2d;
+    --lt-projects-4: #dcc15e;
   }
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
-  --lt-paper: #1f1d1a;
-  --lt-paper-raised: #292622;
-  --lt-paper-sunken: #181614;
-  --lt-ink: #ece5d8;
-  --lt-ink-muted: #b0a797;
-  --lt-ink-faint: #7f776b;
-  --lt-line: #38342e;
-  --lt-line-strong: #4b463e;
-  --lt-accent: #7bb8b0;
-  --lt-accent-ink: #98cbc4;
-  --lt-accent-soft: #24332f;
-  --lt-on-accent: #1f1d1a;
-  --lt-warn: #d6a15a;
-  --lt-danger: #d98474;
-  --lt-focus: #7bb8b0;
-  --lt-activity-0: #2c2925;
-  --lt-activity-1: #27403b;
-  --lt-activity-2: #2f6258;
-  --lt-activity-3: #4f9489;
-  --lt-activity-4: #93cfc4;
-  --lt-grid-0: #38342e;
-  --lt-pulse-1: #1f4a2c;
-  --lt-pulse-2: #2c6e3d;
-  --lt-pulse-3: #409b53;
-  --lt-pulse-4: #74cc80;
-  --lt-work-1: #4a3818;
-  --lt-work-2: #7a5a1f;
-  --lt-work-3: #b88630;
-  --lt-work-4: #e8b85c;
-  --lt-sleep-1: #2e2745;
-  --lt-sleep-2: #473b73;
-  --lt-sleep-3: #6f5eb0;
-  --lt-sleep-4: #a898e0;
-  --lt-personal-1: #1c3d38;
-  --lt-personal-2: #265f56;
-  --lt-personal-3: #3a8f82;
-  --lt-personal-4: #74c9bb;
-  --lt-gym-1: #47261f;
-  --lt-gym-2: #733a2c;
-  --lt-gym-3: #b05a42;
-  --lt-gym-4: #e3907a;
-  --lt-college-1: #1e2d45;
-  --lt-college-2: #2b4670;
-  --lt-college-3: #4671ad;
-  --lt-college-4: #86aee6;
-  --lt-projects-1: #3f3715;
-  --lt-projects-2: #6b5b1d;
-  --lt-projects-3: #a58a2c;
-  --lt-projects-4: #dcc35c;
+  --lt-canvas: #07090c;
+  --lt-surface: #0c0f13;
+  --lt-raised: #11151a;
+  --lt-hover: #171c22;
+  --lt-fg: #e6eaef;
+  --lt-fg-muted: #a1aab5;
+  --lt-fg-subtle: #808a96;
+  --lt-line: rgb(226 232 240 / 0.07);
+  --lt-line-strong: rgb(226 232 240 / 0.13);
+  --lt-accent: #9db9d2;
+  --lt-accent-ink: #a9c3da;
+  --lt-accent-soft: rgb(157 185 210 / 0.12);
+  --lt-on-accent: #07090c;
+  --lt-primary: #e6eaef;
+  --lt-on-primary: #07090c;
+  --lt-warn: #e0a955;
+  --lt-danger: #ee8b7c;
+  --lt-success: #6fd08c;
+  --lt-focus: #9db9d2;
+  --lt-scrim: rgb(0 0 0 / 0.55);
+  --lt-dormant: #030405;
+  --lt-dormant-bar: #000000;
+  --lt-shadow: 0 16px 40px -12px rgb(0 0 0 / 0.7), 0 0 0 1px rgb(226 232 240 / 0.08);
+  --lt-grid-0: #151a20;
+  --lt-pulse-1: #103b25;
+  --lt-pulse-2: #1a6a3a;
+  --lt-pulse-3: #2fa356;
+  --lt-pulse-4: #56d37a;
+  --lt-work-1: #3d2a0b;
+  --lt-work-2: #6e4b12;
+  --lt-work-3: #b07a1f;
+  --lt-work-4: #e8b04e;
+  --lt-sleep-1: #2a2345;
+  --lt-sleep-2: #463a7a;
+  --lt-sleep-3: #6f5fb8;
+  --lt-sleep-4: #a597e6;
+  --lt-personal-1: #0f3431;
+  --lt-personal-2: #195a53;
+  --lt-personal-3: #2c8c80;
+  --lt-personal-4: #5fc7b8;
+  --lt-gym-1: #3a1d19;
+  --lt-gym-2: #66332a;
+  --lt-gym-3: #9e5242;
+  --lt-gym-4: #d48877;
+  --lt-college-1: #16263d;
+  --lt-college-2: #234272;
+  --lt-college-3: #3c6cb3;
+  --lt-college-4: #7fa9e8;
+  --lt-projects-1: #3a3112;
+  --lt-projects-2: #66561b;
+  --lt-projects-3: #a38a2d;
+  --lt-projects-4: #dcc15e;
 }
 
-/* Expose tokens to Tailwind as utilities (bg-paper, text-ink-muted, …). */
+/* Expose tokens to Tailwind as utilities (bg-canvas, text-fg-muted, …). */
 @theme inline {
-  --color-paper: var(--lt-paper);
-  --color-paper-raised: var(--lt-paper-raised);
-  --color-paper-sunken: var(--lt-paper-sunken);
-  --color-ink: var(--lt-ink);
-  --color-ink-muted: var(--lt-ink-muted);
-  --color-ink-faint: var(--lt-ink-faint);
+  --color-canvas: var(--lt-canvas);
+  --color-surface: var(--lt-surface);
+  --color-raised: var(--lt-raised);
+  --color-hover: var(--lt-hover);
+  --color-fg: var(--lt-fg);
+  --color-fg-muted: var(--lt-fg-muted);
+  --color-fg-subtle: var(--lt-fg-subtle);
   --color-line: var(--lt-line);
   --color-line-strong: var(--lt-line-strong);
   --color-accent: var(--lt-accent);
   --color-accent-ink: var(--lt-accent-ink);
   --color-accent-soft: var(--lt-accent-soft);
   --color-on-accent: var(--lt-on-accent);
+  --color-primary: var(--lt-primary);
+  --color-on-primary: var(--lt-on-primary);
+  --color-warn: var(--lt-warn);
+  --color-danger: var(--lt-danger);
+  --color-success: var(--lt-success);
+  --color-scrim: var(--lt-scrim);
+  --color-dormant: var(--lt-dormant);
+  --color-dormant-bar: var(--lt-dormant-bar);
   --color-activity-0: var(--lt-activity-0);
   --color-activity-1: var(--lt-activity-1);
   --color-activity-2: var(--lt-activity-2);
@@ -237,32 +262,79 @@
   --color-projects-2: var(--lt-projects-2);
   --color-projects-3: var(--lt-projects-3);
   --color-projects-4: var(--lt-projects-4);
-  --color-warn: var(--lt-warn);
-  --color-danger: var(--lt-danger);
 
-  /* System fonts only: no web-font network requests. */
+  /* One family, self-hosted (bundled; no runtime network request). */
   --font-sans:
-    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  --font-serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
+    'Geist Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+
+  /*
+   * Type scale (body 14 px). Weight carries hierarchy, not size jumps:
+   * 11 meta · 12 small · 13 control · 14 body · 16 section · 20 page · 30 figure.
+   */
+  --text-meta: 11px;
+  --text-meta--line-height: 16px;
+  --text-small: 12px;
+  --text-small--line-height: 16px;
+  --text-control: 13px;
+  --text-control--line-height: 18px;
+  --text-body: 14px;
+  --text-body--line-height: 20px;
+  --text-section: 16px;
+  --text-section--line-height: 22px;
+  --text-page: 20px;
+  --text-page--line-height: 26px;
+  --text-figure: 30px;
+  --text-figure--line-height: 34px;
 
   --radius-sm: 4px;
   --radius-md: 6px;
+  --radius-lg: 8px;
 
-  /* Motion: short and gentle. */
-  --ease-tide: cubic-bezier(0.3, 0, 0.2, 1);
+  /*
+   * Motion (restrained; reduced motion removes it). micro: hover, focus,
+   * presses · state: tabs, toggles, indicators · panel: drawers and dialogs ·
+   * dormant: entering and leaving Sleep Mode.
+   */
+  --ease-tide: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
   --default-transition-duration: 140ms;
+  --default-transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+
+:root {
+  --lt-dur-micro: 140ms;
+  --lt-dur-state: 200ms;
+  --lt-dur-panel: 260ms;
+  --lt-dur-dormant: 700ms;
+  --lt-rail: 56px;
 }
 
 @layer base {
   html {
-    background: var(--lt-paper);
-    color: var(--lt-ink);
+    background: var(--lt-canvas);
+    color: var(--lt-fg);
     font-family: var(--font-sans);
-    font-size: 15px;
-    line-height: 1.5;
+    /* rem stays 16 px (text-xs 12, text-sm 14); body copy is 14 px. */
+    font-size: 16px;
+    line-height: 1.45;
+    font-variant-numeric: tabular-nums;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+  }
+
+  body {
+    background: var(--lt-canvas);
+    font-size: 14px;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    letter-spacing: -0.01em;
+    text-wrap: balance;
   }
 
   ::selection {
@@ -272,6 +344,15 @@
   :focus-visible {
     outline: 2px solid var(--lt-focus);
     outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+
+  /* Native controls follow the theme: checkbox, radio, range, date pickers. */
+  input[type='checkbox'],
+  input[type='radio'],
+  input[type='range'],
+  progress {
+    accent-color: var(--lt-accent);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -280,32 +361,95 @@
     *::after {
       transition-duration: 0ms !important;
       animation-duration: 0ms !important;
+      scroll-behavior: auto !important;
     }
   }
 }
 
 /*
- * Sleep Mode (ADR-042): like a phone's Focus mode, not a black screen. The app
- * stays visible and usable; it dims, loses saturation and stops moving, and
- * nonessential controls fade. The off-time bar itself is not dimmed.
+ * Sleep Mode visual state (ADR-042, v2 PHASE 011): "the system has gone
+ * dormant". The shell sinks toward black, colour drains out, content
+ * recedes, navigation fades back and motion stops. It stays usable and
+ * readable: the off-time bar (with Wake up) is untouched, and faded text
+ * keeps AA contrast (full-colour text at reduced opacity, ≈ 5:1).
  */
 @layer base {
-  [data-mode='sleep'] [data-dimmable] {
-    filter: saturate(0.45) brightness(0.82);
-    transition: filter 600ms var(--ease-tide);
+  [data-dimmable] {
+    transition:
+      filter var(--lt-dur-dormant) var(--ease-tide),
+      opacity var(--lt-dur-dormant) var(--ease-tide);
   }
-  /* Faded, but text keeps AA contrast: full-ink text at 75% opacity (≈5:1). */
+  [data-mode='sleep'] {
+    background: var(--lt-dormant);
+  }
+  [data-mode='sleep'] [data-dimmable] {
+    filter: saturate(0.15) brightness(0.72);
+  }
+  /*
+   * Navigation recedes by colour, not opacity, so its labels keep AA
+   * contrast: every item drops to the subtle text colour, the current-place
+   * marker goes out, and the rail sinks into the dormant canvas.
+   */
+  [data-mode='sleep'] [data-recede] {
+    background: var(--lt-dormant);
+    border-color: transparent;
+  }
+  [data-mode='sleep'] [data-recede] a,
+  [data-mode='sleep'] [data-recede] button {
+    color: var(--lt-fg-subtle);
+  }
+  [data-mode='sleep'] [data-recede] [data-marker] {
+    opacity: 0;
+  }
   [data-mode='sleep'] [data-nonessential] {
     opacity: 0.75;
   }
   [data-mode='sleep'] [data-nonessential],
   [data-mode='sleep'] [data-nonessential] * {
-    color: var(--lt-ink) !important;
+    color: var(--lt-fg) !important;
   }
   [data-mode='sleep'] *,
   [data-mode='sleep'] *::before,
   [data-mode='sleep'] *::after {
     animation-duration: 0ms !important;
     animation-iteration-count: 1 !important;
+  }
+}
+
+@layer components {
+  /* Popovers and drawers arrive; they don't bounce. */
+  .lt-pop:not([hidden]) {
+    animation: lt-pop-in var(--lt-dur-state) var(--ease-tide);
+  }
+  .lt-drawer[open] {
+    animation: lt-drawer-in var(--lt-dur-panel) var(--ease-tide);
+  }
+  .lt-drawer[open]::backdrop {
+    animation: lt-fade-in var(--lt-dur-panel) var(--ease-tide);
+  }
+
+  /* Numbers that people read at a glance: timers, percentages, counts. */
+  .figure {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum', 'ss01';
+    letter-spacing: -0.02em;
+  }
+}
+
+@keyframes lt-pop-in {
+  from {
+    opacity: 0;
+    transform: translateX(-4px) scale(0.98);
+  }
+}
+@keyframes lt-drawer-in {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+@keyframes lt-fade-in {
+  from {
+    opacity: 0;
   }
 }

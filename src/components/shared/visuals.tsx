@@ -80,18 +80,20 @@ export function Sparkline({
   );
 }
 
+/** A status: a small dot for scanning, and always the word (never colour alone). */
 const CHIP = {
-  calm: 'bg-accent-soft text-accent-ink',
-  attention: 'bg-work-1 text-warn',
-  quiet: 'bg-paper-sunken text-ink-muted',
-  done: 'bg-pulse-1 text-ink',
+  calm: { dot: 'bg-accent', text: 'text-fg-muted' },
+  attention: { dot: 'bg-work-4', text: 'text-warn' },
+  quiet: { dot: 'bg-fg-subtle', text: 'text-fg-muted' },
+  done: { dot: 'bg-pulse-3', text: 'text-fg-muted' },
 } as const;
 
 export function Chip({ tone, children }: { tone: keyof typeof CHIP; children: ReactNode }) {
   return (
     <span
-      className={`inline-flex h-5 items-center rounded-full px-2 text-[11px] font-medium whitespace-nowrap ${CHIP[tone]}`}
+      className={`inline-flex h-5 items-center gap-1.5 rounded-sm bg-hover px-1.5 text-[11px] font-medium whitespace-nowrap ${CHIP[tone].text}`}
     >
+      <span aria-hidden className={`size-1.5 rounded-full ${CHIP[tone].dot}`} />
       {children}
     </span>
   );
@@ -100,8 +102,8 @@ export function Chip({ tone, children }: { tone: keyof typeof CHIP; children: Re
 export function Stat({ value, label }: { value: ReactNode; label: string }) {
   return (
     <div className="min-w-0">
-      <p className="font-serif text-2xl leading-none font-semibold tabular-nums">{value}</p>
-      <p className="mt-1 text-[11px] text-ink-muted">{label}</p>
+      <p className="figure text-2xl leading-none font-semibold">{value}</p>
+      <p className="mt-1 text-[11px] text-fg-muted">{label}</p>
     </div>
   );
 }

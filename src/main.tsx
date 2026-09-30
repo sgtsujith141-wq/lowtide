@@ -9,6 +9,7 @@ import { CompanionClient, createCompanionRepositories } from './db/companion/cli
 import { openDatabase } from './db/database';
 import { createDexieRepositories } from './db/repositories';
 import { applyTheme, readTheme } from './lib/theme';
+import '@fontsource-variable/geist/wght.css';
 import './styles/index.css';
 
 // Composition root: the one place the concrete storage implementation is
