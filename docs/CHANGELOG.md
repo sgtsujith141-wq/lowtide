@@ -5,6 +5,39 @@ app's `package.json` version.
 
 ## [Unreleased]
 
+### Added (v2 PHASE 008B — SQLite companion and permanent shared AI context)
+
+- **The LOWTIDE companion** (`npm run companion`): a local process on 127.0.0.1 that
+  owns LOWTIDE's data in SQLite once you move it there, runs the same domain
+  repositories as the browser (ADR-057), and keeps a technical workspace up to date by
+  itself. See `docs/COMPANION.md`.
+- **Moving into it** (Settings): pairing, a required backup checked like a restore, and a
+  verified move (every record read back and compared, links checked, rolled back on any
+  difference) with a per-store report. Switching is a separate step; IndexedDB is never
+  deleted; switching back is documented.
+- **AI access over MCP:** per-client grants (one project, every project, or global with
+  private categories granted one by one; never protected time), read or write,
+  delegated approvals, tokens shown once. 12 read and 10 write tools; writes go through
+  the domain rules, attributed to the client; every call audited. A stdio bridge for
+  Claude Code and Claude Desktop. The AI area shows real connection status, the audit,
+  and access you can revoke.
+- **Live workspace:** per-project PROJECT.md, CONTEXT.md, decisions, notes and AI
+  sessions under `projects/<slug>/`, plus `hackathons/`, `shared/` and `archive/`;
+  people's files are never touched; optional private Git (no remote, no commits).
+- **Schema V6:** project notes, a recorded hackathon research status, and attribution
+  (which AI client did what).
+- **Appearance:** Auto, Light or Dark in Settings; Sleep Mode dims either.
+- The Project Room's Docs tab lists notes (yours and AI clients') and shows who recorded
+  each decision; the timeline names the AI client.
+- `npm run e2e:companion`: the whole flow in a headless browser with a real MCP session.
+
+### Changed (v2 PHASE 008B)
+
+- The repositories depend on a small storage contract (`StoreDb`) instead of Dexie.
+- The stage-1 stdio MCP server over an exported folder is replaced by the companion;
+  `companion/lowtide-mcp.ts` is now its stdio bridge.
+- The workspace layout: no `daily/` log; notes and decisions have their own folders.
+
 ### Changed (v2 PHASE 009 — QA and polish)
 
 - Vendor code is in separate chunks; the app entry is 69 kB.

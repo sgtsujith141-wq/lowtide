@@ -1,128 +1,110 @@
-# LOWTIDE v2 — Status after the overnight build
+# LOWTIDE v2 — Status after PHASE 008B
 
 - **Date:** 2026-09-30
-- **Baseline:** v2 PHASE 001 at `8ba660f`
-- **This document:** written at the end of the overnight run
+- **Baseline:** v2 PHASE 001 at `8ba660f`; the overnight build ended at `f4ffe5a`;
+  PHASE 008B starts at `a638466`
 - **Rule followed:** only what was implemented and verified is listed as done
 
 ## COMPLETED
 
-| Phase                     | What                                                                                                                                                                                                                                                                                  | Key decisions             |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| 002 V4 data foundation    | Schema V4: projects, milestones, board items, decisions, work and off-time sessions, event ledger, progress snapshots, AI sessions. Additive, with repositories, rules and backups. Preflight done.                                                                                   | ADR-046                   |
-| 003 Home v2               | Home at `/`, Today at `/today`, the v2 navigation, a GitHub-style Daily Pulse year calendar with day details, project command cards, Needs you, a compact Today, recent activity, and secondary grids. No gym on Home.                                                                | ADR-043, ADR-047, ADR-048 |
-| 004 Project Command Room  | Completion ring from milestone weight, milestone pipeline, seven lanes, progress-over-time and time-invested charts, a gold project calendar, a timeline, an editable summary, a state selector, and tabs: Overview, Tasks, Milestones, Docs, AI, GitHub, History.                    | ADR-050                   |
-| 005 Work + Sleep Mode     | Start Work (general, college, project, project + task), a global timer bar (pause, resume, finish, today's total) that survives a reload, and Sleep Mode (dims, desaturates, fades nonessential sections, keeps navigation, Wake up; refused while work runs), with focus management. | ADR-049                   |
-| 006 Life + Rhythm         | Schema V5 college items. The Life page: personal routines (adherence only, no dosage), sleep and off time with days off, gym (type, duration, note), and college (attended or missed, coursework, study time). Rhythm on the shared grid with 7-day to 12-month ranges.               | ADR-051, ADR-052          |
-| 007 Hackathons + Calendar | A seven-stage rail from each sheet's own statuses, an explicit "Track the build as a project" link, a combined calendar, and college coursework in Needs you.                                                                                                                         | ADR-053                   |
-| 009 QA and polish         | Vendor chunks (the app entry went from 488 kB to 69 kB), an axe-core sweep with every violation fixed, the overflow sweep, the large-data timing check, the keyboard check, and docs.                                                                                                 | see below                 |
+| Phase                     | What                                                                                                                                                                                                                                                                                                                                                          | Key decisions             |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| 002 V4 data foundation    | Schema V4: projects, milestones, board items, decisions, work and off-time sessions, event ledger, progress snapshots, AI sessions. Additive, with repositories, rules and backups.                                                                                                                                                                           | ADR-046                   |
+| 003 Home v2               | Home at `/`, Today at `/today`, the v2 navigation, the Daily Pulse year calendar, project cards, Needs you, a compact Today, recent activity, secondary grids.                                                                                                                                                                                                | ADR-043, ADR-047, ADR-048 |
+| 004 Project Command Room  | Completion ring, milestone pipeline, seven lanes, charts, a project calendar, a timeline, tabs: Overview, Tasks, Milestones, Docs, AI, GitHub, History.                                                                                                                                                                                                       | ADR-050                   |
+| 005 Work + Sleep Mode     | Start Work, a global timer bar that survives a reload, Sleep Mode (dims, keeps navigation, Wake up; refused while work runs).                                                                                                                                                                                                                                 | ADR-049                   |
+| 006 Life + Rhythm         | Schema V5 college items; the Life page; Rhythm on the shared grid with 7-day to 12-month ranges.                                                                                                                                                                                                                                                              | ADR-051, ADR-052          |
+| 007 Hackathons + Calendar | A seven-stage rail, an explicit "Track the build as a project", a combined calendar, coursework in Needs you.                                                                                                                                                                                                                                                 | ADR-053                   |
+| 008 Shared AI context     | Scoped context packs (never protected time) and the workspace export (browser mode).                                                                                                                                                                                                                                                                          | ADR-054                   |
+| 008B SQLite companion     | Schema V6 (notes, recorded research status, AI attribution). One storage contract for Dexie and SQLite, with parity tests. The companion: SQLite canonical after an owner-triggered, verified move; companion-backed repositories with live events; MCP with scoped grants, 22 tools, attribution and audit; the live workspace and optional Git; Appearance. | ADR-056 to ADR-061        |
+| 009 QA and polish         | Vendor chunks, an axe-core sweep, overflow, large-data timing and keyboard checks.                                                                                                                                                                                                                                                                            | see PHASE 009             |
 
 ## PARTIAL
 
-**Phase 008, the shared AI context.** The foundation is complete and verified:
+**AI client connections.** Everything on LOWTIDE's side is built and tested: the MCP
+endpoint, the stdio bridge in real sessions, and the whole flow in a headless browser.
+What hasn't happened yet is a session from inside the actual apps:
 
-- scoped context packs: PROJECT (default), WORKSPACE, GLOBAL with explicit grants;
-  protected time is never included;
-- the technical workspace export as a ZIP, with the documented hierarchy;
-- a local MCP companion over stdio, with read tools and add-only, audit-logged
-  `create_note` and `log_ai_session`.
+- **Claude Code:** the bridge it would launch is protocol-tested; not yet run from
+  Claude Code itself. First user action.
+- **Claude (Claude Desktop):** same bridge, same status.
+- **ChatGPT:** not connected. Its MCP connectors reach servers over the internet, and the
+  companion deliberately listens only on this computer.
+- **Other clients:** stdio and HTTP both work with any MCP client that can hold a token.
 
-Pending, stated honestly in the UI, the tools and the docs (ADR-054, ADR-055):
-
-- **Record-changing MCP tools** (`record_decision`, `update_project`, `complete_task`,
-  `request_approval`, `park_item`): listed, but they refuse and change nothing.
-- **Companion-owned SQLite as canonical storage** (ADR-040 stage 2).
-- **An HTTP API** (127.0.0.1, token, origin allow-list) for clients that can't start a
-  process.
-- **GitHub** read access.
-- **Importing** workspace notes and AI sessions back into LOWTIDE.
+LOWTIDE's AI area shows each client's real status, so this becomes visible the moment a
+client connects.
 
 ## BLOCKED
 
-Nothing is blocked by an external dependency. The pending items above are future work
-that each needs its own phase and security review; none of them is blocked.
+Nothing is blocked.
 
 ## NOT STARTED
 
-- Encrypted backups, sync, and PWA/offline caching (from the v0.1 optional list).
-- A theme switcher. Themes follow the OS; the tokens already support `data-theme`.
+- GitHub read access (a repository-scoped token held by the companion; ADR-041).
+- Encrypted backups, sync, PWA/offline caching.
+- Starting the companion at login (it's started by hand with `npm run companion`).
 
 ## TEST COUNTS
 
-- **Vitest:** 45 files and 514 tests, all passing. `npm test -- --run`, with the 15 s
-  per-test timeout unchanged.
-- **Progression:** 338 at the v0.1 baseline → 356 after v2 PHASE 001 → 514 now.
-- **New suites:**
-  - migrations: `migration-v4`, `v5-college`;
-  - repositories and backup: `v4-repositories`, `v4-backup`;
-  - pure logic: `contribution-grid`, `pulse-days`, `project-summary`, `context-engine`;
-  - screens: `home-page`, `modes`, `project-room`, `life-page`, `calendar-page`,
-    `hackathons-v2`, `ai-page`;
-  - the companion: `companion/companion.test.ts`, which includes a real stdio session
-    under Node.
-- **Browser checks** (Playwright, throwaway profiles, never the bootstrap profile's
-  data), for all 13 routes:
-  - 0 px horizontal overflow at 320, 360, 390 and 1280 px, light and dark;
-  - axe-core: 0 violations at 1280 and 320 px, light and dark, Sleep Mode off and on;
-  - no console errors.
-- **Large data** (30 projects, 3,000 tasks, 3,650 routine entries, 1,200 work sessions,
-  2,410 events):
-  - validation 0.2 s, restore 1.4 s;
-  - Home's Daily Pulse ready in about 0.9 s on a cold page load;
-  - the other screens in 0.1–0.35 s.
+- **Vitest:** 53 files and 555 tests, all passing (`npm test -- --run`).
+- **Progression:** 338 at the v0.1 baseline → 356 after v2 PHASE 001 → 514 after the
+  overnight build → 521 with schema V6 → 555 now.
+- **PHASE 008B suites:** SQLite store and parity, migration and rollback, MCP and the HTTP
+  boundary, the workspace, the stdio bridge, the wire contract, the app against a real
+  companion, and Settings (see TESTING.md).
+- **Real-browser check:** `npm run e2e:companion`, 16 steps, all passing, no console
+  errors (headless Chromium, throwaway profile and data folder).
+- The overnight build's browser checks (overflow, axe-core, large data) were not re-run
+  on the new Settings and AI screens; they follow the same components and tokens.
 
 ## CURRENT ARCHITECTURE
 
-- **Runtime:** a static React 19 SPA (Vite 8, TypeScript strict, Tailwind 4, React
-  Router 8). IndexedDB via Dexie 4 is canonical, and repositories are the only way UI
-  code reaches data (ESLint-enforced).
-- **Schema V5:** the six v0.1 stores, nine V4 stores, and `collegeItems`. Every upgrade
-  is additive with no record rewritten. Backups use envelope format 1 with 16 stores,
-  and V1–V4 backups still import.
-- **Derived, never stored:**
-  - the Daily Pulse (ADR-037), capped and fixed-band, where a declared day off can be
-    strong;
-  - the themed grid levels;
-  - project summaries;
-  - chart series;
-  - the calendar.
-- **Ledger:** events are written in the same transaction as their record, reference it
-  and never copy it. Private event types are hidden by default.
-- **AI:**
-  - no AI inside the app, and no network requests;
-  - context packs and the workspace export are built on demand from one consistent
-    snapshot (the backup export);
-  - the companion (`companion/lowtide-mcp.ts`) is a stdio MCP server over the exported
-    folder: no port, scoped, add-only, audit-logged.
-- **Bundles:** entry 69 kB plus vendors (react 219 kB, data 120 kB, router 92 kB); each
+- **App:** a static React 19 SPA (Vite 8, TypeScript strict, Tailwind 4, React Router
+  8). Repositories are the only way UI code reaches data (ESLint-enforced).
+- **Storage, two modes (ADR-058):** browser mode keeps IndexedDB (Dexie) canonical;
+  companion mode keeps `~/.lowtide/lowtide.sqlite` canonical, and the app's repositories
+  call the companion. The same domain repositories run on both through `StoreDb`
+  (ADR-057). There's no fallback between them.
+- **Schema V6:** 17 stores; every upgrade additive. Backups: envelope format 1, 17
+  stores; V1–V5 still import.
+- **The companion:** one process on 127.0.0.1 (Host and Origin checks, owner token for
+  the app, grant tokens for AI clients, rate and size limits, owner-only files). Live
+  updates by server-sent events after every commit.
+- **AI:** no AI inside the app. AI clients reach LOWTIDE only through the companion's
+  MCP endpoint, within their grant; every call is audited; protected time is reachable
+  from no scope.
+- **Workspace:** regenerated after every change; people's files never touched; optional
+  private Git with no remote.
+- **Bundles:** entry ~83 kB plus vendors (react 219 kB, data 120 kB, router 92 kB); each
   screen is lazy-loaded.
 
 ## KNOWN RISKS
 
-- **Two copies of state for AI.** The workspace is an export, so it's stale until you
-  export again, and AI notes and sessions written there don't flow back into LOWTIDE
-  yet.
-- **Sensitive data is still plaintext at rest.** This is the same model as v0.1
-  (SECURITY.md). Hackathon files in the workspace include team names and strategy.
-- **jsdom test weight.** Home renders about 370 labelled squares on first paint (five
-  more year grids when scrolled to). Tests wait up to 3 s for async UI and Vitest uses
-  half the cores. The suite is stable under load (verified three times at load average
-  ~11–21), but a much slower machine could still need attention.
-- **Pulse inputs.** `tasks.completedAt` and `milestones.completedAt` aren't indexed, so
-  the activity query filters those tables in memory. That's fine at 3,000 tasks, but
-  worth an index if it grows by 10×.
-- **The Research stage** is positional (between knowing the problem and starting work),
-  not a recorded status (ADR-053).
+- **The companion has to be running** in companion mode. If it isn't, LOWTIDE says so
+  and saves nothing until it's back (no silent fallback, by design). It isn't started
+  at login yet.
+- **Plaintext at rest,** as before: the SQLite database, backups and the workspace aren't
+  encrypted by LOWTIDE; they're owner-only files. Use disk encryption.
+- **The owner token sits in the app's `localStorage`.** Anything running script on
+  LOWTIDE's origin could read it; LOWTIDE loads no third-party scripts.
+- **What an AI client reads, it sends to its model provider.** Scopes limit what that is.
+- **`node:sqlite`** is Node's built-in SQLite module, a newer part of Node than the rest
+  of what LOWTIDE uses. The companion was tested on Node 24.19; it needs Node 22.22 or
+  later (LOWTIDE's minimum), and a Node upgrade is worth a run of the companion tests.
+- **The audit log grows** with every AI call. There's no pruning yet.
+- **jsdom test weight,** as before: two waits for page-wide queries on heavy screens now
+  allow up to 8 s under load.
 
 ## NEXT HUMAN DECISIONS
 
-1. **Restore your real bootstrap** in your own browser, check it, and export a fresh
-   backup. The automation profile holds a copy; your browser doesn't yet.
-2. **Daily Pulse calibration:** are the 25 and 90 minute thresholds, the caps and the
-   day-off rule right for you (ADR-037)?
-3. **Hackathon Research stage:** keep it positional, or add a real research status
-   field (a schema change)?
-4. **Companion stage 2:** when to move canonical storage to a companion-owned SQLite
-   database. That unlocks the record-changing MCP tools, the HTTP API and GitHub.
-5. **Workspace:** do you want it Git-versioned, and where should it live?
-6. **Theme:** add a manual light/dark switch, or keep following the OS?
+1. **Move your real profile** into the companion when you're ready
+   ([COMPANION.md](COMPANION.md) §2–3): pair, download the backup, move, check the
+   report, switch.
+2. **Connect Claude Code** with a project-scoped grant and watch it appear as connected
+   in the AI area.
+3. **Workspace location:** keep `~/.lowtide/workspace`, or point `workspaceDir` at a
+   folder of your choice, and decide whether to make it a Git repository.
+4. **Start at login:** do you want the companion started automatically (a launch agent),
+   or by hand?
+5. **Daily Pulse calibration** (ADR-037), still open from the overnight build.

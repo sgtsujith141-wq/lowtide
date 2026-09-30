@@ -7,8 +7,12 @@
   - §3–§10 are built, with schema V5 adding `collegeItems` (ADR-051).
   - §11–§12 are built as the workspace export and in-app context packs (ADR-054).
   - §13 is stage 1: a stdio MCP companion over the exported workspace (ADR-055).
-  - [LOWTIDE-V2-STATUS.md](LOWTIDE-V2-STATUS.md) lists what's complete, partial and
-    pending. Where this document and a later ADR differ, the ADR wins.
+- **PHASE 008B (2026-09-30):** §11–§14 are built, except GitHub access. The companion
+  owns SQLite after a verified, owner-triggered move; AI clients reach LOWTIDE over MCP
+  with scoped grants and an audit; the workspace stays up to date by itself (ADR-056 to
+  ADR-061).
+  [LOWTIDE-V2-STATUS.md](LOWTIDE-V2-STATUS.md) lists what's complete, partial and
+  pending. Where this document and a later ADR differ, the ADR wins.
 - **Date:** 2026-09-30
 - **Baseline:** v0.1 at `de8f501`, schema V3
 - **Companions:**

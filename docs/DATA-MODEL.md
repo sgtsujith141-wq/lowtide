@@ -321,6 +321,62 @@ and no others. A V1–V3 backup must contain the six legacy stores and no others
 imports with the nine new stores empty (`migrateSnapshot`). `BACKUP_FORMAT_VERSION`
 stays 1.
 
+## Schema V6 (v2 PHASE 008B, ADR-056)
+
+Additive; the V5 → V6 upgrade only creates the `notes` store and changes no record.
+
+| Store   | Entity | Indexes                          |
+| ------- | ------ | -------------------------------- |
+| `notes` | `Note` | `projectId, createdAt` (V6 only) |
+
+- **`Note`**: `id, projectId, kind (note | research | handoff | summary), title, body
+(Markdown), author (owner | ai-client), client?, createdAt, updatedAt`. `client` is
+  present exactly when an AI client wrote it. Creating a note appends `note.created`.
+- **`Hackathon.researchStatus?`**: `not_started | in_progress | done`, recorded by the
+  owner. Absent on existing hackathons (read as not started). The stage rail reads it
+  and no longer infers research from other stages.
+- **Attribution.** `LedgerEvent.actor?` names the AI client when `source` is
+  `ai-client`; `Decision.origin` gains `ai-client` with `Decision.client?`;
+  `AiSession` gains `taskId?`, `result?`, `nextAction?`, `commits?` and `handoff?`.
+
+**Backups:** `STORE_NAMES` lists all 17 stores. Schema-6 backups carry them all; V1–V5
+backups still import, with `notes` empty (`migrateSnapshot`). Integrity: a note needs
+an existing project, and an AI-authored note needs its client.
+
+## The companion's SQLite schema (PHASE 008B, ADR-057, ADR-058)
+
+In companion mode the same records live in `~/.lowtide/lowtide.sqlite`, one table per
+store, generated from the domain definitions (`companion/server/sqlite/tables.ts`), so
+an enum added to the domain changes the database with it:
+
+- `STRICT` tables; the primary key is the record's own `id` (never re-generated).
+- Columns are the record's fields in `snake_case`: text (timestamps and `LocalDate`s
+  stay exactly as in IndexedDB, as strings), integer, real, boolean (0/1, checked), or
+  JSON (checked with `json_valid`) for nested values such as work-session pauses,
+  lane counts, event data, AI session files and commits.
+- Enumerations are `CHECK (column IN (…))` constraints built from the domain's `as
+const` arrays. Required fields are `NOT NULL`; an absent optional field is `NULL` and
+  comes back omitted, as in IndexedDB.
+- Every reference is a foreign key, `DEFERRABLE INITIALLY DEFERRED` (checked at commit,
+  so a transaction can write records in any order), for example milestones → projects,
+  tasks → projects and milestones, decisions → the decision they supersede.
+- The IndexedDB indexes are SQL indexes, and the unique ones stay unique: one entry per
+  habit per day, one snapshot per project per day, one project per slug.
+
+Tables that only the companion has (`companion/server/sqlite/migrations.ts`):
+
+| Table                  | Holds                                                                     |
+| ---------------------- | ------------------------------------------------------------------------- |
+| `companion_migrations` | which companion schema migrations have run                                |
+| `companion_meta`       | `lowtide_schema_version` (6), and when and from which backup it was moved |
+| `ai_grants`            | each AI client's grant; the token only as a SHA-256 fingerprint           |
+| `ai_audit`             | every MCP tool call: who, scope, operation, entity, before/after, result  |
+| `ai_sightings`         | when each grant's client was last heard from (connection status)          |
+
+**Parity.** `companion/server/sqlite/store.test.ts` runs one scenario touching all 17
+stores on Dexie and on SQLite and requires identical exports and identical answers to
+13 live queries.
+
 ## Migrations
 
 1. Never edit a shipped `this.version(n)` block in `src/db/database.ts`.

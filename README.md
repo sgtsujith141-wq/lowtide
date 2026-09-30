@@ -8,11 +8,14 @@ activity squares, hackathons, coding/learning and fitness consistency, money/bus
 experiments, and protected time for the people you love. It is not a corporate
 productivity dashboard: no fake AI, no analytics, no streak guilt, no KPI walls.
 
-Everything is stored in your browser's IndexedDB on your device. There is no server,
-no account, and no network call carrying your data anywhere. The optional companion is
-a local process that reads an exported folder; it opens no network port.
+Everything stays on your device. By default LOWTIDE keeps its data in your browser's
+IndexedDB. When you choose, you can move it into the **LOWTIDE companion**, a small
+local program that keeps it in SQLite, keeps a technical workspace up to date, and lets
+the AI clients you allow (Claude Code, Claude Desktop, others) work with it over MCP,
+each only within the scope you give it, with every change attributed and audited. There
+is no account, no cloud, and nothing carrying your data to the internet.
 
-> **Status: LOWTIDE v2 (overnight build, 2026-09-30).** See
+> **Status: LOWTIDE v2 with the SQLite companion (PHASE 008B, 2026-09-30).** See
 > [docs/LOWTIDE-V2-STATUS.md](docs/LOWTIDE-V2-STATUS.md) for what's complete, partial
 > and pending.
 >
@@ -29,9 +32,11 @@ a local process that reads an exported folder; it opens no network port.
 > - **Life** (`/life`): personal routines, sleep and off time, the gym, and college.
 > - **Rhythm**, **Hackathons** (with a stage rail), **Calendar**, **Today** (`/today`),
 >   **Inbox**, **Tasks**, and **Data & backup**.
-> - **AI & workspace** (`/ai`): scoped context packs and a technical workspace export.
->   A local MCP companion (`companion/`, [docs/COMPANION.md](docs/COMPANION.md)) serves
->   the workspace to AI clients over stdio.
+> - **AI & workspace** (`/ai`): scoped context packs; with the companion, AI client
+>   access (grants, real connection status, an audit of every call) and the live
+>   workspace; without it, a workspace ZIP export.
+> - **Settings** (`/settings`): Auto, Light or Dark, and moving LOWTIDE into the
+>   companion ([docs/COMPANION.md](docs/COMPANION.md)) with a verified migration.
 >
 > Protected time for the people you love is never scored, never in a grid, and never in
 > AI context.
@@ -45,33 +50,38 @@ npm install
 npm run dev          # http://localhost:5173
 ```
 
-| Command                | What it does                                                              |
-| ---------------------- | ------------------------------------------------------------------------- |
-| `npm run dev`          | Vite dev server with hot reload                                           |
-| `npm run build`        | Type-check (`tsc -b`) then production build into `dist/`                  |
-| `npm run preview`      | Serve the production build locally                                        |
-| `npm run typecheck`    | TypeScript only                                                           |
-| `npm run lint`         | ESLint (includes the storage-boundary rule: UI goes through repositories) |
-| `npm run format`       | Prettier, write                                                           |
-| `npm run format:check` | Prettier, check only                                                      |
-| `npm test`             | Vitest in watch mode (`npm test -- --run` for a single pass)              |
-| `npm run check`        | typecheck + lint + format check + tests + build — run before committing   |
+| Command                 | What it does                                                              |
+| ----------------------- | ------------------------------------------------------------------------- |
+| `npm run dev`           | Vite dev server with hot reload                                           |
+| `npm run build`         | Type-check (`tsc -b`) then production build into `dist/`                  |
+| `npm run preview`       | Serve the production build locally                                        |
+| `npm run typecheck`     | TypeScript only                                                           |
+| `npm run lint`          | ESLint (includes the storage-boundary rule: UI goes through repositories) |
+| `npm run format`        | Prettier, write                                                           |
+| `npm run format:check`  | Prettier, check only                                                      |
+| `npm test`              | Vitest in watch mode (`npm test -- --run` for a single pass)              |
+| `npm run check`         | typecheck + lint + format check + tests + build — run before committing   |
+| `npm run companion`     | Build and run the local companion (`-- pair` prints the pairing link)     |
+| `npm run e2e:companion` | The whole companion flow in a headless browser (needs `playwright-core`)  |
 
 ## Stack
 
 React 19 · TypeScript 6 · Vite 8 · Tailwind CSS 4 · React Router 8 · Dexie 4 (IndexedDB)
 · Zod 4 (`zod/mini`) · date-fns · Lucide · Vitest + React Testing Library + fake-indexeddb
-· ESLint + Prettier.
+· ESLint + Prettier. The companion adds no dependency: Node's built-in `node:sqlite`,
+`node:http` and `node:crypto`.
 
 ## Project layout
 
 ```
 src/
   app/            composition: App, Shell (navigation), routes, error screen
-  db/             the only code that touches IndexedDB
+  db/             storage: the StoreDb contract, Dexie, repositories, backups
     database.ts   Dexie database + version history
     schema.ts     Zod record schemas, schema version, store/index layout
-    repositories/ interfaces (types.ts) + Dexie implementations
+    store.ts      StoreDb: the storage contract both backends implement
+    repositories/ interfaces (types.ts) + the domain repositories
+    companion/    the app's side of the companion: wire contract, client, backend
   components/ui/  small primitives: Button, IconButton, notices, field styles
   features/       today, inbox, tasks, rhythm, hackathons, backup: screens + feature logic (each screen its own chunk)
   hooks/          useRepositories, useWatch (live data), useToday, useDocumentTitle
@@ -79,6 +89,9 @@ src/
   styles/         design tokens + Tailwind entry
   types/          domain types (Task, InboxItem, Habit, …)
   test/           Vitest setup, helpers and tests
+companion/        the companion: server/ (SQLite, migration, RPC, MCP, workspace) and
+                  lowtide-mcp.ts (the stdio bridge for AI clients)
+scripts/          e2e-companion.mjs (the real-browser check)
 docs/             product, architecture, decisions, data model, testing, security, phases
 ```
 
@@ -91,6 +104,8 @@ feature needs them, not before.
 - [Architecture](docs/ARCHITECTURE.md) — layers and boundaries
 - [Data model](docs/DATA-MODEL.md) — entities, date/ID conventions, migrations
 - [Decisions](docs/DECISIONS.md) — ADRs
+- [Companion](docs/COMPANION.md) — starting it, moving your data, connecting AI clients,
+  backup and rollback
 - [Setup](docs/SETUP.md) · [Testing](docs/TESTING.md) · [Security](docs/SECURITY.md)
 - [Roadmap](docs/ROADMAP.md) · [Changelog](docs/CHANGELOG.md) · [Phase reports](docs/phases/)
 

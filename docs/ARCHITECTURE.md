@@ -1,17 +1,18 @@
 # Architecture
 
-LOWTIDE is a static single-page app. There is no server: the browser is the runtime
-and IndexedDB is the database.
+LOWTIDE is a static single-page app. It keeps its data in one of two places, chosen by
+the owner (ADR-058):
+
+- **browser mode** (the default): IndexedDB in the browser, through Dexie;
+- **companion mode**: the LOWTIDE companion, a local process on 127.0.0.1 that owns a
+  SQLite database, keeps the technical workspace up to date, and serves AI clients over
+  MCP. See [The companion](#the-companion-phase-008b) and [COMPANION.md](COMPANION.md).
+
+The same domain repositories run in both (ADR-057), so every rule, event and snapshot
+behaves identically wherever the data lives.
 
 **LOWTIDE v2** is planned in [LOWTIDE-V2-ARCHITECTURE.md](LOWTIDE-V2-ARCHITECTURE.md)
-(ADR-037 onwards). What's built so far:
-
-- schema V4 and its repositories (v2 PHASE 002);
-- Home, the contribution grids and the Daily Pulse (ADR-047, ADR-048);
-- Work Mode and Sleep Mode (ADR-049);
-- the Project Command Room (ADR-050).
-
-IndexedDB stays canonical until a dedicated later phase (ADR-040).
+(ADR-037 onwards); [LOWTIDE-V2-STATUS.md](LOWTIDE-V2-STATUS.md) says what's built.
 
 **v2 feature map:**
 
@@ -24,6 +25,8 @@ IndexedDB stays canonical until a dedicated later phase (ADR-040).
 | `features/modes/`    | the mode bar, Start Work panel, Sleep Mode                        |
 | `features/work/`     | work-session arithmetic                                           |
 | `features/activity/` | the ledger timeline                                               |
+| `features/context/`  | context packs, the workspace generator, the AI area               |
+| `features/settings/` | Appearance and where LOWTIDE keeps its data (pairing, the move)   |
 
 ## Layers
 
@@ -32,15 +35,19 @@ IndexedDB stays canonical until a dedicated later phase (ADR-040).
         │  useRepositories()  +  useWatch(repo.watch…)   ← live data
         ▼
  repository interfaces        src/db/repositories/types.ts
-        │  implemented by
-        ▼
- Dexie repositories           src/db/repositories/dexie-*.ts
-        │  validate with            ▲
-        ▼                           │
- Zod schemas + store layout   src/db/schema.ts
         │
-        ▼
- LowtideDatabase (Dexie)      src/db/database.ts  →  IndexedDB "lowtide"
+        ├── browser mode: the domain repositories   src/db/repositories/dexie-*.ts
+        │        │  validate with Zod (src/db/schema.ts), write through StoreDb
+        │        ▼
+        │   StoreDb (src/db/store.ts) = asStore(LowtideDatabase)  →  IndexedDB "lowtide"
+        │
+        └── companion mode: companion repositories  src/db/companion/client.ts
+                 │  HTTP to 127.0.0.1 (owner token); live queries re-ask on SSE changes
+                 ▼
+            the companion (companion/server): the SAME domain repositories
+                 │  write through StoreDb
+                 ▼
+            StoreDb = SqliteStore  →  ~/.lowtide/lowtide.sqlite
 ```
 
 Domain types (`src/types/domain.ts`) are plain TypeScript and are shared by every layer.
@@ -67,7 +74,9 @@ Domain types (`src/types/domain.ts`) are plain TypeScript and are shared by ever
     the only place that creates one, and it gives UI code only repositories.
 - Components get data through `useRepositories()`, which reads a React context.
 - The concrete implementation is chosen once, in the composition root `src/main.tsx`:
-  `createDexieRepositories(openDatabase())`. Tests pass their own database.
+  `createDexieRepositories(openDatabase())` in browser mode, or
+  `createCompanionRepositories(client)` once the owner has switched to the companion
+  (`src/db/companion/backend.ts` remembers which). Tests pass their own.
 - Repository methods are async, take/return plain domain objects, validate before
   writing, and enforce invariants (e.g. converting an inbox item to a task is a single
   IndexedDB transaction across both stores).
@@ -212,6 +221,50 @@ Missing records follow one rule (documented on the interfaces in
   Domain error names deliberately avoid DOMException names — see
   [DECISIONS.md ADR-010](DECISIONS.md).
 
+## The companion (PHASE 008B)
+
+One process (`npm run companion`, built by `companion/vite.config.ts` into
+`companion/dist/`) owns the SQLite database. Everything else reaches LOWTIDE's data
+through it:
+
+```
+ LOWTIDE app (browser) ──owner token──►  /api/rpc      repository calls, by the wire contract
+                         ◄── SSE ──────  /api/events   "change" after every commit, "ai", "workspace"
+                         ──owner token─►  /api/migrate, /api/ai/*, /api/workspace/*
+ AI client (HTTP)      ──grant token──►  /mcp          MCP, Streamable HTTP, JSON responses
+ AI client (stdio) ─► companion/lowtide-mcp.ts (bridge) ─► /mcp
+                                           │
+                            companion/server/app.ts (127.0.0.1, Host + Origin checks,
+                            tokens, rate and size limits)
+                                           │
+        domain repositories (owner, or attributed AI client) ─► SqliteStore ─► SQLite
+                                           │ onChange
+                                           ▼
+                             WorkspaceSync ─► ~/.lowtide/workspace
+```
+
+| File (`companion/`)           | Does                                                                 |
+| ----------------------------- | -------------------------------------------------------------------- |
+| `server/sqlite/tables.ts`     | one strict table per store, generated from the domain enums          |
+| `server/sqlite/migrations.ts` | companion schema migrations and metadata (`companion_meta`)          |
+| `server/sqlite/store.ts`      | `SqliteStore implements StoreDb`: queue, transactions, change events |
+| `server/migrate.ts`           | the verified move (stage B) and its report                           |
+| `server/rpc.ts`               | the owner's repository RPC, dispatched by the wire contract          |
+| `server/grants.ts`            | AI grants, tokens, audit log, sightings, client status               |
+| `server/tools.ts`             | the 22 MCP tools: scopes, validation, attribution, audit             |
+| `server/mcp.ts`               | MCP sessions, version negotiation, `tools/list`, `tools/call`        |
+| `server/workspace-sync.ts`    | the live workspace, path security, Git init                          |
+| `server/app.ts`, `main.ts`    | the HTTP boundary and the command line                               |
+| `lowtide-mcp.ts`              | the stdio bridge (Node built-ins only; Node runs it from source)     |
+
+The wire contract (`src/db/companion/contract.ts`) lists every repository member as a
+call, a live query or pure (run in the app); a type-level check and a test pin it to the
+real repositories. Shapes the owner API returns are in `src/db/companion/wire.ts`.
+
+Live data in companion mode: each `Watch` in the app is a query to the companion that
+runs again (once per burst) when the event stream reports a committed change, and only
+passes a result on when it differs. There's no polling and no IndexedDB fallback.
+
 ## App shell and routing
 
 - `src/app/App.tsx` receives `repositories` and a `router` as props (so tests can use
@@ -277,17 +330,20 @@ Missing records follow one rule (documented on the interfaces in
 
 ## Directory conventions
 
-| Path                     | Holds                                                          |
-| ------------------------ | -------------------------------------------------------------- |
-| `src/app/`               | Composition: App, routes, context objects, app-level screens   |
-| `src/features/<area>/`   | Feature UI + feature logic, one folder per area                |
-| `src/components/ui/`     | Small presentational primitives (Button, notices, styles)      |
-| `src/components/shared/` | Cross-feature composed components (contribution grid, visuals) |
-| `src/db/`                | Everything that knows about IndexedDB                          |
-| `src/hooks/`             | Cross-feature hooks                                            |
-| `src/lib/`               | Pure helpers (ids, time)                                       |
-| `src/types/`             | Domain types                                                   |
-| `src/styles/`            | Global CSS and tokens                                          |
-| `src/test/`              | Test setup, helpers and tests                                  |
+| Path                     | Holds                                                           |
+| ------------------------ | --------------------------------------------------------------- |
+| `src/app/`               | Composition: App, routes, context objects, app-level screens    |
+| `src/features/<area>/`   | Feature UI + feature logic, one folder per area                 |
+| `src/components/ui/`     | Small presentational primitives (Button, notices, styles)       |
+| `src/components/shared/` | Cross-feature composed components (contribution grid, visuals)  |
+| `src/db/`                | Storage: the StoreDb contract, Dexie, repositories, backups     |
+| `src/db/companion/`      | The app's side of the companion: wire contract, client, backend |
+| `src/hooks/`             | Cross-feature hooks                                             |
+| `src/lib/`               | Pure helpers (ids, time)                                        |
+| `src/types/`             | Domain types                                                    |
+| `src/styles/`            | Global CSS and tokens                                           |
+| `src/test/`              | Test setup, helpers and tests                                   |
+| `companion/`             | The companion daemon, its stdio bridge, and their tests         |
+| `scripts/`               | Tooling outside the app (the real-browser e2e check)            |
 
 Empty folders are not created ahead of time.

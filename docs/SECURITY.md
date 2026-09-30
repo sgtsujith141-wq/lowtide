@@ -6,8 +6,12 @@ protected. It does not claim more than is true.
 
 ## Where data lives
 
-- All data is stored in **IndexedDB in the browser profile** on the device, database
-  name `lowtide`. There is no server copy.
+- **Browser mode** (the default): all data is stored in **IndexedDB in the browser
+  profile** on the device, database name `lowtide`. There is no server copy.
+- **Companion mode** (PHASE 008B, only after you move LOWTIDE there yourself): the data
+  lives in `~/.lowtide/lowtide.sqlite`, owned by the local companion process. See
+  [The companion](#the-companion-phase-008b) below. The browser's IndexedDB copy is kept,
+  unchanged, from the moment you moved.
 - LOWTIDE makes **no network requests** carrying user data. At runtime it loads only its
   own static files; no analytics, telemetry, fonts CDN, or third-party scripts. (Checked
   in PHASE 000–004 (full capture, plan, protected-time, rhythm and hackathon
@@ -49,7 +53,12 @@ protected. It does not claim more than is true.
 
 ## Secrets
 
-- The app needs no API keys, tokens or environment variables. None are committed.
+- The app needs no API keys or environment variables, and none are committed. In
+  companion mode it holds one token, the owner token you pair it with (see
+  [The companion](#the-companion-phase-008b)).
+- The companion's tokens live only in `~/.lowtide` (owner-only) and are never written to
+  the repository or the workspace. `.gitignore` also excludes `companion.json`, SQLite
+  files and `.lowtide/`.
 - `.gitignore` excludes `.env*` (except a future `.env.example`) and `lowtide-export*` /
   `lowtide-backup*` JSON files so personal data exports don't get committed by accident.
 - Staged diffs are reviewed for secrets before each commit.
@@ -99,16 +108,20 @@ protected. It does not claim more than is true.
 
 ## LOWTIDE v2: workspace export and the companion (PHASE 008)
 
-**The app still makes no network requests.** v2 adds no fetch, no WebSocket, no
-analytics and no AI API. "Ask LOWTIDE" is a local search.
+**In browser mode the app still makes no network requests.** v2 adds no analytics, no
+AI API and no third-party requests; "Ask LOWTIDE" is a local search. In companion mode
+(PHASE 008B) its only requests go to the paired companion on 127.0.0.1.
 
 **Workspace export (ADR-044, ADR-054)** is a ZIP you download, like a backup, but:
 
 - It holds **technical project knowledge only**:
   - projects, milestones, board items and decisions;
-  - reported AI sessions;
-  - hackathon sheets (including team names and next steps);
-  - a daily log of project work sessions (intent, outcome, minutes).
+  - notes and reported AI sessions (with their handoffs);
+  - hackathon sheets (including team names and next steps).
+
+  (PHASE 008B replaced the daily work log with a per-project folder layout, the same
+  one the companion keeps up to date: ADR-060.)
+
 - It **never** holds:
   - protected time, with no option to include it;
   - sleep or off-time windows;
@@ -132,34 +145,71 @@ analytics and no AI API. "Ask LOWTIDE" is a local search.
   **only for the areas you tick**. Protected time can't be ticked; it's excluded by
   construction.
 
-**The companion (ADR-055)** is a local MCP server (`companion/lowtide-mcp.ts`) that an AI
-client starts as a child process:
+The stage-1 stdio companion described here in PHASE 008 was replaced in PHASE 008B:
 
-- **No network at all.** It speaks JSON-RPC over stdin/stdout and opens no port, so the
-  localhost-only, authentication and CORS rules of ADR-041 have nothing to attach to.
-  Access control is that only the client that started it can talk to it.
-- **Workspace only.** It reads and writes only inside the exported workspace folder.
-  Paths are resolved and realpath-checked, so `..`, absolute paths and symlinks
-  pointing outside are refused (tested).
-- **Scoped.** It's project-scoped by default: other projects, the root README and the
-  manifest are invisible. The workspace scope must be chosen explicitly with
-  `--scope workspace`.
-- **Auditable writes.** It can only _add_ files: a note, or an AI session record. It
-  never overwrites or deletes. Every write, and every refused record-change attempt, is
-  appended to `.lowtide/audit.log` in the workspace.
-- **No record changes yet.** Tools that would change LOWTIDE's own data
-  (`record_decision`, `update_project`, `complete_task`, `request_approval`,
-  `park_item`) refuse and change nothing, until the companion owns storage (ADR-040
-  stage 2).
-- **No secrets.** It needs no token and reads no environment variables.
+## The companion (PHASE 008B)
 
-**Not built yet (each needs its own security review):**
+The companion (ADR-058, ADR-059, ADR-060) is a local process that owns LOWTIDE's SQLite
+database once you move LOWTIDE into it. What protects what:
 
-- an HTTP API for clients that can't start a process (127.0.0.1 only, a per-install
-  bearer token, no wildcard CORS);
-- GitHub access (a read-only, repository-scoped token held by the companion or the OS
-  keychain);
-- the move of canonical storage from IndexedDB to a companion-owned SQLite database.
+**Network surface**
+
+- It listens on **127.0.0.1 only**. Nothing on your network, let alone the internet, can
+  reach it, and it makes no outbound requests at all.
+- **DNS rebinding:** requests whose `Host` isn't `127.0.0.1:<port>` or
+  `localhost:<port>` are refused.
+- **Browsers:** only the origins in `allowedOrigins` (`~/.lowtide/companion.json`;
+  LOWTIDE's dev and preview addresses by default) get CORS headers, echoed per origin,
+  never `*`. A request from any other origin is refused. There are no cookies, so a
+  website can't ride on your session: every request needs a bearer token.
+- **Tokens.** The app uses the **owner token**; each AI client uses its **own grant
+  token**, and neither works in the other's place. Tokens are 256-bit random values,
+  compared in constant time; grant tokens are stored only as SHA-256 fingerprints and
+  shown once. Failed attempts are rate-limited, as is each token's traffic. Request
+  bodies are size-limited (1 MB for MCP).
+- The app keeps the owner token in `localStorage` for its origin, so anything able to
+  run script on that origin could read it. LOWTIDE loads no third-party scripts; don't
+  serve it from an origin shared with other apps. `npm run companion -- rotate-token`
+  replaces the token (then pair again).
+
+**Data at rest**
+
+- `~/.lowtide` and everything in it are owner-only (0700 folders, 0600 files): the
+  database, `companion.json` (the owner token), `backups/` (the exact file of every
+  move) and, by default, the workspace. Other users on the computer can't read them;
+  programs running as you can, as with the browser profile.
+- The database is **not encrypted** by LOWTIDE. Use disk encryption (FileVault,
+  BitLocker).
+- The audit log is in the same database and holds short summaries of what clients did
+  (titles, states), not record contents.
+
+**AI clients**
+
+- Each client sees only the scope you grant (one project, every technical project, or
+  global with private categories ticked one by one). **Protected time is reachable from
+  no scope**, and no grant can include it. Tested with distinctive strings across every
+  read tool, the workspace files and search.
+- Writes go through the same validation, rules and ledger as the app, attributed to the
+  client, and every call (refused ones too) is in the audit log you see in the AI area.
+  Resolving approvals needs a separate delegation. AI clients can't write workspace
+  files, run commands or reach anything outside LOWTIDE's own tools.
+- **What a client reads leaves LOWTIDE through that client.** An AI client sends what it
+  reads to its model provider as part of its conversation, under that provider's terms.
+  LOWTIDE itself sends nothing anywhere; choose scopes with that in mind.
+- The stdio bridge takes its token from `LOWTIDE_TOKEN`. Prefer that to `--token`, which
+  other local users could see in the process list.
+
+**The workspace**
+
+- Only generated, marked files are ever written; people's files are never modified or
+  deleted. Paths are checked after following links, so traversal, absolute paths and
+  links out of the workspace are refused (tested). No private life data is written there.
+- "Make it a Git repository" never adds a remote and never commits. If you add a remote,
+  what you push is up to you; the generated `.gitignore` keeps bookkeeping, databases,
+  backups and secrets out.
+
+**Not built yet:** GitHub access (a read-only, repository-scoped token held by the
+companion or the OS keychain, ADR-041) and encrypted backups.
 
 ## Future risks to design for
 

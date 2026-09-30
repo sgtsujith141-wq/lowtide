@@ -29,6 +29,17 @@ npm run preview    # serve dist/ at http://localhost:4173
 `dist/` is plain static files. Any static host works if unknown paths fall back to
 `index.html` (needed for client-side routes).
 
+## The companion (optional)
+
+```bash
+npm run companion            # build and run the local companion on 127.0.0.1:4318
+npm run companion -- pair    # print the link that pairs LOWTIDE with it
+```
+
+It keeps its data in `~/.lowtide` (`LOWTIDE_DATA_DIR` or `--data` to change). Moving
+LOWTIDE into it, connecting AI clients, backups and rollback:
+[COMPANION.md](COMPANION.md).
+
 ## Before committing
 
 ```bash
@@ -37,7 +48,10 @@ npm run check      # typecheck, lint, prettier check, tests, build
 
 ## Notes
 
-- **No environment variables** are needed or read. Do not add `.env` files with secrets.
+- **No environment variables** are needed. The companion optionally reads
+  `LOWTIDE_DATA_DIR` (its data folder), and the stdio bridge reads `LOWTIDE_TOKEN` (an AI
+  client's grant token, set in that client's own config). Do not add `.env` files with
+  secrets.
 - **npm install-script approval.** npm 11 prints
   `npm warn allow-scripts … approve-scripts`. The only dependency with an install script
   is `fsevents` (optional, macOS file watching, pulled in by Vite). It ships prebuilt

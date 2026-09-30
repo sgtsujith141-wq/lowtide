@@ -4,7 +4,7 @@ Lightweight ADRs. Status is Accepted unless noted. Newest decisions are appended
 
 ## ADR-001 — React + Vite SPA, not a server-oriented framework
 
-**Status (2026-09-30):** in force. ADR-040 plans a later, explicit supersession when the local companion ships.
+**Status (2026-09-30, PHASE 008B):** in force for the app, which is still a static SPA. The optional local companion (ADR-058) is a separate process on the same computer, not a server for the app’s pages.
 
 **Context.** LOWTIDE is a single-user app whose data lives on the device. There is no
 server-side data to render.
@@ -13,6 +13,8 @@ server-side data to render.
 No SSR/SEO, which a personal tool does not need.
 
 ## ADR-002 — IndexedDB via Dexie for persistence
+
+**Status (2026-09-30, PHASE 008B):** superseded in part by ADR-058. IndexedDB stays the store of browser mode and keeps the untouched pre-move copy; once the owner moves LOWTIDE into the companion, the companion’s SQLite database is canonical.
 
 **Context.** Needs durable, structured, queryable local storage with transactions and
 indexes; `localStorage` is synchronous, string-only and small.
@@ -36,7 +38,7 @@ repository layer when needed rather than used directly in components.
 
 ## ADR-004 — No cloud, backend or authentication in v0.1
 
-**Status (2026-09-30):** in force. ADR-040/041 plan a local (not cloud) companion in a later phase, which will supersede this explicitly.
+**Status (2026-09-30, PHASE 008B):** superseded in part by ADR-058 and ADR-059: there is now an optional _local_ backend (the companion, on 127.0.0.1 only) with token authentication. Still no cloud, no accounts, nothing hosted.
 
 **Decision.** No server, database service, accounts or auth.
 **Consequences.** No cross-device sync yet; backup is the user's responsibility until
@@ -44,7 +46,7 @@ export exists (planned). Nothing to breach server-side.
 
 ## ADR-005 — No analytics or telemetry
 
-**Status (2026-09-30):** in force. Network use is superseded per capability only by the phase that adds it (ADR-041); analytics and telemetry stay out.
+**Status (2026-09-30, PHASE 008B):** in force, amended by ADR-058: in companion mode the app also talks to the paired companion on 127.0.0.1, and nothing else. No analytics, telemetry or third-party requests, in either mode.
 
 **Decision.** No analytics, telemetry, error reporting services or third-party scripts.
 The app makes no network requests at runtime beyond loading its own static files
@@ -53,7 +55,7 @@ The app makes no network requests at runtime beyond loading its own static files
 
 ## ADR-006 — Local-first
 
-**Status (2026-09-30):** in force. Canonical storage moves to a local SQLite companion only in a later dedicated phase (ADR-040); still local-first.
+**Status (2026-09-30, PHASE 008B):** in force. The source of truth is on the device either way: IndexedDB in browser mode, the companion’s SQLite database (same computer) in companion mode (ADR-058). No internet is needed for anything.
 
 **Decision.** The device's database is the source of truth. All features must work
 offline. Any future sync is an optional layer on top, not a requirement.
@@ -675,6 +677,8 @@ milestones)` as a whole percent, rounded down (`projectCompletion` in
 
 ## ADR-040 — Source of truth: a staged move to a local companion (v2)
 
+**Status (2026-09-30, PHASE 008B):** stages B and C delivered by ADR-058 (a verified, owner-triggered move; SQLite canonical, the app on companion-backed repositories). Stage D (IndexedDB as a cache) isn’t built: nothing justifies a second copy that could drift.
+
 **Context.** Claude, Claude Code, ChatGPT and future AI clients need persistent shared
 context, which browser IndexedDB can't provide to anything outside the browser.
 **Decision.** The long-term v2 architecture is: a LOWTIDE **local companion** process,
@@ -695,6 +699,8 @@ before its own phase.
 Until then they stand.
 
 ## ADR-041 — Network and AI access: opt-in, local, authenticated, scoped (v2)
+
+**Status (2026-09-30, PHASE 008B):** implemented by ADR-058 (loopback, tokens, origin allow-list) and ADR-059 (scoped grants, sensitive categories, audit). GitHub access is still not built.
 
 **Decision.** Every AI and network integration is **opt-in** and off by default. The
 future companion:
@@ -1027,6 +1033,8 @@ overdue (never classes).
 
 ## ADR-054 — Context engine and technical workspace export (v2)
 
+**Status (2026-09-30, PHASE 008B):** the context engine stands. The workspace layout is superseded by ADR-060 (no `daily/`; a per-project folder hierarchy), and the ZIP export remains for browser mode.
+
 **Decision.**
 
 - `buildContextPack(snapshot, scope)` (pure, `features/context/pack.ts`) builds scoped
@@ -1059,6 +1067,8 @@ GLOBAL pack only when granted, and protected time never does.
 
 ## ADR-055 — Companion stage 1: an MCP server over stdio for the exported workspace (v2)
 
+**Status (2026-09-30, PHASE 008B):** superseded by ADR-058 and ADR-059. The stdio server over an exported folder is replaced by the companion daemon; `companion/lowtide-mcp.ts` is now only a stdio bridge to it, and every tool that was "Not available yet" works.
+
 **Context.** ADR-040 targets a local companion with SQLite, a context service and
 MCP/API. Moving canonical storage is its own later phase. Meanwhile, AI clients need
 LOWTIDE context now, safely.
@@ -1080,3 +1090,149 @@ exported workspace:
 
 **Not built:** an HTTP API (127.0.0.1, token, origin allow-list), GitHub, the SQLite
 migration, and importing workspace AI sessions into LOWTIDE. Each is a later phase.
+
+## ADR-056 — Schema V6: notes, real hackathon research, AI attribution (v2)
+
+**Context.** AI clients and the owner need somewhere canonical for project documents;
+hackathon research was inferred from other stages; and once AI clients can write,
+every change must say who made it.
+**Decision.** Schema V6 is additive:
+
+- A **`notes`** store: `{ id, projectId, kind (note | research | handoff | summary),
+title, body (Markdown), author (owner | ai-client), client?, createdAt, updatedAt }`,
+  indexed by project and creation time. Creating one appends `note.created`.
+- **`Hackathon.researchStatus`** (`not_started | in_progress | done`), recorded by the
+  owner. The stage rail reads it and never infers research any more; existing hackathons
+  keep it unset (shown as not started).
+- **Attribution.** Repositories take who is writing (`source`, `actor`) from their
+  dependencies, so every event an AI client causes carries `source: 'ai-client'` and the
+  client's name in `actor`. Decisions gain origin `ai-client` with `client`. AI sessions
+  gain `taskId`, `result`, `nextAction`, `commits` and `handoff`.
+- Backups carry 17 stores; V1–V5 backups still import (notes start empty).
+
+**Consequences.** Notes are canonical in LOWTIDE and only _projected_ into the workspace
+(ADR-060), separate from the generated PROJECT.md and CONTEXT.md.
+
+## ADR-057 — One storage contract for Dexie and SQLite (v2)
+
+**Context.** Moving the canonical store must not fork the domain logic: every rule,
+ledger event and progress snapshot has to behave identically on both backends.
+**Decision.** Repositories depend on **`StoreDb`** (`src/db/store.ts`), the small slice of
+Dexie they actually use: tables with `get/put/add/bulkAdd/delete/clear/count/toArray`,
+`where(index).equals/between/belowOrEqual`, `orderBy`, `filter`, and `transaction`. The
+browser passes Dexie through `asStore()`; the companion passes its SQLite adapter.
+Semantics both honour: `put` upserts, `add` fails on an existing key, unique indexes
+raise `ConstraintError`, index queries skip records without the indexed field, reads come
+back in key order, and a transaction commits all of its writes or none.
+**The SQLite adapter** (`companion/server/sqlite/`): one `node:sqlite` connection; strict
+tables generated from the domain enums (CHECK constraints), deferred foreign keys,
+unique indexes, JSON columns for nested values. Every operation runs through one queue;
+a transaction holds it from `BEGIN IMMEDIATE` to `COMMIT` (or `ROLLBACK` on any error,
+including a foreign-key failure at commit), and operations inside its scope join it via
+`AsyncLocalStorage`. Listeners hear which stores each commit touched.
+**Tested:** the same scenario, touching all 17 stores, produces identical exports and
+identical answers to 13 live queries on Dexie and on SQLite.
+
+## ADR-058 — The companion: SQLite canonical, a verified move, companion-backed repositories (v2)
+
+**Context.** ADR-040's stages B and C.
+**Decision.**
+
+- **The companion** (`npm run companion`) is one local process that owns
+  `~/.lowtide/lowtide.sqlite`. It listens on **127.0.0.1 only** (default port 4318). Its
+  data folder and files are owner-only (0700/0600): `companion.json` (port, allowed
+  origins, workspace path, owner token), the database, `backups/` and, by default,
+  `workspace/`.
+- **Stage B — the move is owner-triggered and verified.** Settings pairs the app with
+  the companion (owner token, from `npm run companion -- pair`), then requires a backup
+  download that passes the restore-preview checks. The companion validates the payload
+  again, refuses unless it is empty, keeps an exact owner-only copy of it
+  (`backups/pre-migration-*.json`), and in **one transaction** inserts every record with
+  its id, reads every store back, compares it record by record with the payload, and
+  commits only if everything matches and every foreign key holds. Any difference rolls
+  it all back. The report lists every store's counts and every check. **IndexedDB is
+  never deleted or changed.**
+- **Stage C — switching is a separate, explicit step.** The app then builds its
+  repositories from the wire contract (`src/db/companion/contract.ts`): each member is a
+  call, a live query, or pure (runs in the app). Calls go to `POST /api/rpc` (owner token),
+  dispatched only through that contract. Live queries re-ask when the companion's event
+  stream (`GET /api/events`, server-sent events read with `fetch`) reports a committed
+  change, whoever made it. No polling.
+- **No fallback, no split brain.** In companion mode the app never writes to IndexedDB.
+  If the companion can't be reached, a banner says so and nothing is saved until it's
+  back. Switching back to browser storage is explicit; the browser copy is as it was at
+  the move, and newer changes come across only by backup and restore.
+- A restore sent to the companion is validated again there; nothing arrives "validated"
+  over the wire.
+
+**Supersedes** ADR-002 in part; amends ADR-001, ADR-004, ADR-005 and ADR-006 (see their
+status lines).
+
+## ADR-059 — AI access: scoped grants, MCP tools, attribution and audit (v2)
+
+**Decision.**
+
+- **Grants.** The owner gives each AI client its own grant in the AI area: a client kind
+  (Claude Code, Claude, ChatGPT, Other), a name, a scope and an access level. Scopes:
+  **PROJECT** (one project, the default), **WORKSPACE** (every technical project and
+  hackathon), **GLOBAL** (also non-project tasks and activity, plus, one by one, the
+  private categories routines, off time, college and inbox). **Protected time has no
+  permission and is reachable from no scope.** Access is read or write; resolving
+  approvals needs a separate, explicit delegation. The token is shown once; only its
+  SHA-256 is stored. Revoking takes effect immediately.
+- **MCP** at `POST /mcp` (Streamable HTTP, JSON responses; protocol versions 2025-06-18,
+  2025-03-26, 2024-11-05), one session per `initialize`, bound to its grant. Tools only.
+  Reads: `get_context`, `get_project`, `get_project_summary`, `get_recent_activity`,
+  `get_waiting`, `get_approval_requests`, `get_parked`, `get_decisions`, `get_tasks`,
+  `get_milestones`, `search_workspace`, `get_document`. Writes (write grants only):
+  `create_note`, `record_decision`, `update_project`, `complete_task`,
+  `complete_milestone`, `request_approval`, `resolve_approval` (delegated only),
+  `park_item`, `resume_item`, `log_ai_session`.
+- **Writes go through the domain repositories** as an attributed AI client, in the same
+  transactions, with the same rules, events and snapshots as the app. Archiving a
+  project stays the owner's decision. `log_ai_session` takes the client identity from
+  the grant and a factual summary from the client; LOWTIDE never stores hidden
+  reasoning and never invents a session.
+- **Audit.** Every tool call, refused and failed ones included, is recorded: time,
+  client and kind, scope, session and request ids, operation, entity, before and after
+  summaries, result and message. The AI area shows it live.
+- **Connection status is honest**: a client is "Connected" only if LOWTIDE heard from it
+  over MCP in the last two minutes. The stdio bridge (`companion/lowtide-mcp.ts`, run by
+  Claude Code or Claude Desktop) pings every minute while attached and opens a new
+  session by itself if the companion restarted. ChatGPT's connectors reach servers over
+  the internet; the companion deliberately doesn't expose itself, so no ChatGPT
+  connection is claimed.
+
+## ADR-060 — The live technical workspace, and Git for it (v2)
+
+**Decision.**
+
+- The companion keeps the workspace up to date by itself (debounced after every
+  commit), from canonical state:
+  `projects/<slug>/{PROJECT.md, CONTEXT.md, planning/, decisions/, research/, docs/,
+files/, assets/, ai/{sessions,handoffs,summaries}/, archive/}`, plus `hackathons/`,
+  `shared/` and `archive/` (archived projects move to `archive/projects/<slug>/`).
+  Notes are projected into `docs/notes/`, `research/`, `ai/handoffs/` or `ai/summaries/`.
+- **Ownership by marker.** LOWTIDE writes only files that begin with its "Generated by
+  LOWTIDE" line, plus its bookkeeping in `.lowtide/`. It rewrites them only when their
+  content changes (no timestamps, so a Git diff shows real changes), removes only its own
+  stale files (from `.lowtide/generated.json`), and never modifies or deletes anything
+  else. If a person replaced a generated file, it is reported as a clash and left alone.
+  AI clients can't write workspace files at all; they write notes, which LOWTIDE
+  projects.
+- **Paths** are resolved inside the workspace and checked after following links:
+  traversal, absolute paths, NUL bytes, links that leave the workspace and the
+  bookkeeping folder are refused; reads are limited to 256 KB.
+- **Git, if the owner asks:** "Make it a Git repository" runs `git init -b main` and
+  writes a `.gitignore` (bookkeeping, databases, backups, secrets). **No remote, no
+  commits**: publishing and committing stay the owner's decisions.
+- Never written there: protected time, sleep and off-time logs, routines and medication,
+  health-type records, college records, raw inbox (ADR-044).
+
+## ADR-061 — Appearance: Auto, Light or Dark (v2)
+
+**Decision.** Settings → Appearance offers **Auto** (the default, following the system),
+**Light** and **Dark**, remembered per browser in `localStorage` (`lowtide-theme`). A
+forced choice is applied as `<html data-theme>` by an inline script before the first
+paint. Sleep Mode keeps dimming whichever theme is showing and never changes the
+setting (ADR-042).

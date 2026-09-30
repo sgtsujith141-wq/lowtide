@@ -22,7 +22,8 @@ npm run check         # everything, including tests
 
 ## Conventions
 
-- Tests live in `src/test/` and are named `*.test.ts(x)`.
+- Tests live in `src/test/` (the app) and `companion/` (the companion), named
+  `*.test.ts(x)`. Companion tests start with `// @vitest-environment node`.
 - `setupTestDatabase()` (`src/test/helpers.ts`) returns a factory for a fresh, uniquely
   named database per test and deletes it afterwards — no shared state between tests.
 - `steppingClock()` gives deterministic timestamps (starts at a fixed instant, +1 min
@@ -61,7 +62,33 @@ findBy…()).toHaveFocus()` can run a moment too early. Use `expectFocus(…)` f
 - `setupTestDatabase` unmounts rendered trees before deleting the database, so no live
   subscription outlives it.
 
-## Current coverage (v2 PHASE 009): 45 files, 514 tests
+## Current coverage (v2 PHASE 008B): 53 files, 555 tests
+
+PHASE 008B added the companion's tests, which live next to it in `companion/` and run
+in Vitest's **node** environment (except `app-integration`, which is jsdom):
+
+| File                                    | Covers                                                                                                                                                                                                                                                                                                                              |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `companion/server/sqlite/store.test.ts` | the SQLite schema, enums, deferred foreign keys, unique indexes, rollback, queueing, change events; **Dexie/SQLite parity** over all 17 stores and 13 live queries                                                                                                                                                                  |
+| `companion/server/migrate.test.ts`      | a real browser backup moved exactly; invalid and non-empty refusals; rollback on a read-back mismatch and on a foreign-key failure at commit                                                                                                                                                                                        |
+| `companion/server/mcp.test.ts`          | the MCP handshake and sessions; every tool through the domain rules, attributed and audited; scope and permission refusals; protected time and private data never exposed; the HTTP boundary (tokens, Host, Origin, CORS, limits, revocation); live events; the owner RPC; backup export and restore through the app's repositories |
+| `companion/server/workspace.test.ts`    | the live workspace: markers, folders, notes, clashes, archive moves, traversal, absolute paths and link escapes, Git init without a remote                                                                                                                                                                                          |
+| `companion/server/bridge.test.ts`       | a real MCP session through the spawned stdio bridge while the app's companion repositories see every change live; reconnecting; refused tokens and a stopped companion                                                                                                                                                              |
+| `companion/server/contract.test.ts`     | the wire contract matches the real repositories and the app's companion repositories                                                                                                                                                                                                                                                |
+| `companion/app-integration.test.tsx`    | the real app against a real companion: moving a browser profile through Settings, AI changes live in the Project Room, giving, auditing and revoking access, switching back                                                                                                                                                         |
+| `src/test/settings-page.test.tsx`       | Appearance (Auto/Light/Dark, Sleep Mode keeps it), the backend setting, pairing links, calm pairing errors                                                                                                                                                                                                                          |
+
+Shared fixtures (`companion/server/test-fixtures.ts`): a deterministic scenario that
+touches every store, a real backup exported by the Dexie repositories, a companion on a
+free port with a throwaway folder, and a minimal MCP client.
+
+**Real-browser check:** `npm run e2e:companion` (`scripts/e2e-companion.mjs`) builds the
+app and the companion, starts both with a throwaway data folder, and drives headless
+Chromium through the whole flow, with a real MCP session over the stdio bridge
+changing the open Project Room live. It needs `playwright-core` and a Playwright
+Chromium, which LOWTIDE doesn't depend on (set `PLAYWRIGHT_CORE` if it isn't resolvable).
+
+### Earlier (v2 PHASE 009): 45 files, 514 tests
 
 v2 PHASE 005–009 added `life-page`, `v5-college`, `calendar-page`, `hackathons-v2`,
 `context-engine`, `ai-page` and `companion/companion.test.ts` (node environment,
@@ -208,7 +235,6 @@ focus-timing bugs before the browser run.
 
 - fake-indexeddb is not a real browser engine; quota, eviction and private-mode
   behaviour are untested.
-- No migration tests yet (there is only version 1).
 - No coverage thresholds configured.
 - `field-sizing: content` (auto-growing composer) and `<input type="date">` rendering
   are only exercised in Chromium; Safari/Firefox untested.
