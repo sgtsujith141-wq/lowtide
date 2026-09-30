@@ -220,6 +220,37 @@ to commit and whether to publish it.
 
 Backups aren't encrypted. Keep them somewhere you trust.
 
+### Importing from Notion
+
+`import-notion` brings a Notion snapshot into the companion's database (ADR-062). It
+never talks to Notion: an AI client with read-only Notion access captures the snapshot
+first, and you keep a plan saying which records are your canonical projects, which
+databases hold tasks, hackathons and decisions, and where each page lives in SPACE.
+See [NOTION-IMPORT.md](NOTION-IMPORT.md). Keep both in `~/.lowtide/imports/`, never in
+the repository.
+
+```sh
+# stop the companion first (Ctrl-C), then:
+npm run companion:build
+node companion/dist/lowtide-companion.js import-notion \
+  --snapshot ~/.lowtide/imports/<run>/snapshot --plan ~/.lowtide/imports/<run>/plan.json --dry-run
+node companion/dist/lowtide-companion.js import-notion \
+  --snapshot ~/.lowtide/imports/<run>/snapshot --plan ~/.lowtide/imports/<run>/plan.json
+npm run companion
+```
+
+- It refuses while the companion is running.
+- Before writing, it saves `~/.lowtide/backups/pre-notion-import-<time>.sqlite` (an
+  exact copy) and `.json` (a LOWTIDE backup you can restore in Data & backup).
+- The report goes to `~/.lowtide/imports/notion-<time>.json`: every source, what it
+  became, conflicts, skips and anything kept in SPACE only.
+- Running it again is safe: nothing is imported twice, and anything you've changed in
+  LOWTIDE since is kept.
+
+**Undo an import:** stop the companion, move `~/.lowtide/lowtide.sqlite*` aside, copy the
+`pre-notion-import-<time>.sqlite` backup to `~/.lowtide/lowtide.sqlite`, and start the
+companion again.
+
 ## 7. Going back (rollback)
 
 - **Back to the browser:** Settings → **Use this browser's storage** (after ticking the

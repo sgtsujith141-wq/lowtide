@@ -5,6 +5,21 @@ app's `package.json` version.
 
 ## [Unreleased]
 
+### Added (v2 PHASE 010 — canonical data consolidation and the Notion import)
+
+- **Schema V7** (ADR-062): `spaceNodes` (SPACE: sections, pages and typed tables, with
+  links to LOWTIDE records, attachments as references, provenance and an archived flag)
+  and `sourceRecords` (where every imported record came from). Additive; V1–V6 backups
+  still import. A SPACE repository (no UI yet).
+- **The Notion importer** (`src/db/import/notion`) and `lowtide-companion import-notion
+--snapshot <dir> --plan <file> [--dry-run]`: idempotent, LOWTIDE-wins merges,
+  duplicates kept as provenance, every database kept as a SPACE table, backups first,
+  a report, and no invented history. See `docs/NOTION-IMPORT.md`.
+- Imported records never count as activity (Daily Pulse and grids).
+- The workspace now carries each project's SPACE pages and tables under
+  `projects/<slug>/space/`, listed in CONTEXT.md; nothing outside a project's own SPACE
+  subtree is written.
+
 ### Added (v2 PHASE 008B — SQLite companion and permanent shared AI context)
 
 - **The LOWTIDE companion** (`npm run companion`): a local process on 127.0.0.1 that

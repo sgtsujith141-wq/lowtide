@@ -1,6 +1,6 @@
-# LOWTIDE v2 — Status after PHASE 008B
+# LOWTIDE v2 — Status after PHASE 010
 
-- **Date:** 2026-09-30
+- **Date:** 2026-10-01
 - **Baseline:** v2 PHASE 001 at `8ba660f`; the overnight build ended at `f4ffe5a`;
   PHASE 008B starts at `a638466`
 - **Rule followed:** only what was implemented and verified is listed as done
@@ -17,6 +17,7 @@
 | 007 Hackathons + Calendar | A seven-stage rail, an explicit "Track the build as a project", a combined calendar, coursework in Needs you.                                                                                                                                                                                                                                                 | ADR-053                   |
 | 008 Shared AI context     | Scoped context packs (never protected time) and the workspace export (browser mode).                                                                                                                                                                                                                                                                          | ADR-054                   |
 | 008B SQLite companion     | Schema V6 (notes, recorded research status, AI attribution). One storage contract for Dexie and SQLite, with parity tests. The companion: SQLite canonical after an owner-triggered, verified move; companion-backed repositories with live events; MCP with scoped grants, 22 tools, attribution and audit; the live workspace and optional Git; Appearance. | ADR-056 to ADR-061        |
+| 010 Data consolidation    | Schema V7: SPACE (sections, pages, typed tables) and source provenance. The Notion importer and `import-notion` (idempotent, LOWTIDE wins, no invented history). The owner's Notion workspace imported: real projects, tasks, milestones, blockers, decisions and hackathons, the rest in SPACE.                                                              | ADR-062                   |
 | 009 QA and polish         | Vendor chunks, an axe-core sweep, overflow, large-data timing and keyboard checks.                                                                                                                                                                                                                                                                            | see PHASE 009             |
 
 ## PARTIAL
@@ -44,10 +45,11 @@ Nothing is blocked.
 - GitHub read access (a repository-scoped token held by the companion; ADR-041).
 - Encrypted backups, sync, PWA/offline caching.
 - Starting the companion at login (it's started by hand with `npm run companion`).
+- A SPACE screen, and SPACE over MCP (the data is there; nothing shows it yet).
 
 ## TEST COUNTS
 
-- **Vitest:** 53 files and 555 tests, all passing (`npm test -- --run`).
+- **Vitest:** 56 files and 589 tests, all passing (`npm test -- --run`).
 - **Progression:** 338 at the v0.1 baseline → 356 after v2 PHASE 001 → 514 after the
   overnight build → 521 with schema V6 → 555 now.
 - **PHASE 008B suites:** SQLite store and parity, migration and rollback, MCP and the HTTP
@@ -66,8 +68,8 @@ Nothing is blocked.
   companion mode keeps `~/.lowtide/lowtide.sqlite` canonical, and the app's repositories
   call the companion. The same domain repositories run on both through `StoreDb`
   (ADR-057). There's no fallback between them.
-- **Schema V6:** 17 stores; every upgrade additive. Backups: envelope format 1, 17
-  stores; V1–V5 still import.
+- **Schema V7:** 19 stores; every upgrade additive. Backups: envelope format 1, 19
+  stores; V1–V6 still import.
 - **The companion:** one process on 127.0.0.1 (Host and Origin checks, owner token for
   the app, grant tokens for AI clients, rate and size limits, owner-only files). Live
   updates by server-sent events after every commit.

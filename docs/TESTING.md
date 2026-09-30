@@ -62,7 +62,21 @@ findBy…()).toHaveFocus()` can run a moment too early. Use `expectFocus(…)` f
 - `setupTestDatabase` unmounts rendered trees before deleting the database, so no live
   subscription outlives it.
 
-## Current coverage (v2 PHASE 008B): 53 files, 555 tests
+## Current coverage (v2 PHASE 010): 56 files, 589 tests
+
+PHASE 010 added SPACE and the Notion importer (ADR-062). The importer's tests use a
+small made-up Notion workspace (`src/test/notion-fixture.ts`), never a real one.
+
+| File                                     | Covers                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/test/notion-import.test.ts`         | canonical projects with legacy and reference provenance; tasks through relations, duplicates merged; milestones from a phase select; hackathons; decisions for exactly one project; SPACE hierarchy, placements, archive; typed tables and link cells; attachments as external references; idempotency; LOWTIDE-wins merges; immutable decisions; removed records not recreated; no fabricated history or activity; dry run; plan validation |
+| `src/test/space-repository.test.ts`      | the six SPACE roots, ordering, loops refused, typed table cells, archive and restore, links, no ledger events                                                                                                                                                                                                                                                                                                                                |
+| `companion/server/notion-import.test.ts` | the `import-notion` command: the on-disk snapshot format, backups first (owner-only), the report, the workspace's project SPACE files (and nothing else), idempotency, dry run, refusal while the companion runs, no code path that talks to Notion                                                                                                                                                                                          |
+
+The Dexie/SQLite parity test now also runs the Notion import on both backends and covers
+all 19 stores; the V4 backup round trip covers the two V7 stores.
+
+## Coverage after v2 PHASE 008B: 53 files, 555 tests
 
 PHASE 008B added the companion's tests, which live next to it in `companion/` and run
 in Vitest's **node** environment (except `app-integration`, which is jsdom):

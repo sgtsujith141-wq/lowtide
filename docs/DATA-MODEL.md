@@ -343,6 +343,44 @@ Additive; the V5 → V6 upgrade only creates the `notes` store and changes no re
 backups still import, with `notes` empty (`migrateSnapshot`). Integrity: a note needs
 an existing project, and an AI-authored note needs its client.
 
+## Schema V7 (v2 PHASE 010, ADR-062)
+
+Additive; the V6 → V7 upgrade only creates two stores and changes no record.
+
+| Store           | Entity         | Indexes                                                |
+| --------------- | -------------- | ------------------------------------------------------ |
+| `spaceNodes`    | `SpaceNode`    | `parentId, &key, updatedAt`                            |
+| `sourceRecords` | `SourceRecord` | `&[system+sourceId+entityType], [entityType+entityId]` |
+
+- **`SpaceNode`** (SPACE): `id, parentId?, kind (section | page | table), title, icon?,
+key? (unique: projects, archive, project:<id>, project:<id>:planning…), body?,
+bodyFormat? (markdown | notion), order, archived, links: EntityLink[],
+externalLinks: {url, label?}[], attachments: SpaceAttachment[], table?, source?,
+createdAt, updatedAt`.
+  - `table` is present exactly when `kind` is `table`: `columns` (`id, name, type,
+options?, description?`, type one of text, number, boolean, date, select, status,
+    multiSelect, url, link) and `rows` (`id, cells, pageId?, links?`). A cell matches its
+    column's type (`link` cells hold `EntityLink`s); an empty cell is absent.
+  - `EntityLink`: `type` (project, task, milestone, projectItem, decision, hackathon,
+    aiSession, spaceNode), `id`, `rowId?` (one row of a linked table), `label?` (the
+    name at its source).
+  - `SpaceAttachment`: `id, kind (file | image | pdf | video | audio), name, status
+(stored | external), url?, note?`. `external` means only the reference is kept.
+  - `SourceRef`: `system (notion), sourceId, url?, originalTitle, path?, importedAt,
+sourceCreatedAt?, sourceUpdatedAt?`.
+  - Six top-level sections are maintained: Projects, Hackathons, College, Ideas,
+    Personal, Archive. Nodes are archived, never deleted. No ledger events.
+- **`SourceRecord`** (provenance): `id, system, sourceId, entityType, entityId, role
+(canonical | legacy | reference), url?, originalTitle, path?, contentHash,
+importedAt, appliedAt, sourceCreatedAt?, sourceUpdatedAt?`. One per (system, source
+  id, record type). A record with any source record came in by import and never counts
+  as activity.
+
+**Backups:** `STORE_NAMES` lists all 19 stores. Schema-7 backups carry them all; V1–V6
+backups still import, with both stores empty. Integrity: SPACE parents exist and form
+no loop, maintained keys are unique, table cells match their columns, and one source
+record per (system, source id, record type). Links may point at records removed since.
+
 ## The companion's SQLite schema (PHASE 008B, ADR-057, ADR-058)
 
 In companion mode the same records live in `~/.lowtide/lowtide.sqlite`, one table per
@@ -368,13 +406,13 @@ Tables that only the companion has (`companion/server/sqlite/migrations.ts`):
 | Table                  | Holds                                                                     |
 | ---------------------- | ------------------------------------------------------------------------- |
 | `companion_migrations` | which companion schema migrations have run                                |
-| `companion_meta`       | `lowtide_schema_version` (6), and when and from which backup it was moved |
+| `companion_meta`       | `lowtide_schema_version` (7), and when and from which backup it was moved |
 | `ai_grants`            | each AI client's grant; the token only as a SHA-256 fingerprint           |
 | `ai_audit`             | every MCP tool call: who, scope, operation, entity, before/after, result  |
 | `ai_sightings`         | when each grant's client was last heard from (connection status)          |
 
-**Parity.** `companion/server/sqlite/store.test.ts` runs one scenario touching all 17
-stores on Dexie and on SQLite and requires identical exports and identical answers to
+**Parity.** `companion/server/sqlite/store.test.ts` runs one scenario touching all 19
+stores (including a Notion import) on Dexie and on SQLite and requires identical exports and identical answers to
 13 live queries.
 
 ## Migrations

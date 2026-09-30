@@ -1236,3 +1236,69 @@ files/, assets/, ai/{sessions,handoffs,summaries}/, archive/}`, plus `hackathons
 forced choice is applied as `<html data-theme>` by an inline script before the first
 paint. Sleep Mode keeps dimming whichever theme is showing and never changes the
 setting (ADR-042).
+
+## ADR-062 — SPACE, source provenance and the Notion importer (v2)
+
+**Context.** LOWTIDE held almost none of the owner's project knowledge; most of it
+lived in Notion as pages, databases and duplicated dashboards. PHASE 010 brings it in
+without redesigning any screen.
+
+**Decision.**
+
+- **Schema V7** adds two stores, additively (no record is rewritten):
+  - `spaceNodes`: SPACE, a hierarchy of `section`, `page` and `table` nodes with a
+    title, an optional body (`markdown`, or `notion` for imported enhanced Markdown), an
+    order, an archived flag, links to LOWTIDE records (`EntityLink`, optionally to one
+    row of a table, with the label it had at its source), external links, attachments
+    and provenance (`SourceRef`). A table node holds typed columns (text, number,
+    boolean, date, select, status, multi-select, URL, link) and rows whose cells match
+    their column's type, so a future SPACE screen renders a real table. Six top-level
+    sections are maintained: Projects, Hackathons, College, Ideas, Personal, Archive; a
+    project's node (`project:<id>`) has slots created on first use (Overview, Planning,
+    Research, Architecture, Decisions, Build Plans, Notes, Tables, Files, AI Sessions,
+    Legacy).
+  - `sourceRecords`: one per (source system, source id, LOWTIDE record type), with the
+    role `canonical`, `legacy` (an older duplicate) or `reference`, the original title,
+    path, URL, source timestamps, the import time and a content fingerprint. It answers
+    "where did this come from?" for any record, and it is the importer's memory.
+- **SPACE is knowledge, not activity.** Its repository writes no ledger events and no
+  snapshots. Records that arrived by import (anything with a source record) are
+  excluded from the activity sources behind the Daily Pulse and every grid: history
+  written down elsewhere is not work done that day.
+- **The Notion importer** (`src/db/import/notion`) is generic and pure over the storage
+  contract, so it runs identically on Dexie and SQLite (a parity test proves it). It
+  reads a **snapshot** (what was read from Notion, read-only) and a **plan** (the
+  owner's mapping: canonical projects with their legacy duplicates and references,
+  database roles `projects`/`tasks`/`hackathons`/`decisions`/`table`, placements in
+  SPACE, and skips with reasons). Both are personal and live in the data folder, never
+  in the repository. Rules:
+  - **Idempotent**: a source already imported is found through its source record and
+    updated or left alone, never imported twice. A record removed in LOWTIDE after an
+    import is not recreated.
+  - **LOWTIDE wins** for anything changed in LOWTIDE since it was imported, and for
+    records LOWTIDE already had (same project slug, same hackathon name): those are
+    linked as references and keep their values. Decisions are never rewritten. Every
+    such case is reported as a conflict.
+  - **No invented history**: no events, work sessions, snapshots or AI sessions; a done
+    task gets no completion time Notion didn't record; rollups (not resolvable offline)
+    are left out rather than guessed; a decision's time is when it was written down,
+    or its day when that's all the source says.
+  - **Every database is also a SPACE table** (linked views excepted: they hold no rows),
+    and a row gets its own SPACE page only when it has a body. Files are kept as
+    external references (name, source URL), never claimed as downloaded.
+  - One transaction; a dry run does everything and rolls back.
+- **`lowtide-companion import-notion --snapshot <dir> --plan <file> [--dry-run]`** runs
+  it on the canonical database while the companion is stopped: it refuses if the
+  companion is listening, backs up first (an exact SQLite copy with `VACUUM INTO` and a
+  LOWTIDE backup file, both owner-only), writes a JSON report next to them, and
+  regenerates the workspace.
+- **Workspace**: a project's SPACE subtree (live pages and tables only) is projected as
+  generated Markdown into `projects/<slug>/space/`, and listed among the project's
+  documents in CONTEXT.md. Nothing outside a project's own subtree (Personal, Ideas,
+  College, Hackathons, Archive) is ever written there.
+- SPACE isn't exposed to AI clients over MCP yet, and has no screen yet (a later phase).
+
+**Consequences.** Real projects, tasks, milestones, decisions, blockers and hackathons
+reach Home, Projects, Needs you and the workspace through the existing repositories;
+the rest of Notion lives in SPACE with its hierarchy and provenance. Backups carry the
+two new stores (schema 7; older backups still import).
