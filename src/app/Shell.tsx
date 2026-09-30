@@ -8,12 +8,14 @@ import {
   House,
   Inbox,
   ListTodo,
+  Settings,
   Sun,
   Trophy,
   Waves,
   type LucideIcon,
 } from 'lucide-react';
 import { Link, NavLink, Outlet } from 'react-router';
+import { useCompanion, useCompanionConnection } from '../hooks/useCompanion';
 import { ModeBar } from '../features/modes/ModeBar';
 import { useModes } from '../features/modes/useModes';
 
@@ -39,6 +41,7 @@ const NAV: {
   { to: '/life', label: 'Life', icon: HeartPulse, only: 'desktop' },
   { to: '/calendar', label: 'Calendar', icon: CalendarDays, only: 'desktop' },
   { to: '/ai', label: 'AI', icon: Bot, only: 'desktop' },
+  { to: '/settings', label: 'Settings', icon: Settings, only: 'desktop' },
   { to: '/more', label: 'More', icon: Ellipsis, only: 'phone' },
 ];
 
@@ -114,6 +117,7 @@ export function Shell() {
       <div className="min-w-0 flex-1">
         <div className="sticky top-12 z-[1] md:top-0">
           <ModeBar />
+          <CompanionBanner />
         </div>
         <main
           id="main"
@@ -139,5 +143,26 @@ export function Shell() {
         </Link>
       </footer>
     </div>
+  );
+}
+
+/**
+ * Companion mode only (ADR-058): says plainly when the companion can't be
+ * reached. There is no silent fallback to browser storage, so nothing can
+ * be read or saved until it's back; LOWTIDE reconnects by itself.
+ */
+function CompanionBanner() {
+  const { backend } = useCompanion();
+  const state = useCompanionConnection();
+  if (backend.kind !== 'companion' || state !== 'retrying') return null;
+  return (
+    <p role="status" className="border-b border-line bg-paper-sunken px-4 py-2 text-sm md:px-10">
+      Can’t reach the LOWTIDE companion at {backend.url.replace('http://', '')}, so nothing can be
+      read or saved right now. Start it with <code>npm run companion</code>; LOWTIDE reconnects by
+      itself.{' '}
+      <Link to="/settings" className="text-accent-ink underline underline-offset-2">
+        Settings
+      </Link>
+    </p>
   );
 }

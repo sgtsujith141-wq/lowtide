@@ -6,6 +6,7 @@ import {
   HeartPulse,
   Inbox,
   ListTodo,
+  Settings,
   Sun,
   type LucideIcon,
 } from 'lucide-react';
@@ -19,8 +20,9 @@ const MORE_LINKS: { to: string; label: string; hint: string; icon: LucideIcon }[
   { to: '/tasks', label: 'Tasks', hint: 'Everything open', icon: ListTodo },
   { to: '/life', label: 'Life', hint: 'Routines, sleep, gym, college', icon: HeartPulse },
   { to: '/calendar', label: 'Calendar', hint: 'Everything by date', icon: CalendarDays },
-  { to: '/ai', label: 'AI & workspace', hint: 'Context packs, workspace export', icon: Bot },
+  { to: '/ai', label: 'AI & workspace', hint: 'AI access, audit, workspace', icon: Bot },
   { to: '/data', label: 'Data & backup', hint: 'Export, restore, storage', icon: Database },
+  { to: '/settings', label: 'Settings', hint: 'Appearance, companion', icon: Settings },
 ];
 
 /** Phones: the secondary destinations behind the fifth tab (ADR-043). */

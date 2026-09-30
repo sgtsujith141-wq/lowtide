@@ -8,6 +8,16 @@
     <meta name="theme-color" content="#f4efe6" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#1f1d1a" media="(prefers-color-scheme: dark)" />
     <title>LOWTIDE</title>
+    <script>
+      // Appearance before the first paint (ADR-061): a forced Light or Dark
+      // choice; Auto (nothing stored) follows the operating system.
+      try {
+        var theme = localStorage.getItem('lowtide-theme');
+        if (theme === 'light' || theme === 'dark') {
+          document.documentElement.setAttribute('data-theme', theme);
+        }
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

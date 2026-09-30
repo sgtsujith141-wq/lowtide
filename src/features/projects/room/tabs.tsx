@@ -6,7 +6,13 @@ import { fieldClass, labelClass } from '../../../components/ui/styles';
 import { useRepositories } from '../../../hooks/useRepositories';
 import { useWatch } from '../../../hooks/useWatch';
 import { formatFull, formatWhen } from '../../../lib/when';
-import type { Milestone, Project, Task } from '../../../types/domain';
+import {
+  NOTE_KINDS,
+  type Milestone,
+  type NoteKind,
+  type Project,
+  type Task,
+} from '../../../types/domain';
 import { Timeline } from '../../activity/Timeline';
 
 function useRun() {
@@ -358,7 +364,9 @@ export function DocsTab({ project }: { project: Project }) {
                   </time>
                   {d.origin === 'accepted-proposal'
                     ? ' · proposed by an AI client, accepted by you'
-                    : ''}
+                    : d.origin === 'ai-client'
+                      ? ` · recorded by ${d.client ?? 'an AI client'}`
+                      : ''}
                 </p>
               </li>
             ))}
@@ -429,11 +437,127 @@ export function DocsTab({ project }: { project: Project }) {
           Record decision
         </Button>
       </form>
+      <Notes project={project} />
       <p className="text-xs text-ink-muted">
-        Documents live in the project’s workspace folder (<code>projects/{project.slug}/docs/</code>
-        ) once you export the workspace.
+        Notes and decisions also appear in the project’s workspace folder (
+        <code>projects/{project.slug}/</code>): kept up to date by the companion, or in a workspace
+        export.
       </p>
     </div>
+  );
+}
+
+const NOTE_KIND_LABEL: Record<NoteKind, string> = {
+  note: 'Note',
+  research: 'Research',
+  handoff: 'Handoff',
+  summary: 'Summary',
+};
+
+/** Project notes (ADR-056): yours and AI clients', newest first. Markdown, shown as written. */
+function Notes({ project }: { project: Project }) {
+  const { notes } = useRepositories();
+  const watch = useMemo(() => notes.watchForProject(project.id), [notes, project.id]);
+  const list = useWatch(watch);
+  const [kind, setKind] = useState<NoteKind>('note');
+  const [title, setTitle] = useState('');
+  const [body, setBody] = useState('');
+  const { error, run } = useRun();
+  const ids = { kind: useId(), title: useId(), body: useId(), heading: useId() };
+
+  async function add(event: FormEvent) {
+    event.preventDefault();
+    if (!title.trim() || !body.trim()) return;
+    const ok = await run(() => notes.create(project.id, { kind, title, body }));
+    if (ok) {
+      setTitle('');
+      setBody('');
+    }
+  }
+
+  const items = list.status === 'ready' ? list.data : [];
+  return (
+    <section aria-labelledby={ids.heading} className="space-y-3">
+      <h3 id={ids.heading} className="text-sm font-semibold">
+        Notes
+      </h3>
+      {list.status === 'ready' && items.length === 0 && (
+        <p className="text-sm text-ink-muted">No notes yet.</p>
+      )}
+      {items.length > 0 && (
+        <ol className="space-y-2">
+          {items.map((n) => (
+            <li key={n.id} className="rounded-lg border border-line bg-paper-raised p-3">
+              <details>
+                <summary className="cursor-pointer text-sm font-medium">
+                  {n.title}{' '}
+                  <span className="text-xs font-normal text-ink-muted">
+                    {NOTE_KIND_LABEL[n.kind]} ·{' '}
+                    {n.author === 'ai-client' ? `by ${n.client ?? 'an AI client'}` : 'by you'} ·{' '}
+                    <time dateTime={n.createdAt} title={formatFull(n.createdAt)}>
+                      {formatWhen(n.createdAt, new Date())}
+                    </time>
+                  </span>
+                </summary>
+                <pre className="mt-2 font-sans text-sm whitespace-pre-wrap">{n.body}</pre>
+              </details>
+            </li>
+          ))}
+        </ol>
+      )}
+      <form
+        aria-label="Add a note"
+        onSubmit={(e) => void add(e)}
+        className="max-w-2xl space-y-3 rounded-lg border border-line bg-paper-raised p-3"
+      >
+        <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
+          <div>
+            <label htmlFor={ids.title} className={labelClass}>
+              Note title
+            </label>
+            <input
+              id={ids.title}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className={fieldClass}
+            />
+          </div>
+          <div>
+            <label htmlFor={ids.kind} className={labelClass}>
+              Kind
+            </label>
+            <select
+              id={ids.kind}
+              value={kind}
+              onChange={(e) => setKind(e.target.value as NoteKind)}
+              className={fieldClass}
+            >
+              {NOTE_KINDS.map((k) => (
+                <option key={k} value={k}>
+                  {NOTE_KIND_LABEL[k]}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div>
+          <label htmlFor={ids.body} className={labelClass}>
+            Text (Markdown)
+          </label>
+          <textarea
+            id={ids.body}
+            rows={4}
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            className={fieldClass}
+          />
+        </div>
+        {error && <ErrorNotice>{error}</ErrorNotice>}
+        <Button type="submit" variant="primary">
+          Add note
+        </Button>
+      </form>
+    </section>
   );
 }
 
@@ -457,6 +581,17 @@ export function AiSessionsList({ project }: { project: Project }) {
         <li key={s.id} className="rounded-lg border border-line bg-paper-raised p-3 text-sm">
           <p className="font-medium">{s.client}</p>
           <p className="mt-0.5">{s.summary}</p>
+          {s.result && <p className="mt-1 text-xs">Result: {s.result}</p>}
+          {s.nextAction && <p className="mt-0.5 text-xs">Next: {s.nextAction}</p>}
+          {s.commits?.length ? (
+            <p className="mt-0.5 font-mono text-[11px] text-ink-muted">{s.commits.join(' ')}</p>
+          ) : null}
+          {s.handoff && (
+            <details className="mt-1 text-xs">
+              <summary className="cursor-pointer text-ink-muted">Handoff</summary>
+              <pre className="mt-1 font-sans whitespace-pre-wrap">{s.handoff}</pre>
+            </details>
+          )}
           <p className="mt-1 text-[11px] text-ink-muted">
             {formatWhen(s.startedAt, new Date())} · scope {s.scope}
           </p>

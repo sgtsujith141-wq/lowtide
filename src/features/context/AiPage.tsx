@@ -1,12 +1,15 @@
 import { FolderDown, ShieldCheck } from 'lucide-react';
 import { useId, useState } from 'react';
+import { Link } from 'react-router';
 import { Button } from '../../components/ui/Button';
 import { Announcer, ErrorNotice } from '../../components/ui/Notice';
 import { fieldClass, labelClass } from '../../components/ui/styles';
+import { useCompanion } from '../../hooks/useCompanion';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useRepositories } from '../../hooks/useRepositories';
 import { zipFiles } from '../../lib/zip';
 import { downloadBytes } from '../backup/download';
+import { AiAccess } from './AiAccess';
 import { ContextPreview } from './ContextPreview';
 import { useSnapshot } from './useSnapshot';
 import type { ContextScope, GlobalGrants } from './pack';
@@ -20,13 +23,16 @@ const GRANTS: { key: keyof GlobalGrants; label: string }[] = [
 ];
 
 /**
- * AI & workspace (ADR-041, ADR-044, ADR-054). No AI is connected to LOWTIDE
- * itself: this page prepares context you choose to hand over, and the
- * technical workspace a local companion can serve to AI clients.
+ * AI & workspace (ADR-041, ADR-054, ADR-059). LOWTIDE has no AI built in.
+ * With the companion, AI clients the owner allows reach LOWTIDE over MCP,
+ * each within its own scope, and everything they do is audited here.
+ * Without it, this page prepares context to hand over and exports the
+ * technical workspace as a ZIP.
  */
 export function AiPage() {
   useDocumentTitle('AI & workspace');
   const { backup } = useRepositories();
+  const { client } = useCompanion();
   const { data, error, refresh } = useSnapshot();
   const [scopeKind, setScopeKind] = useState<'project' | 'workspace' | 'global'>('project');
   const [projectId, setProjectId] = useState('');
@@ -63,37 +69,53 @@ export function AiPage() {
   return (
     <>
       <h1 className="font-serif text-2xl font-semibold tracking-tight">AI &amp; workspace</h1>
-      <p className="mt-1 max-w-2xl text-sm text-ink-muted">
-        LOWTIDE has no AI built in and makes no network requests. Here you prepare the context an AI
-        may see, and export the technical workspace a local companion serves to clients like Claude
-        Code.
-      </p>
-
-      <section
-        aria-labelledby="workspace-heading"
-        className="mt-6 rounded-xl border border-line bg-paper-raised p-4"
-      >
-        <h2
-          id="workspace-heading"
-          className="flex items-center gap-2 font-serif text-lg font-semibold"
-        >
-          <FolderDown aria-hidden className="size-5 text-ink-muted" /> Technical workspace
-        </h2>
-        <p className="mt-1 text-sm text-ink-muted">
-          A folder of Markdown for every project (PROJECT.md, CONTEXT.md, decisions, AI sessions),
-          hackathons and a project work log. Unzip it where your tools can read it; re-export to
-          update. Your own files in it are never touched by an export.
-        </p>
-        <p className="mt-2 flex items-start gap-2 text-sm">
-          <ShieldCheck aria-hidden className="mt-0.5 size-4 shrink-0 text-accent" />
-          Never included: protected time, sleep and off-time logs, routines and medication, health
-          records, college records, raw inbox.
-        </p>
-        <Button variant="primary" className="mt-3" onClick={() => void exportWorkspace()}>
-          Export workspace (.zip)
-        </Button>
-        {exportError && <ErrorNotice>{exportError}</ErrorNotice>}
-      </section>
+      {client ? (
+        <>
+          <p className="mt-1 max-w-2xl text-sm text-ink-muted">
+            LOWTIDE has no AI built in. Through the companion on this computer, the AI clients you
+            allow can read and change LOWTIDE over MCP, each only within the scope you give it.
+            Every change is attributed to the client that made it and recorded below.
+          </p>
+          <AiAccess client={client} projects={data?.projects ?? []} />
+        </>
+      ) : (
+        <>
+          <p className="mt-1 max-w-2xl text-sm text-ink-muted">
+            LOWTIDE has no AI built in and makes no network requests. Here you prepare the context
+            an AI may see, and export the technical workspace. To let AI clients like Claude Code
+            work with LOWTIDE directly, move LOWTIDE into the companion in{' '}
+            <Link to="/settings" className="text-accent-ink underline underline-offset-2">
+              Settings
+            </Link>
+            .
+          </p>
+          <section
+            aria-labelledby="workspace-heading"
+            className="mt-6 rounded-xl border border-line bg-paper-raised p-4"
+          >
+            <h2
+              id="workspace-heading"
+              className="flex items-center gap-2 font-serif text-lg font-semibold"
+            >
+              <FolderDown aria-hidden className="size-5 text-ink-muted" /> Technical workspace
+            </h2>
+            <p className="mt-1 text-sm text-ink-muted">
+              A folder of Markdown for every project (PROJECT.md, CONTEXT.md, decisions, notes, AI
+              sessions) and hackathons. Unzip it where your tools can read it. With the companion,
+              it stays up to date by itself instead.
+            </p>
+            <p className="mt-2 flex items-start gap-2 text-sm">
+              <ShieldCheck aria-hidden className="mt-0.5 size-4 shrink-0 text-accent" />
+              Never included: protected time, sleep and off-time logs, routines and medication,
+              health records, college records, raw inbox.
+            </p>
+            <Button variant="primary" className="mt-3" onClick={() => void exportWorkspace()}>
+              Export workspace (.zip)
+            </Button>
+            {exportError && <ErrorNotice>{exportError}</ErrorNotice>}
+          </section>
+        </>
+      )}
 
       <section
         aria-labelledby="context-heading"
@@ -189,17 +211,6 @@ export function AiPage() {
         </div>
       </section>
 
-      <section aria-labelledby="companion-heading" className="mt-6 max-w-2xl text-sm">
-        <h2 id="companion-heading" className="font-serif text-lg font-semibold">
-          Connecting an AI client
-        </h2>
-        <p className="mt-1 text-ink-muted">
-          The LOWTIDE companion is a small local MCP server that reads the exported workspace. It
-          talks to the AI client over standard input and output: no network port, no web access. It
-          is project-scoped by default, and every write it makes is logged in the workspace’s
-          <code className="mx-1">.lowtide/audit.log</code>. See <code>docs/COMPANION.md</code>.
-        </p>
-      </section>
       <Announcer message={announcement} />
     </>
   );

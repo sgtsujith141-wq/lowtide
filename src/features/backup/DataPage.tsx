@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type ChangeEvent } from 'react';
 import { Button } from '../../components/ui/Button';
 import { ErrorNotice } from '../../components/ui/Notice';
 import type { BackupProblem, ValidatedBackup } from '../../db/repositories';
+import { useCompanion } from '../../hooks/useCompanion';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useRepositories } from '../../hooks/useRepositories';
 import { useWatch } from '../../hooks/useWatch';
@@ -43,6 +44,7 @@ const PERSISTENCE_TEXT: Record<PersistenceState | PersistenceRequest, string> = 
 export function DataPage() {
   useDocumentTitle('Data & backup');
   const { backup } = useRepositories();
+  const companion = useCompanion().backend.kind === 'companion';
   const counts = useWatch(backup.watchCounts);
   const id = useId();
 
@@ -152,7 +154,9 @@ export function DataPage() {
     <>
       <h1 className="font-serif text-xl font-semibold tracking-tight">Data &amp; backup</h1>
       <p className="mt-1 text-sm text-ink-muted">
-        LOWTIDE is local-first. Your data lives in this browser unless you export a copy.
+        {companion
+          ? 'LOWTIDE is local-first. Your data lives in the LOWTIDE companion’s database on this computer (see Settings); backups and restores work the same way.'
+          : 'LOWTIDE is local-first. Your data lives in this browser unless you export a copy.'}
       </p>
 
       <section aria-labelledby={`${id}-backup`} className="mt-6">
@@ -289,34 +293,36 @@ export function DataPage() {
         )}
       </section>
 
-      <section aria-labelledby={`${id}-storage`} className="mt-7">
-        <h2
-          id={`${id}-storage`}
-          className="border-b border-line pb-1.5 text-sm font-medium text-ink-muted"
-        >
-          Browser storage
-        </h2>
-        {persistence && (
-          <p role="status" className="mt-2 text-sm">
-            {PERSISTENCE_TEXT[persistence]}
-          </p>
-        )}
-        {(persistence === 'not-persistent' || persistence === 'denied') && (
-          <Button
-            variant="quiet"
-            onClick={() => void onPersist()}
-            disabled={asking}
-            className="mt-2"
+      {!companion && (
+        <section aria-labelledby={`${id}-storage`} className="mt-7">
+          <h2
+            id={`${id}-storage`}
+            className="border-b border-line pb-1.5 text-sm font-medium text-ink-muted"
           >
-            Ask browser to keep LOWTIDE data
-          </Button>
-        )}
-        <p className="mt-2 text-xs text-ink-muted">
-          Persistent storage only makes the browser less likely to clear LOWTIDE when space runs
-          low. It doesn’t survive clearing site data, deleting the browser profile or losing the
-          device, so backups still matter.
-        </p>
-      </section>
+            Browser storage
+          </h2>
+          {persistence && (
+            <p role="status" className="mt-2 text-sm">
+              {PERSISTENCE_TEXT[persistence]}
+            </p>
+          )}
+          {(persistence === 'not-persistent' || persistence === 'denied') && (
+            <Button
+              variant="quiet"
+              onClick={() => void onPersist()}
+              disabled={asking}
+              className="mt-2"
+            >
+              Ask browser to keep LOWTIDE data
+            </Button>
+          )}
+          <p className="mt-2 text-xs text-ink-muted">
+            Persistent storage only makes the browser less likely to clear LOWTIDE when space runs
+            low. It doesn’t survive clearing site data, deleting the browser profile or losing the
+            device, so backups still matter.
+          </p>
+        </section>
+      )}
     </>
   );
 }
