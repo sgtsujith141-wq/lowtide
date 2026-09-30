@@ -86,7 +86,9 @@ describe('Life page', () => {
     const { user } = await setup();
     const sleep = area('Sleep & off time');
     await user.click(within(sleep).getByRole('button', { name: 'Start sleep window' }));
-    const bar = await screen.findByRole('region', { name: 'Off time' });
+    // A page-wide role query: each poll walks all four 90-day grids (~360 named
+    // cells), which in jsdom can take most of a second on a loaded machine.
+    const bar = await screen.findByRole('region', { name: 'Off time' }, { timeout: 8000 });
     await user.click(within(bar).getByRole('button', { name: 'Wake up' }));
     expect(await within(sleep).findByText(/marked$/)).toBeInTheDocument();
     expect(within(sleep).getByText(/not how long you slept/)).toBeInTheDocument();

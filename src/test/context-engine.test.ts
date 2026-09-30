@@ -177,9 +177,9 @@ describe('technical workspace export (ADR-044, ADR-054)', () => {
       'projects/engine/ai/summaries/.gitkeep',
       'projects/engine/archive/.gitkeep',
       'archive/projects/old-thing/PROJECT.md',
-      'inbox/.gitkeep',
-      'daily/2026-09.md',
-    ]) {
+      'shared/.gitkeep',
+      'hackathons/.gitkeep',
+    ].filter((p) => p !== 'hackathons/.gitkeep')) {
       expect(paths).toContain(expected);
     }
     expect(
@@ -192,7 +192,8 @@ describe('technical workspace export (ADR-044, ADR-054)', () => {
     const summary = JSON.parse(files.get('projects/engine/.lowtide/summary.json')!);
     expect(summary).toMatchObject({ slug: 'engine', completionPercent: 25 });
     expect(summary.lanes.waiting).toEqual([{ title: 'Design review', waitingOn: 'a teammate' }]);
-    expect(files.get('daily/2026-09.md')).toContain('Engine: 1 m, loader → half done');
+    // The Phase 008B hierarchy has no daily log or inbox folder at all.
+    expect(paths.some((p) => p.startsWith('daily/') || p.startsWith('inbox/'))).toBe(false);
   });
 
   it('never writes protected time, sleep, routines, medication, college records or inbox', async () => {
@@ -202,7 +203,7 @@ describe('technical workspace export (ADR-044, ADR-054)', () => {
       noSecrets(`${path}\n${text}`);
       expect(path).not.toMatch(/protected|sleep|habit|routine|inbox\/.+\.md|college/i);
     }
-    expect(files.get('inbox/.gitkeep')).toBe('');
+    expect([...files.keys()].some((p) => p.startsWith('inbox'))).toBe(false);
   });
 
   it('is deterministic for the same data and time', async () => {

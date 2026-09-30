@@ -11,6 +11,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
+    "companion:build": "vite build --config companion/vite.config.ts",
+    "companion": "npm run companion:build && node companion/dist/lowtide-companion.js",
     "typecheck": "tsc -b",
     "lint": "eslint .",
     "format": "prettier --write .",
