@@ -19,6 +19,7 @@ import type {
   WorkSession,
 } from '../types/domain';
 import { migrateHackathonToV3 } from './migrations';
+import type { StoreDb } from './store';
 import {
   DATABASE_NAME,
   STORES_V1,
@@ -83,4 +84,43 @@ export class LowtideDatabase extends Dexie {
 
 export function openDatabase(name?: string): LowtideDatabase {
   return new LowtideDatabase(name);
+}
+
+const stores = new WeakMap<LowtideDatabase, StoreDb>();
+
+/**
+ * The Dexie database as the repositories' storage contract (ADR-057). Tables
+ * are Dexie's own objects (they satisfy `StoreTable` as they are); only
+ * `transaction` is forwarded, because Dexie's overloads are typed more
+ * narrowly than the contract. Dexie's transaction zones keep working, since
+ * every call still reaches the same table objects.
+ */
+export function asStore(db: LowtideDatabase): StoreDb {
+  let store = stores.get(db);
+  if (!store) {
+    const transaction = (mode: 'r' | 'rw', ...rest: unknown[]) =>
+      (db.transaction as unknown as (...args: unknown[]) => Promise<unknown>)(mode, ...rest);
+    store = {
+      tasks: db.tasks,
+      inbox: db.inbox,
+      habits: db.habits,
+      habitEntries: db.habitEntries,
+      hackathons: db.hackathons,
+      protectedTime: db.protectedTime,
+      projects: db.projects,
+      milestones: db.milestones,
+      projectItems: db.projectItems,
+      decisions: db.decisions,
+      workSessions: db.workSessions,
+      offTimeSessions: db.offTimeSessions,
+      events: db.events,
+      progressSnapshots: db.progressSnapshots,
+      aiSessions: db.aiSessions,
+      collegeItems: db.collegeItems,
+      notes: db.notes,
+      transaction: transaction as StoreDb['transaction'],
+    };
+    stores.set(db, store);
+  }
+  return store;
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { RecordNotFoundError, RecordStateError } from '../db/repositories';
+import { asStore } from '../db/database';
 import { createDexieTaskRepository } from '../db/repositories/dexie-task-repository';
 import { recordWatch, setupTestDatabase, steppingClock } from './helpers';
 
@@ -7,7 +8,7 @@ const newDb = setupTestDatabase();
 
 describe('TaskRepository (Dexie)', () => {
   it('creates a todo task with defaults and omits unset optional fields', async () => {
-    const tasks = createDexieTaskRepository({ db: newDb(), clock: steppingClock() });
+    const tasks = createDexieTaskRepository({ db: asStore(newDb()), clock: steppingClock() });
     const task = await tasks.create({ title: '  Email the landlord  ' });
 
     expect(task).toEqual({
@@ -24,13 +25,13 @@ describe('TaskRepository (Dexie)', () => {
 
   it('rejects an empty title without writing anything', async () => {
     const db = newDb();
-    const tasks = createDexieTaskRepository({ db });
+    const tasks = createDexieTaskRepository({ db: asStore(db) });
     await expect(tasks.create({ title: '   ' })).rejects.toThrow();
     expect(await db.tasks.count()).toBe(0);
   });
 
   it('completes a task and drops it from the open list', async () => {
-    const tasks = createDexieTaskRepository({ db: newDb(), clock: steppingClock() });
+    const tasks = createDexieTaskRepository({ db: asStore(newDb()), clock: steppingClock() });
     const a = await tasks.create({ title: 'A' });
     const b = await tasks.create({ title: 'B' });
 
@@ -41,33 +42,33 @@ describe('TaskRepository (Dexie)', () => {
   });
 
   it('lists open tasks oldest first', async () => {
-    const tasks = createDexieTaskRepository({ db: newDb(), clock: steppingClock() });
+    const tasks = createDexieTaskRepository({ db: asStore(newDb()), clock: steppingClock() });
     const first = await tasks.create({ title: 'first' });
     const second = await tasks.create({ title: 'second' });
     expect((await tasks.listOpen()).map((t) => t.id)).toEqual([first.id, second.id]);
   });
 
   it('resolves get() to undefined for a missing task instead of throwing', async () => {
-    const tasks = createDexieTaskRepository({ db: newDb() });
+    const tasks = createDexieTaskRepository({ db: asStore(newDb()) });
     await expect(tasks.get(crypto.randomUUID())).resolves.toBeUndefined();
   });
 
   it('rejects completing a missing task', async () => {
-    const tasks = createDexieTaskRepository({ db: newDb() });
+    const tasks = createDexieTaskRepository({ db: asStore(newDb()) });
     await expect(tasks.complete(crypto.randomUUID())).rejects.toBeInstanceOf(RecordNotFoundError);
   });
 });
 
 describe('TaskRepository editing and lifecycle', () => {
   it('omits blank notes and project on create', async () => {
-    const tasks = createDexieTaskRepository({ db: newDb() });
+    const tasks = createDexieTaskRepository({ db: asStore(newDb()) });
     const task = await tasks.create({ title: 'Call', notes: '  ', project: ' ' });
     expect(Object.keys(task)).not.toContain('notes');
     expect(Object.keys(task)).not.toContain('project');
   });
 
   it('updates content, trims it, and clears optionals with null or blank', async () => {
-    const tasks = createDexieTaskRepository({ db: newDb(), clock: steppingClock() });
+    const tasks = createDexieTaskRepository({ db: asStore(newDb()), clock: steppingClock() });
     const task = await tasks.create({
       title: 'Draft',
       notes: 'old',
@@ -95,28 +96,28 @@ describe('TaskRepository editing and lifecycle', () => {
   });
 
   it('leaves omitted fields untouched on update', async () => {
-    const tasks = createDexieTaskRepository({ db: newDb() });
+    const tasks = createDexieTaskRepository({ db: asStore(newDb()) });
     const task = await tasks.create({ title: 'Keep', notes: 'n', project: 'P' });
     const edited = await tasks.update(task.id, { priority: 'low' });
     expect(edited).toMatchObject({ title: 'Keep', notes: 'n', project: 'P', priority: 'low' });
   });
 
   it('rejects an update that blanks the title, keeping the stored task', async () => {
-    const tasks = createDexieTaskRepository({ db: newDb() });
+    const tasks = createDexieTaskRepository({ db: asStore(newDb()) });
     const task = await tasks.create({ title: 'Keep me' });
     await expect(tasks.update(task.id, { title: '   ' })).rejects.toThrow();
     expect((await tasks.get(task.id))?.title).toBe('Keep me');
   });
 
   it('rejects updating a missing task', async () => {
-    const tasks = createDexieTaskRepository({ db: newDb() });
+    const tasks = createDexieTaskRepository({ db: asStore(newDb()) });
     await expect(tasks.update(crypto.randomUUID(), { title: 'x' })).rejects.toBeInstanceOf(
       RecordNotFoundError,
     );
   });
 
   it('reopens a completed task and clears completedAt', async () => {
-    const tasks = createDexieTaskRepository({ db: newDb(), clock: steppingClock() });
+    const tasks = createDexieTaskRepository({ db: asStore(newDb()), clock: steppingClock() });
     const task = await tasks.create({ title: 'Again' });
     await tasks.complete(task.id);
     const reopened = await tasks.reopen(task.id);
@@ -125,7 +126,7 @@ describe('TaskRepository editing and lifecycle', () => {
   });
 
   it('drops a task without deleting it, and can reopen it', async () => {
-    const tasks = createDexieTaskRepository({ db: newDb() });
+    const tasks = createDexieTaskRepository({ db: asStore(newDb()) });
     const task = await tasks.create({ title: 'Maybe not' });
     const dropped = await tasks.drop(task.id);
     expect(dropped.status).toBe('dropped');
@@ -136,7 +137,7 @@ describe('TaskRepository editing and lifecycle', () => {
   });
 
   it('refuses transitions that make no sense for the current status', async () => {
-    const tasks = createDexieTaskRepository({ db: newDb() });
+    const tasks = createDexieTaskRepository({ db: asStore(newDb()) });
     const task = await tasks.create({ title: 'Once' });
     await expect(tasks.reopen(task.id)).rejects.toBeInstanceOf(RecordStateError);
     await tasks.drop(task.id);
@@ -145,7 +146,7 @@ describe('TaskRepository editing and lifecycle', () => {
   });
 
   it('rejects lifecycle changes on a missing task', async () => {
-    const tasks = createDexieTaskRepository({ db: newDb() });
+    const tasks = createDexieTaskRepository({ db: asStore(newDb()) });
     const id = crypto.randomUUID();
     await expect(tasks.reopen(id)).rejects.toBeInstanceOf(RecordNotFoundError);
     await expect(tasks.drop(id)).rejects.toBeInstanceOf(RecordNotFoundError);
@@ -154,7 +155,7 @@ describe('TaskRepository editing and lifecycle', () => {
 
 describe('TaskRepository subscriptions', () => {
   it('emits open tasks now and again after every change', async () => {
-    const tasks = createDexieTaskRepository({ db: newDb() });
+    const tasks = createDexieTaskRepository({ db: asStore(newDb()) });
     const open = recordWatch(tasks.watchOpen);
     await open.until((list) => list.length === 0);
 
@@ -170,7 +171,7 @@ describe('TaskRepository subscriptions', () => {
   });
 
   it('emits closed tasks, most recently changed first', async () => {
-    const tasks = createDexieTaskRepository({ db: newDb(), clock: steppingClock() });
+    const tasks = createDexieTaskRepository({ db: asStore(newDb()), clock: steppingClock() });
     const a = await tasks.create({ title: 'a' });
     const b = await tasks.create({ title: 'b' });
     const closed = recordWatch(tasks.watchClosed);
@@ -185,7 +186,7 @@ describe('TaskRepository subscriptions', () => {
   });
 
   it('stops emitting after unsubscribe', async () => {
-    const tasks = createDexieTaskRepository({ db: newDb() });
+    const tasks = createDexieTaskRepository({ db: asStore(newDb()) });
     const open = recordWatch(tasks.watchOpen);
     await open.until(() => true);
     open.stop();
@@ -198,7 +199,7 @@ describe('TaskRepository subscriptions', () => {
 
 describe('TaskRepository planning (plannedFor)', () => {
   it('plans and unplans without touching the deadline', async () => {
-    const tasks = createDexieTaskRepository({ db: newDb() });
+    const tasks = createDexieTaskRepository({ db: asStore(newDb()) });
     const dueAt = '2026-10-02T12:00:00.000Z';
     const task = await tasks.create({ title: 'Essay', dueAt });
 
@@ -211,7 +212,7 @@ describe('TaskRepository planning (plannedFor)', () => {
   });
 
   it('keeps plannedFor when the deadline is edited or cleared', async () => {
-    const tasks = createDexieTaskRepository({ db: newDb() });
+    const tasks = createDexieTaskRepository({ db: asStore(newDb()) });
     const task = await tasks.create({ title: 'x' });
     await tasks.planFor(task.id, '2026-09-29');
     expect((await tasks.update(task.id, { dueAt: '2026-11-01T12:00:00.000Z' })).plannedFor).toBe(
@@ -221,7 +222,7 @@ describe('TaskRepository planning (plannedFor)', () => {
   });
 
   it('rejects an invalid date, closed tasks and missing tasks', async () => {
-    const tasks = createDexieTaskRepository({ db: newDb() });
+    const tasks = createDexieTaskRepository({ db: asStore(newDb()) });
     const task = await tasks.create({ title: 'x' });
     await expect(tasks.planFor(task.id, '2026-02-30')).rejects.toThrow();
     await tasks.complete(task.id);
@@ -235,7 +236,7 @@ describe('TaskRepository planning (plannedFor)', () => {
   });
 
   it('keeps plannedFor through complete and reopen, without inventing one', async () => {
-    const tasks = createDexieTaskRepository({ db: newDb() });
+    const tasks = createDexieTaskRepository({ db: asStore(newDb()) });
     const planned = await tasks.create({ title: 'planned' });
     await tasks.planFor(planned.id, '2026-09-28');
     expect((await tasks.complete(planned.id)).plannedFor).toBe('2026-09-28');
@@ -247,7 +248,7 @@ describe('TaskRepository planning (plannedFor)', () => {
   });
 
   it('watchForDay returns open tasks planned that day or due on/before it, once each', async () => {
-    const tasks = createDexieTaskRepository({ db: newDb() });
+    const tasks = createDexieTaskRepository({ db: asStore(newDb()) });
     const day = '2026-09-28';
     const overdue = await tasks.create({ title: 'overdue', dueAt: '2026-09-20T12:00:00.000Z' });
     const dueToday = await tasks.create({ title: 'due today', dueAt: `${day}T12:00:00.000Z` });
@@ -271,7 +272,7 @@ describe('TaskRepository planning (plannedFor)', () => {
   });
 
   it('watchForDay reacts to planning, unplanning and completing', async () => {
-    const tasks = createDexieTaskRepository({ db: newDb() });
+    const tasks = createDexieTaskRepository({ db: asStore(newDb()) });
     const day = '2026-09-28';
     const task = await tasks.create({ title: 'watch me' });
     const live = recordWatch(tasks.watchForDay(day));

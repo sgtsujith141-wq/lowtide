@@ -9,7 +9,7 @@ import {
   type LedgerEvent,
   type ProjectLane,
 } from '../../types/domain';
-import type { LowtideDatabase } from '../database';
+import type { StoreDb } from '../store';
 import { checkLedgerEvent } from '../rules';
 import { ledgerEventSchema, progressSnapshotSchema } from '../schema';
 import type { ResolvedDeps } from './shared';
@@ -32,7 +32,7 @@ export interface EventInput {
 }
 
 export async function appendEvent(
-  db: LowtideDatabase,
+  db: StoreDb,
   newId: () => Id,
   at: Date,
   input: EventInput,
@@ -68,7 +68,7 @@ export function eventWriter(deps: ResolvedDeps) {
 }
 
 /** Cascade when the owner deletes the entity itself (the only event removal). */
-export function deleteEventsFor(db: LowtideDatabase, entityType: EntityType, entityId: Id) {
+export function deleteEventsFor(db: StoreDb, entityType: EntityType, entityId: Id) {
   return db.events.where('[entityType+entityId]').equals([entityType, entityId]).delete();
 }
 
@@ -78,7 +78,7 @@ export function deleteEventsFor(db: LowtideDatabase, entityType: EntityType, ent
  * the values it had (ADR-038).
  */
 export async function refreshSnapshot(
-  db: LowtideDatabase,
+  db: StoreDb,
   newId: () => Id,
   at: Date,
   projectId: Id,

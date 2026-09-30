@@ -2,11 +2,11 @@ import { liveQuery } from 'dexie';
 import { newId } from '../../lib/ids';
 import { systemClock, type Clock } from '../../lib/time';
 import type { EventSource, Id } from '../../types/domain';
-import type { LowtideDatabase } from '../database';
+import type { StoreDb } from '../store';
 import type { Watch } from './types';
 
 export interface RepositoryDeps {
-  db: LowtideDatabase;
+  db: StoreDb;
   clock?: Clock;
   newId?: () => Id;
   /** Who is writing: the app (the owner) or an attributed AI client (ADR-056). */
@@ -18,7 +18,7 @@ export interface RepositoryDeps {
 }
 
 export interface ResolvedDeps {
-  db: LowtideDatabase;
+  db: StoreDb;
   clock: Clock;
   newId: () => Id;
   source: EventSource;

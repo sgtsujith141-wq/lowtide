@@ -1,4 +1,5 @@
-import type { LowtideDatabase } from '../database';
+import { asStore, type LowtideDatabase } from '../database';
+import type { StoreDb } from '../store';
 import {
   createDexieActivityRepository,
   createDexieAiSessionRepository,
@@ -74,6 +75,17 @@ export { SCHEMA_VERSION } from '../schema';
 /** Local IndexedDB-backed implementation of every repository. */
 export function createDexieRepositories(
   db: LowtideDatabase,
+  deps: Omit<RepositoryDeps, 'db'> = {},
+): Repositories {
+  return createRepositories(asStore(db), deps);
+}
+
+/**
+ * Every repository over any storage that honours the contract (ADR-057):
+ * Dexie in the browser, SQLite in the companion. Same domain code for both.
+ */
+export function createRepositories(
+  db: StoreDb,
   deps: Omit<RepositoryDeps, 'db'> = {},
 ): Repositories {
   return {

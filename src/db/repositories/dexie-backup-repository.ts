@@ -6,23 +6,22 @@ import {
   inspectBackup,
   sortBackupData,
 } from '../backup';
-import type { LowtideDatabase } from '../database';
-import type { Table } from 'dexie';
+import type { StoreDb, StoreTable } from '../store';
 import { STORE_NAMES, type StoreName } from '../migrations';
 import { SCHEMA_VERSION } from '../schema';
 import { resolveDeps, type RepositoryDeps } from './shared';
 import type { BackupData, BackupRepository } from './types';
 
 /** The typed table for a store (the same object as `db.tasks`, etc.). */
-function tableOf(db: LowtideDatabase, store: StoreName): Table {
-  return db[store] as unknown as Table;
+function tableOf(db: StoreDb, store: StoreName): StoreTable<unknown> {
+  return db[store] as StoreTable<unknown>;
 }
 
-function allTables(db: LowtideDatabase) {
+function allTables(db: StoreDb) {
   return STORE_NAMES.map((store) => tableOf(db, store));
 }
 
-async function readAll(db: LowtideDatabase): Promise<BackupData> {
+async function readAll(db: StoreDb): Promise<BackupData> {
   const lists = await Promise.all(STORE_NAMES.map((store) => tableOf(db, store).toArray()));
   return Object.fromEntries(
     STORE_NAMES.map((store, i) => [store, lists[i]]),
