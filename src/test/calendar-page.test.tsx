@@ -8,7 +8,8 @@ import {
 } from '../features/calendar/entries';
 import { createDexieRepositories } from '../db/repositories';
 import { addDays } from '../lib/calendar';
-import { deadlineFromLocalDate, toLocalDate } from '../lib/time';
+import { format } from 'date-fns';
+import { deadlineFromLocalDate, fromLocalDate, toLocalDate } from '../lib/time';
 import type { Hackathon, Task } from '../types/domain';
 import { setupTestDatabase } from './helpers';
 import { renderApp } from './render';
@@ -128,8 +129,12 @@ describe('Calendar page', () => {
 
     const tomorrow = addDays(today, 1);
     if (tomorrow.slice(0, 7) === today.slice(0, 7)) {
+      // The six-week grid can show the same day number twice (this month and the
+      // next), so the name includes the month.
       await user.click(
-        screen.getByRole('button', { name: new RegExp(`^\\w+ ${Number(tomorrow.slice(8))} `) }),
+        screen.getByRole('button', {
+          name: new RegExp(`^${format(fromLocalDate(tomorrow), 'EEEE d MMMM')}\\b`),
+        }),
       );
       expect(await screen.findByText('Nothing on this day.')).toBeInTheDocument();
     }
