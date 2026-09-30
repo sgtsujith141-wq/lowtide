@@ -62,7 +62,15 @@ findBy…()).toHaveFocus()` can run a moment too early. Use `expectFocus(…)` f
 - `setupTestDatabase` unmounts rendered trees before deleting the database, so no live
   subscription outlives it.
 
-## Current coverage (v2 PHASE 010): 56 files, 589 tests
+## Current coverage (v2 PHASE 011): 56 files, 589 tests
+
+PHASE 011 changed the visual system only; the navigation tests now cover the rail and
+the launcher (Escape, focus return). Browser checks (not in Git): axe-core 4.13 and
+overflow on 15 routes at 320–1920 px, dark and light, on real data, an empty profile
+and with Sleep Mode on — 0 violations, 0 overflow. See
+[phases/V2-PHASE-011.md](phases/V2-PHASE-011.md).
+
+## Coverage after v2 PHASE 010: 56 files, 589 tests
 
 PHASE 010 added SPACE and the Notion importer (ADR-062). The importer's tests use a
 small made-up Notion workspace (`src/test/notion-fixture.ts`), never a real one.

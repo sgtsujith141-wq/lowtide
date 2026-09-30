@@ -1302,3 +1302,29 @@ without redesigning any screen.
 reach Home, Projects, Needs you and the workspace through the existing repositories;
 the rest of Notion lives in SPACE with its hierarchy and provenance. Backups carry the
 two new stores (schema 7; older backups still import).
+
+## ADR-063 — The visual foundation: low tide at night (v2)
+
+**Context.** The warm-paper journal look (brown-black dark theme, serif headings, a
+full-width sidebar, bordered cards everywhere) made LOWTIDE read as a notebook, wasted
+wide screens and muted the data that matters.
+
+**Decision.**
+
+- A cold, neutral graphite system with semantic tokens (canvas, surface, raised,
+  hover, fg, line, accent, primary, status, dormant) in a dark reference theme and a
+  cool light twin; Auto/Light/Dark stays (ADR-061). Every text token ≥ 4.5:1.
+- **Colour belongs to data**: pulse green, projects gold, work amber, sleep violet,
+  college blue, personal teal, gym red. The shell is monochrome; the brand accent marks
+  focus, the current place and in-text links; the one filled action is off-white.
+- One sans family (Geist Variable, bundled, no network), tabular figures, sentence case.
+- A 56 px icon rail with five primary destinations and a launcher for the rest; phones
+  keep five tabs (ADR-043's phone bar, with SPACE on More).
+- Screens are framed at reading, standard or wide widths; layout primitives in
+  `src/components/layout`. A bordered box only for real objects.
+- Motion tokens (140/200/260/700 ms, one easing); reduced motion removes them.
+- Sleep Mode renders a dormant state (dark, desaturated, receding navigation, no
+  motion) instead of a banner, and stays AA-readable (ADR-042).
+
+**Consequences.** Every screen shares one system; data stands out; wide displays are
+used. Full details: [phases/V2-PHASE-011.md](phases/V2-PHASE-011.md).

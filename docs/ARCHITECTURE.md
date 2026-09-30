@@ -188,8 +188,8 @@ called.
   `BackupDocument`, `BackupInspection` and `ValidatedBackup`. It downloads with Blob,
   an object URL and a temporary anchor.
 - `src/lib/storage-persistence.ts` wraps `navigator.storage.persisted`/`persist`.
-- **Entry points:** a link in the desktop sidebar footer, and a `<footer>`
-  (`contentinfo`) on phones, below `md`. The five-item tab bar is unchanged.
+- **Entry points:** the desktop rail's launcher, and a `<footer>` (`contentinfo`) on
+  phones, below `md`. The five-item tab bar is unchanged.
 
 ### Injected clock and ids
 
@@ -295,11 +295,17 @@ passes a result on when it differs. There's no polling and no IndexedDB fallback
   display, so focus doesn't jump. A route
   `errorElement` (`RouteError`) replaces a crashed screen with a calm message and a
   Reload button.
-- `Shell` (`src/app/Shell.tsx`): one `<header>` holding the wordmark and the main
-  `<nav>`. It is a narrow sidebar at `md` and up, and a single compact top bar below
-  that. Same markup at every size, so nothing jumps. A skip link focuses `<main>`
-  without changing the URL. The current page is marked with `aria-current` (from
-  `NavLink`) and shown by weight plus an accent bar, not by colour alone.
+- `Shell` (`src/app/Shell.tsx`, v2 PHASE 011): one `<header>` holding the mark and the
+  main `<nav>`. At `md` and up it is a 56 px icon rail with the five primary
+  destinations (Home, Projects, SPACE, Hackathons, Rhythm; each name is the link's
+  accessible name and a hover/focus tooltip) and a launcher (a disclosure, "More
+  destinations") for Today, Inbox, Tasks, Life, Calendar, AI, Settings and Data &
+  backup. Below `md` it is a top bar with five tabs (Home, Projects, Hackathons,
+  Rhythm, More); SPACE and the rest are on More. A skip link focuses `<main>` without
+  changing the URL. The current page is marked with `aria-current` and a sliding bar,
+  not by colour alone.
+- Every route is framed by `Page` at a `reading`, `standard` or `wide` width
+  (`src/app/routes.tsx`); layout primitives live in `src/components/layout`.
 - Each page sets `document.title` via `useDocumentTitle`.
 - Browser history routing (`createBrowserRouter`). Static hosting must serve
   `index.html` for unknown paths; `vite preview` does this already.
@@ -307,26 +313,29 @@ passes a result on when it differs. There's no polling and no IndexedDB fallback
 ## Styling
 
 - Tailwind CSS 4 via `@tailwindcss/vite`, entry `src/styles/index.css`.
-- Semantic tokens are CSS custom properties on `:root` (`--lt-paper`, `--lt-ink`,
-  `--lt-line`, `--lt-accent`, …) and exposed to Tailwind via `@theme inline`, giving
-  utilities like `bg-paper`, `text-ink-muted`, `border-line`, `text-accent`.
+- The visual system is described in full in [phases/V2-PHASE-011.md](phases/V2-PHASE-011.md)
+  (ADR-063). In short: semantic tokens are CSS custom properties on `:root`
+  (`--lt-canvas`, `--lt-surface`, `--lt-raised`, `--lt-fg`, `--lt-line`, `--lt-accent`,
+  `--lt-primary`, the data ramps `--lt-<palette>-1…4`, …) exposed to Tailwind via
+  `@theme inline` (`bg-canvas`, `text-fg-muted`, `border-line`, `bg-pulse-3`).
 - Components use the semantic utilities only — no raw hex values in components.
-- Dark theme: follows `prefers-color-scheme` by default; `<html data-theme="light|dark">`
-  overrides it. A switcher UI is a later phase; the CSS already supports it.
-- System font stacks only, so the app makes no font network requests.
-- Motion: a 140 ms default colour transition on buttons and fields only (the nav
-  has none), and `prefers-reduced-motion` respected globally. No animations.
-- Contrast: every text token meets 4.5:1 on every paper surface in both themes,
-  except `ink-faint`, which is for decoration only (PHASE 001 darkened light-mode
-  `warn` to `#8a5a1c` for this). Primary buttons use `accent-ink` with `on-accent`.
-- Activity squares: `--lt-activity-0…4` form a muted sea-glass ramp, not GitHub green.
-  Each step is at least 1.19:1 against the previous one in light and 1.30:1 in dark,
-  rising steadily. Squares carry text labels, so colour is never the only signal.
+- Themes: dark is the reference design; Auto follows `prefers-color-scheme`, and
+  `<html data-theme="light|dark">` forces one (Settings → Appearance, ADR-061).
+- Type: Geist Variable, bundled with the app (no font network requests), tabular
+  figures throughout; `.figure` for numbers read at a glance.
+- Motion tokens (`--lt-dur-micro` 140 ms, `--lt-dur-state` 200 ms, `--lt-dur-panel`
+  260 ms, `--lt-dur-dormant` 700 ms, `--ease-tide`); `prefers-reduced-motion` removes
+  all of it.
+- Contrast: every text token meets 4.5:1 on every surface of its theme, including in
+  Sleep Mode (checked with axe-core at 320–1920 px, both themes).
+- Contribution grids: an inactive cell (`grid-0`) and four levels per palette; squares
+  carry text labels, so colour is never the only signal.
 - **Saving never disables a focused control** (ADR-030). Buttons, selects and fields
   that trigger a write stay enabled and ignore repeats while busy, because disabling a
   focused element drops keyboard focus.
 - Shared control styles live in `src/components/ui/styles.ts` (`fieldClass`,
-  `labelClass`).
+  `compactFieldClass`, `labelClass`, `segmentedClass`/`segmentClass`, `tabClass`,
+  `badgeClass`).
 
 ## Directory conventions
 

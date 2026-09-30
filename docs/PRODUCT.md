@@ -8,7 +8,7 @@ see what actually matters tomorrow, and keep a few things alive (a habit, a hack
 time with someone you love) without being managed by software.
 
 It should feel **calm, cozy, personal**, and be **dense enough to be useful** — more
-like a well-kept paper notebook than a SaaS dashboard.
+like a precise, quiet instrument than a SaaS dashboard.
 
 ## Planned areas
 
@@ -116,7 +116,7 @@ like a well-kept paper notebook than a SaaS dashboard.
   a pending registration that's overdue or due within 7 days, or an event starting
   within 7 days or happening now. One line each, with the next action, and nothing when
   nothing's near.
-- **Data & backup** (`/data`, linked from the sidebar footer, or from the page footer
+- **Data & backup** (`/data`, linked from the rail's launcher, or from the page footer
   on phones):
   - "Download backup" saves everything as `lowtide-backup-YYYY-MM-DD-HHmm.json`, with a
     plain note that the file isn't encrypted.
@@ -149,7 +149,9 @@ like a well-kept paper notebook than a SaaS dashboard.
 
 ## Visual direction
 
-"Warm paper at low tide": warm off-white paper and warm charcoal (never pure white or
-black), strong readable type, subtle muted borders, one restrained sea-glass accent,
-compact spacing, minimal motion, no gradients, no giant cards. Tokens live in
-`src/styles/index.css`; see [ARCHITECTURE.md](ARCHITECTURE.md#styling).
+"Low tide at night" (v2 PHASE 011): a cold, neutral graphite interface where colour
+belongs to data (the Daily Pulse green, project gold, work amber, sleep violet, college
+blue, personal teal, gym red), one pale steel accent used sparingly, one sans-serif
+family with tabular figures, hairlines and whitespace instead of boxes, restrained
+motion. Tokens live in `src/styles/index.css`; see
+[ARCHITECTURE.md](ARCHITECTURE.md#styling) and [phases/V2-PHASE-011.md](phases/V2-PHASE-011.md).

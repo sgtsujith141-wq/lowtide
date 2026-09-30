@@ -1,4 +1,4 @@
-# LOWTIDE v2 — Status after PHASE 010
+# LOWTIDE v2 — Status after PHASE 011
 
 - **Date:** 2026-10-01
 - **Baseline:** v2 PHASE 001 at `8ba660f`; the overnight build ended at `f4ffe5a`;
@@ -18,6 +18,7 @@
 | 008 Shared AI context     | Scoped context packs (never protected time) and the workspace export (browser mode).                                                                                                                                                                                                                                                                          | ADR-054                   |
 | 008B SQLite companion     | Schema V6 (notes, recorded research status, AI attribution). One storage contract for Dexie and SQLite, with parity tests. The companion: SQLite canonical after an owner-triggered, verified move; companion-backed repositories with live events; MCP with scoped grants, 22 tools, attribution and audit; the live workspace and optional Git; Appearance. | ADR-056 to ADR-061        |
 | 010 Data consolidation    | Schema V7: SPACE (sections, pages, typed tables) and source provenance. The Notion importer and `import-notion` (idempotent, LOWTIDE wins, no invented history). The owner's Notion workspace imported: real projects, tasks, milestones, blockers, decisions and hackathons, the rest in SPACE.                                                              | ADR-062                   |
+| 011 Visual foundation     | Cold graphite tokens with colour reserved for data, Geist, an icon rail with a launcher, page widths and layout primitives, flattened surfaces, compact controls, fitted contribution grids, motion tokens and a dormant Sleep state; 0 axe violations at 320–1920 px.                                                                                        | ADR-063                   |
 | 009 QA and polish         | Vendor chunks, an axe-core sweep, overflow, large-data timing and keyboard checks.                                                                                                                                                                                                                                                                            | see PHASE 009             |
 
 ## PARTIAL

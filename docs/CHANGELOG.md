@@ -5,6 +5,17 @@ app's `package.json` version.
 
 ## [Unreleased]
 
+### Changed (v2 PHASE 011 — visual foundation)
+
+- A cold, dark graphite visual system replaces warm paper: semantic tokens, colour
+  reserved for data, Geist with tabular figures, no serif headings.
+- A compact icon rail (Home, Projects, SPACE, Hackathons, Rhythm) with a launcher for
+  everything else; phones keep five tabs. A SPACE placeholder page.
+- Screens use reading, standard or wide widths; surfaces are hairlines and whitespace
+  instead of bordered cards; compact controls; contribution grids fit their width.
+- Sleep Mode is a dormant state instead of a purple banner. Motion tokens; reduced
+  motion respected.
+
 ### Added (v2 PHASE 010 — canonical data consolidation and the Notion import)
 
 - **Schema V7** (ADR-062): `spaceNodes` (SPACE: sections, pages and typed tables, with
