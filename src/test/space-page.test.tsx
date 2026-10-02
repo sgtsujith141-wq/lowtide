@@ -299,7 +299,7 @@ describe('SPACE (v2 PHASE 014)', () => {
     const palette = await screen.findByRole('search');
     await user.type(within(palette).getByRole('textbox', { name: 'Search LOWTIDE' }), 'leads');
     expect(
-      await within(palette).findByRole('link', { name: /SPACE table.*Leads/ }),
+      await within(palette).findByRole('link', { name: /SPACE database.*Leads/ }),
     ).toHaveAttribute('href', `/space/${s.table.id}`);
   });
 

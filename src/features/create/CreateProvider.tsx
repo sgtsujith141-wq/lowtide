@@ -528,6 +528,17 @@ function SpaceForm({
   const project = defaults.projectId
     ? projects.find((p) => p.id === defaults.projectId)
     : undefined;
+  // Templates live in LOWTIDE / Templates; pages for pages, databases for databases.
+  const templatesFolder = nodes.find((n) => n.key === 'lowtide:templates');
+  const templates = templatesFolder
+    ? nodes.filter(
+        (n) =>
+          n.parentId === templatesFolder.id &&
+          !n.archived &&
+          n.kind === (kind === 'database' ? 'table' : 'page'),
+      )
+    : [];
+  const [template, setTemplate] = useState('');
   const { busy, error, submit } = useSubmit(async () => {
     let parent = parentId;
     if (!parent && project) parent = (await space.ensureProjectSpace(project.id)).id;
@@ -535,6 +546,12 @@ function SpaceForm({
     const name = title.trim() || (kind === 'folder' ? 'New folder' : 'Untitled');
     if (kind === 'folder' && !title.trim()) {
       throw new Error('Name the folder.');
+    }
+    if (template && kind !== 'folder') {
+      const made = await space.applyTemplate(template, parent, title.trim() || undefined);
+      onDone(`Created ${made.title} from a template.`);
+      void navigate(`/space/${made.id}`);
+      return;
     }
     const node = await space.create({
       parentId: parent,
@@ -600,7 +617,26 @@ function SpaceForm({
           </select>
         )}
       </Field>
-      {kind === 'database' && (
+      {kind !== 'folder' && templates.length > 0 && (
+        <Field label="Start from">
+          {(id) => (
+            <select
+              id={id}
+              value={template}
+              onChange={(e) => setTemplate(e.target.value)}
+              className={fieldClass}
+            >
+              <option value="">{kind === 'database' ? 'Name and Status' : 'A blank page'}</option>
+              {templates.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.title}
+                </option>
+              ))}
+            </select>
+          )}
+        </Field>
+      )}
+      {kind === 'database' && !template && (
         <p className="text-xs text-fg-muted">
           It starts with Name and Status; add properties and views in the database.
         </p>

@@ -184,6 +184,22 @@ export function addMissingColumns(sql: DatabaseSync, store: StoreName, fields: s
   }
 }
 
+/** Migrations this database hasn't had yet (an empty list for a new database file). */
+export function pendingMigrations(sql: DatabaseSync): number[] {
+  const known = (
+    sql
+      .prepare(
+        "SELECT count(*) AS n FROM sqlite_master WHERE type = 'table' AND name = 'companion_migrations'",
+      )
+      .get() as { n: number }
+  ).n;
+  if (!known) return [];
+  const applied = new Set(
+    (sql.prepare('SELECT id FROM companion_migrations').all() as { id: number }[]).map((r) => r.id),
+  );
+  return MIGRATIONS.filter((m) => !applied.has(m.id)).map((m) => m.id);
+}
+
 export function applyMigrations(sql: DatabaseSync) {
   sql.exec(`CREATE TABLE IF NOT EXISTS companion_migrations (
     id INTEGER PRIMARY KEY,

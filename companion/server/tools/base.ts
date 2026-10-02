@@ -7,6 +7,7 @@ import {
 import { projectRoot, projectSummaryJson } from '../../../src/features/context/workspace';
 import { summariseProject } from '../../../src/features/projects/summary';
 import { buildSearch, searchDocs } from '../../../src/features/space/model';
+import { blocksOf, blocksToMarkdown } from '../../../src/lib/space-blocks';
 import { toLocalDate, toTimestamp } from '../../../src/lib/time';
 import { NOTE_KINDS, type LinkableType, type SpaceCellValue } from '../../../src/types/domain';
 
@@ -48,12 +49,16 @@ export const readTools: Tool[] = [
     capability: 'projects.read',
     action: 'read context',
     description:
-      'Scoped, current LOWTIDE context as Markdown: for a project, its objective, phase, next action, lanes, milestones, decisions, recent activity and documents; for a workspace or global connection without a project, every live project and hackathon. Start here.',
+      'Scoped, current LOWTIDE context as Markdown: for a project, its objective, phase, next action, lanes, milestones, decisions, recent activity and documents; for a workspace or global connection without a project, every live project and hackathon. With `space`, also where that SPACE page or folder sits, what is inside it and (shortened) its content. Start here.',
     write: false,
     input: z.strictObject({
       project: projectArg(),
       milestone: d(z.optional(id()), 'Narrow to one milestone of the project (optional).'),
       task: d(z.optional(id()), 'Narrow to one task of the project (optional).'),
+      space: d(
+        z.optional(text(2000)),
+        'A SPACE page or folder (id or path) to include (optional; needs space.read).',
+      ),
     }),
     async run(env, args) {
       const data = await env.data();
@@ -75,11 +80,47 @@ export const readTools: Tool[] = [
       } else {
         scope = { kind: 'workspace' };
       }
-      const pack = buildContextPack(data, scope, env.at, {
+      const live = { ...data, milestones: data.milestones.filter((m) => !m.archivedAt) };
+      const pack = buildContextPack(live, scope, env.at, {
         documents: env.sync.humanDocuments(data.projects),
       });
+      let spacePart = '';
+      if (args.space !== undefined) {
+        env.require('space.read', 'read SPACE');
+        const view = await spaceView(env);
+        const node = resolvePage(view, args.space as string);
+        const inside = (view.children.get(node.id) ?? []).filter(
+          (c) => !c.archived && view.visible(c),
+        );
+        const content = blocksToMarkdown(blocksOf(node));
+        spacePart = [
+          '',
+          `## SPACE: ${pathText(view, node.id)}`,
+          `${node.kind === 'section' ? 'Folder' : node.kind === 'table' ? 'Database' : 'Page'} (id ${node.id}, revision ${node.revision ?? 0})${node.description ? ` — ${node.description}` : ''}`,
+          ...(inside.length
+            ? [
+                '',
+                'Inside:',
+                ...inside.map(
+                  (c) =>
+                    `- ${c.title} (${c.kind === 'section' ? 'folder' : c.kind === 'table' ? 'database' : 'page'}, ${c.id})`,
+                ),
+              ]
+            : []),
+          ...(content.trim()
+            ? [
+                '',
+                content.length > 6000
+                  ? `${content.slice(0, 6000)}
+
+…(shortened; get_space_page has it all)`
+                  : content,
+              ]
+            : []),
+        ].join('\n');
+      }
       return {
-        value: renderContextMarkdown(pack),
+        value: renderContextMarkdown(pack) + spacePart,
         ...(entityId ? { entityType: 'project', entityId } : {}),
       };
     },

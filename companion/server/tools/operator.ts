@@ -473,8 +473,10 @@ const projectTools: Tool[] = [
           ? [op('projects', 'setFocus', project.id, project.focus ?? null)]
           : []),
       ];
-      // Moving a state back isn't always allowed (and done can't be undone), so
-      // only field changes are undoable.
+      // A state change undoes back to the earlier state when LOWTIDE allows that
+      // move (never out of Done, which needs every milestone checked again).
+      if (args.state !== undefined && project.state !== updated.state && updated.state !== 'done')
+        undo.push(op('projects', 'setState', project.id, project.state));
       return {
         value: projectJson({ projects: [updated] }, updated),
         entityType: 'project',
@@ -486,7 +488,7 @@ const projectTools: Tool[] = [
             summary: `Updated ${updated.name}: ${touched.join(', ')}`,
             entityType: 'project',
             entityId: project.id,
-            ...(undo.length && args.state === undefined
+            ...(undo.length
               ? {
                   undo,
                   guard: {
@@ -495,6 +497,7 @@ const projectTools: Tool[] = [
                     fields: pick(updated, [
                       ...fields,
                       ...(args.focus !== undefined ? ['focus' as const] : []),
+                      ...(args.state !== undefined ? ['state' as const] : []),
                     ]),
                   },
                 }

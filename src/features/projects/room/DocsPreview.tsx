@@ -1,4 +1,5 @@
-import { FileText, Table2 } from 'lucide-react';
+import { ArrowRight, FileText, Table2 } from 'lucide-react';
+import { Link } from 'react-router';
 import { useState } from 'react';
 import { Drawer } from '../../../components/layout';
 import { useRepositories } from '../../../hooks/useRepositories';
@@ -63,12 +64,27 @@ export function DocsPreview({ project }: { project: Project }) {
     };
   }).filter((s) => s.docs.length > 0);
 
+  // The project's one SPACE folder (by its key, never by title matching).
+  const home = byKey.get(`project:${project.id}`);
+  const openLink = (
+    <Link
+      to={home ? `/space/${home.id}` : `/space/project/${project.id}`}
+      className="inline-flex items-center gap-1 text-sm text-fg-muted hover:text-fg"
+    >
+      Open in SPACE <ArrowRight aria-hidden className="size-3.5" />
+    </Link>
+  );
   if (slots.length === 0)
-    return <p className="text-sm text-fg-muted">No documents for {project.name} in SPACE yet.</p>;
+    return (
+      <p className="flex flex-wrap items-baseline gap-x-3 text-sm text-fg-muted">
+        No documents for {project.name} in SPACE yet. {openLink}
+      </p>
+    );
 
   const now = new Date();
   return (
     <>
+      <p className="mb-3">{openLink}</p>
       <div className="grid gap-x-10 gap-y-6 sm:grid-cols-2 2xl:grid-cols-3">
         {slots.map((s) => (
           <section key={s.slot} aria-label={s.label} className="min-w-0 border-t border-line pt-3">

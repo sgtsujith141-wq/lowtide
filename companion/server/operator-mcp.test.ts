@@ -540,6 +540,29 @@ describe('v2.1: what Claude can do without the owner (MCP, real protocol)', () =
     expect(caps.rules.join(' ')).toMatch(/Protected Time is never available/);
   });
 
+  it('gives SPACE context with a project’s, and undoes a state change the owner rejects', async () => {
+    const t = await start();
+    const claude = await operator(t);
+    const made = json<{ project: { slug: string; id: string } }>(
+      await claude.call('create_project', { name: 'Harbor', template: 'software' }),
+    );
+    const context = await claude.call('get_context', {
+      project: made.project.slug,
+      space: 'Projects / Harbor / Overview / Overview',
+    });
+    expect(context.text).toMatch(/## SPACE: Projects \/ Harbor \/ Overview \/ Overview/);
+    expect(context.text).toMatch(/What it is/);
+    json(await claude.call('update_project', { project: 'Harbor', state: 'active' }));
+    const changes = (await (await t.owner('/api/ai/changes')).json()) as AiChange[];
+    const change = changes.find((c) => c.summary === 'Updated Harbor: state')!;
+    expect(change.revertible).toBe(true);
+    expect((await t.owner(`/api/ai/changes/${change.id}/revert`, { method: 'POST' })).status).toBe(
+      200,
+    );
+    const r = createRepositories(t.companion.store, { watch: t.companion.store.watch });
+    expect((await r.projects.get(made.project.id))?.state).toBe('planning');
+  });
+
   it('names only tools that exist in its capability matrix', () => {
     const names = new Set(TOOLS.map((x) => x.name));
     expect(matrixTools().filter((n) => !names.has(n))).toEqual([]);

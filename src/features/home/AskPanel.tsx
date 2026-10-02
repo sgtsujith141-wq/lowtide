@@ -4,7 +4,7 @@ import { Link } from 'react-router';
 import { CREATE_KINDS, CREATE_LABEL, useCreate } from '../create/create-context';
 import { useRepositories } from '../../hooks/useRepositories';
 import { useWatch } from '../../hooks/useWatch';
-import { blocksOf, blockText } from '../../lib/space-blocks';
+import { buildSearch, searchDocs } from '../space/model';
 import { useModeApi } from '../modes/mode-context';
 
 /** Places to go by name. */
@@ -28,7 +28,13 @@ interface Hit {
   kind: string;
   title: string;
   to: string;
+  /** Where it lives: its project, or its place in SPACE. */
+  where?: string;
+  excerpt?: string;
 }
+
+const snippet = (text: string | undefined) =>
+  text ? text.replace(/\s+/g, ' ').trim().slice(0, 120) : undefined;
 
 /**
  * The command palette (v2 PHASE 012, global since PHASE 014): a modal dialog
@@ -84,6 +90,18 @@ export function AskPanel({ onClose }: { onClose: () => void }) {
   const nodes = useWatch(space.watchAll);
   const decisions = useWatch(projects.watchAllDecisions);
 
+  // SPACE's own index: titles, content, database rows and provenance.
+  const spaceIndex = useMemo(
+    () =>
+      nodes.status === 'ready'
+        ? buildSearch(nodes.data, {
+            ...(decisions.status === 'ready' ? { decisions: decisions.data } : {}),
+            include: (n) => !n.archived,
+          })
+        : [],
+    [nodes, decisions],
+  );
+
   const hits = useMemo<Hit[]>(() => {
     const q = query.trim().toLowerCase();
     if (q.length < 2) return [];
@@ -92,13 +110,25 @@ export function AskPanel({ onClose }: { onClose: () => void }) {
     const slug = new Map(
       all.status === 'ready' ? all.data.map((p) => [p.id, p.slug] as const) : [],
     );
+    const name = new Map(
+      all.status === 'ready' ? all.data.map((p) => [p.id, p.name] as const) : [],
+    );
+    const where = (projectId: string | undefined) => (projectId ? name.get(projectId) : undefined);
     const out: Hit[] = [];
     for (const [title, to] of DESTINATIONS)
       if (title.toLowerCase().startsWith(q)) out.push({ key: to, kind: 'Go to', title, to });
     if (all.status === 'ready')
       for (const p of all.data)
         if (has(p.name, p.objective, p.nextAction, p.phase))
-          out.push({ key: p.id, kind: 'Project', title: p.name, to: `/projects/${p.slug}` });
+          out.push({
+            key: p.id,
+            kind: 'Project',
+            title: p.name,
+            to: `/projects/${p.slug}`,
+            ...(snippet(p.description ?? p.objective)
+              ? { excerpt: snippet(p.description ?? p.objective)! }
+              : {}),
+          });
     if (milestones.status === 'ready')
       for (const m of milestones.data)
         if (has(m.title, m.notes))
@@ -107,6 +137,7 @@ export function AskPanel({ onClose }: { onClose: () => void }) {
             kind: 'Milestone',
             title: m.title,
             to: `/projects/${slug.get(m.projectId)}`,
+            ...(where(m.projectId) ? { where: where(m.projectId)! } : {}),
           });
     if (items.status === 'ready')
       for (const i of items.data)
@@ -116,12 +147,25 @@ export function AskPanel({ onClose }: { onClose: () => void }) {
             kind: 'Project item',
             title: i.title,
             to: `/projects/${slug.get(i.projectId)}`,
+            ...(where(i.projectId) ? { where: where(i.projectId)! } : {}),
           });
     for (const list of [open, closed])
       if (list.status === 'ready')
         for (const t of list.data)
           if (has(t.title, t.notes, t.project))
-            out.push({ key: t.id, kind: 'Task', title: t.title, to: '/tasks' });
+            out.push({
+              key: t.id,
+              kind: 'Task',
+              title: t.title,
+              to:
+                t.projectId && slug.get(t.projectId)
+                  ? `/projects/${slug.get(t.projectId)}`
+                  : '/tasks',
+              ...((where(t.projectId) ?? t.project)
+                ? { where: (where(t.projectId) ?? t.project)! }
+                : {}),
+              ...(snippet(t.notes) ? { excerpt: snippet(t.notes)! } : {}),
+            });
     if (hacks.status === 'ready')
       for (const h of hacks.data)
         if (has(h.name, h.problemStatement, h.nextAction, h.notes))
@@ -134,22 +178,25 @@ export function AskPanel({ onClose }: { onClose: () => void }) {
             kind: 'Decision',
             title: d.title,
             to: `/projects/${slug.get(d.projectId)}`,
+            ...(where(d.projectId) ? { where: where(d.projectId)! } : {}),
+            ...(snippet(d.decision) ? { excerpt: snippet(d.decision)! } : {}),
           });
-    if (nodes.status === 'ready')
-      for (const n of nodes.data)
-        if (
-          !n.archived &&
-          n.kind !== 'section' &&
-          (has(n.title) || has(blocksOf(n).map(blockText).join(' ')))
-        )
-          out.push({
-            key: n.id,
-            kind: n.kind === 'table' ? 'SPACE table' : 'SPACE page',
-            title: n.title,
-            to: `/space/${n.id}`,
-          });
+    for (const h of searchDocs(spaceIndex, query, 12).filter((x) => x.kind !== 'decision'))
+      out.push({
+        key: h.id,
+        kind:
+          h.kind === 'table'
+            ? 'SPACE database'
+            : h.kind === 'section'
+              ? 'SPACE folder'
+              : 'SPACE page',
+        title: h.title,
+        to: h.href,
+        ...(h.location ? { where: h.location } : {}),
+        ...(h.excerpt ? { excerpt: h.excerpt } : {}),
+      });
     return out.slice(0, 24);
-  }, [query, all, milestones, items, open, closed, hacks, nodes, decisions]);
+  }, [query, all, milestones, items, open, closed, hacks, spaceIndex, decisions]);
 
   // The mode actions that make sense right now; none that can't happen.
   const q = query.trim().toLowerCase();
@@ -232,7 +279,14 @@ export function AskPanel({ onClose }: { onClose: () => void }) {
                   className="flex items-baseline gap-2 rounded-md px-1 text-sm hover:bg-hover"
                 >
                   <span className="w-24 shrink-0 text-[11px] text-fg-muted">{hit.kind}</span>
-                  <span className="min-w-0 truncate">{hit.title}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate">{hit.title}</span>
+                    {(hit.where || hit.excerpt) && (
+                      <span className="block truncate text-xs text-fg-muted">
+                        {[hit.where, hit.excerpt].filter(Boolean).join(' · ')}
+                      </span>
+                    )}
+                  </span>
                 </Link>
               </li>
             ))

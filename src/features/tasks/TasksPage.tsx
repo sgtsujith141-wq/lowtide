@@ -44,10 +44,14 @@ export function TasksPage() {
   const [error, setError] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState('');
 
-  const openTasks = useMemo(
-    () => (open.status === 'ready' ? orderOpenTasks(open.data) : []),
-    [open],
-  );
+  // Subtasks follow their parent, a step in; a subtask of a closed task stands alone.
+  const openTasks = useMemo(() => {
+    if (open.status !== 'ready') return [];
+    const ordered = orderOpenTasks(open.data);
+    const openIds = new Set(ordered.map((t) => t.id));
+    const top = ordered.filter((t) => !t.parentId || !openIds.has(t.parentId));
+    return top.flatMap((t) => [t, ...ordered.filter((c) => c.parentId === t.id)]);
+  }, [open]);
   const closedTasks = useMemo(() => (closed.status === 'ready' ? closed.data : []), [closed]);
   const projects = useMemo(() => {
     const names = [...openTasks, ...closedTasks].flatMap((t) => (t.project ? [t.project] : []));
@@ -109,6 +113,7 @@ export function TasksPage() {
                 onComplete={() => void transition(task, 'complete')}
                 onDrop={() => void transition(task, 'drop')}
                 onEdit={() => setEditingId(task.id)}
+                nested={!!task.parentId && openTasks.some((t) => t.id === task.parentId)}
               />
             ),
           )}

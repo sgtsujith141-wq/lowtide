@@ -20,6 +20,8 @@ interface Props {
   actions: ReactNode;
   /** Hide the "In today's plan" label where the context already says it. */
   hidePlan?: boolean;
+  /** A subtask shown under its parent (v2.1). */
+  nested?: boolean;
 }
 
 /**
@@ -27,7 +29,15 @@ interface Props {
  * notes, and a meta line (deadline · plan · project · priority).
  * Shared by the Tasks and Today screens.
  */
-export function TaskLine({ task, today, busy, onComplete, actions, hidePlan = false }: Props) {
+export function TaskLine({
+  task,
+  today,
+  busy,
+  onComplete,
+  actions,
+  hidePlan = false,
+  nested = false,
+}: Props) {
   const deadline = task.dueAt ? describeDeadline(task.dueAt, today) : null;
   const plan = hidePlan ? null : describePlan(task.plannedFor, today);
   const meta = [
@@ -45,7 +55,7 @@ export function TaskLine({ task, today, busy, onComplete, actions, hidePlan = fa
 
   return (
     <li
-      className="flex items-start gap-2.5 border-b border-line py-2"
+      className={`flex items-start gap-2.5 border-b border-line py-2 ${nested ? 'pl-7' : ''}`}
       aria-busy={busy || undefined}
     >
       <button

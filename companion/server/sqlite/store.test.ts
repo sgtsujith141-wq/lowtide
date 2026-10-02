@@ -209,6 +209,10 @@ describe('domain schema V10 (v2.1, companion migration 6)', () => {
       expect((await r.projects.archiveMilestone(milestone.id)).archivedAt).toBeDefined();
       expect((await r.projects.setPinned(project.id, true)).pinnedAt).toBeDefined();
       reopened.close();
+      // A copy was kept before the upgrade touched the data.
+      const { readdirSync } = await import('node:fs');
+      const copies = readdirSync(join(dir, 'checkpoints')).filter((f) => f.endsWith('.sqlite'));
+      expect(copies).toEqual([expect.stringMatching(/before-upgrade-6\.sqlite$/)]);
       // Applying migrations again changes nothing.
       const again = new SqliteStore(file);
       const ids = (

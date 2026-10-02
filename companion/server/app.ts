@@ -403,7 +403,14 @@ export async function startCompanion(options: CompanionOptions): Promise<Compani
                   : a,
               ),
             );
-            await dispatch(owner, { repo: inverse.repo, member: inverse.member, args });
+            try {
+              await dispatch(owner, { repo: inverse.repo, member: inverse.member, args });
+            } catch (error) {
+              throw new HttpError(
+                409,
+                `“${change.summary}” can’t be undone: ${(error as Error).message ?? 'LOWTIDE refused it'}`,
+              );
+            }
           }
         }
       },
@@ -430,6 +437,11 @@ export async function startCompanion(options: CompanionOptions): Promise<Compani
     if (method === 'GET' && path === '/api/events') return openStream(req, res, cors);
     if (method === 'POST' && path === '/api/rpc') {
       const body = await json();
+      const call = body as { repo?: unknown; member?: unknown };
+      if (call?.repo === 'backup' && call.member === 'restore' && checkpoints) {
+        // A restore replaces everything: keep a way back first.
+        await checkpoints.create('Before restoring a backup', 'owner', true);
+      }
       try {
         return ok({ ok: true, value: (await dispatch(owner, body)) ?? null });
       } catch (error) {

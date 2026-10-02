@@ -151,14 +151,19 @@ export function Inspector({ node }: { node: SpaceNode }) {
       {node.source && (
         <Section title="Source">
           <p>Imported from Notion</p>
-          <p className="mt-0.5 text-xs text-fg-muted">“{node.source.originalTitle}”</p>
-          {node.source.path && node.source.path.length > 0 && (
-            <p className="text-xs text-fg-muted">{node.source.path.join(' / ')}</p>
-          )}
-          <p className="mt-1 text-xs text-fg-muted">
-            Brought in {formatWhen(node.source.importedAt, now)}
-            {node.blocks ? '; edited in LOWTIDE since (the original is kept)' : ''}.
-          </p>
+          <details className="mt-1 text-xs text-fg-muted">
+            <summary className="cursor-pointer select-none hover:text-fg">
+              Where it came from
+            </summary>
+            <p className="mt-1">“{node.source.originalTitle}”</p>
+            {node.source.path && node.source.path.length > 0 && (
+              <p>{node.source.path.join(' / ')}</p>
+            )}
+            <p className="mt-1">
+              Brought in {formatWhen(node.source.importedAt, now)}
+              {node.blocks ? '; edited in LOWTIDE since (the original is kept)' : ''}.
+            </p>
+          </details>
           {node.source.url && (
             <a
               href={node.source.url}
@@ -187,44 +192,67 @@ export function Inspector({ node }: { node: SpaceNode }) {
         </Section>
       )}
 
-      <Section title="History">
-        <dl className="grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-1 text-xs">
-          <dt className="text-fg-muted">Created</dt>
-          <dd title={formatFull(node.createdAt)}>{formatWhen(node.createdAt, now)}</dd>
-          <dt className="text-fg-muted">Updated</dt>
-          <dd title={formatFull(node.updatedAt)}>{formatWhen(node.updatedAt, now)}</dd>
-          {aiEdits.length > 0 && (
+      <details className="group">
+        <summary className="cursor-pointer text-xs font-semibold text-fg-muted select-none hover:text-fg">
+          History{aiEdits.length > 0 ? ' and AI activity' : ''}
+        </summary>
+        <div className="mt-2">
+          <dl className="grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-1 text-xs">
+            <dt className="text-fg-muted">Created</dt>
+            <dd title={formatFull(node.createdAt)}>{formatWhen(node.createdAt, now)}</dd>
+            <dt className="text-fg-muted">Updated</dt>
+            <dd title={formatFull(node.updatedAt)}>{formatWhen(node.updatedAt, now)}</dd>
+            {aiEdits.length > 0 && (
+              <>
+                <dt className="text-fg-muted">AI activity</dt>
+                <dd>
+                  {aiEdits.length} {aiEdits.length === 1 ? 'change' : 'changes'} by{' '}
+                  {[...new Set(aiEdits.map((e) => e.client ?? 'an AI client'))].join(', ')}
+                </dd>
+              </>
+            )}
+          </dl>
+          {(node.edits?.length ?? 0) > 0 && (
+            <ol className="mt-3 space-y-1.5 border-l border-line pl-3 text-xs">
+              {[...(node.edits ?? [])]
+                .reverse()
+                .slice(0, 12)
+                .map((e, i) => (
+                  <li key={i}>
+                    <span className="font-medium">
+                      {e.by === 'ai-client' ? (e.client ?? 'AI client') : 'You'}
+                    </span>{' '}
+                    <span className="text-fg-muted">
+                      {EDIT_WORD[e.kind].toLowerCase()}
+                      {e.count > 1 ? ` (${e.count} saves)` : ''} ·{' '}
+                      <time dateTime={e.at} title={formatFull(e.at)}>
+                        {formatWhen(e.at, now)}
+                      </time>
+                    </span>
+                  </li>
+                ))}
+            </ol>
+          )}
+        </div>
+      </details>
+
+      <details>
+        <summary className="cursor-pointer text-xs font-semibold text-fg-muted select-none hover:text-fg">
+          Technical details
+        </summary>
+        <dl className="mt-2 grid grid-cols-[5.5rem_1fr] gap-x-3 gap-y-1 text-xs break-all">
+          <dt className="text-fg-muted">Id</dt>
+          <dd>{node.id}</dd>
+          <dt className="text-fg-muted">Revision</dt>
+          <dd>{node.revision ?? 0}</dd>
+          {node.key && (
             <>
-              <dt className="text-fg-muted">AI activity</dt>
-              <dd>
-                {aiEdits.length} {aiEdits.length === 1 ? 'change' : 'changes'} by{' '}
-                {[...new Set(aiEdits.map((e) => e.client ?? 'an AI client'))].join(', ')}
-              </dd>
+              <dt className="text-fg-muted">Kept by</dt>
+              <dd>LOWTIDE ({node.key})</dd>
             </>
           )}
         </dl>
-        {(node.edits?.length ?? 0) > 0 && (
-          <ol className="mt-3 space-y-1.5 border-l border-line pl-3 text-xs">
-            {[...(node.edits ?? [])]
-              .reverse()
-              .slice(0, 12)
-              .map((e, i) => (
-                <li key={i}>
-                  <span className="font-medium">
-                    {e.by === 'ai-client' ? (e.client ?? 'AI client') : 'You'}
-                  </span>{' '}
-                  <span className="text-fg-muted">
-                    {EDIT_WORD[e.kind].toLowerCase()}
-                    {e.count > 1 ? ` (${e.count} saves)` : ''} ·{' '}
-                    <time dateTime={e.at} title={formatFull(e.at)}>
-                      {formatWhen(e.at, now)}
-                    </time>
-                  </span>
-                </li>
-              ))}
-          </ol>
-        )}
-      </Section>
+      </details>
     </div>
   );
 

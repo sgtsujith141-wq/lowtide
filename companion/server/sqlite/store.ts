@@ -10,7 +10,9 @@ import type {
   TransactionMode,
 } from '../../../src/db/store';
 import type { Watch } from '../../../src/db/repositories';
-import { applyMigrations } from './migrations';
+import { applyMigrations, pendingMigrations } from './migrations';
+import { chmodSync, mkdirSync, statSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { indexColumns, TABLES, type TableSpec } from './tables';
 
 /*
@@ -79,7 +81,10 @@ export class SqliteStore implements StoreDb {
     this.sql = new DatabaseSync(path);
     this.sql.exec('PRAGMA foreign_keys = ON');
     this.sql.exec('PRAGMA busy_timeout = 5000');
-    if (path !== ':memory:') this.sql.exec('PRAGMA journal_mode = WAL');
+    if (path !== ':memory:') {
+      this.sql.exec('PRAGMA journal_mode = WAL');
+      backupBeforeUpgrade(this.sql, path);
+    }
     applyMigrations(this.sql);
     for (const spec of TABLES) {
       (this as unknown as Record<string, unknown>)[spec.store] = new SqliteTable(this, spec);
@@ -413,4 +418,43 @@ class SqliteCollection<T> implements StoreCollection<T> {
       }),
     );
   }
+}
+
+/**
+ * Before a schema upgrade touches a database that already holds data, a
+ * full copy goes to checkpoints/ (v2.1), so the upgrade can be rolled back.
+ */
+function backupBeforeUpgrade(sql: DatabaseSync, path: string) {
+  const pending = pendingMigrations(sql);
+  const hasData = (
+    sql
+      .prepare("SELECT count(*) AS n FROM sqlite_master WHERE type = 'table' AND name = 'projects'")
+      .get() as {
+      n: number;
+    }
+  ).n;
+  if (!pending.length || !hasData) return;
+  const dir = join(dirname(path), 'checkpoints');
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const at = new Date();
+  const id = `${at.toISOString().replace(/[:.]/g, '-')}-before-upgrade-${pending.at(-1)!}`;
+  const file = join(dir, `${id}.sqlite`);
+  sql.prepare('VACUUM INTO ?').run(file);
+  chmodSync(file, 0o600);
+  writeFileSync(
+    join(dir, `${id}.json`),
+    JSON.stringify(
+      {
+        id,
+        name: `Before upgrading the database (migrations ${pending.join(', ')})`,
+        at: at.toISOString(),
+        by: 'LOWTIDE',
+        bytes: statSync(file).size,
+        auto: false,
+      },
+      null,
+      2,
+    ),
+    { mode: 0o600 },
+  );
 }

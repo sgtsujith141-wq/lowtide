@@ -10,16 +10,18 @@ interface Props {
   onComplete: () => void;
   onEdit: () => void;
   onDrop: () => void;
+  nested?: boolean;
 }
 
 /** An open task on the Tasks screen: complete, edit, drop. */
-export function TaskRow({ task, today, busy, onComplete, onEdit, onDrop }: Props) {
+export function TaskRow({ task, today, busy, onComplete, onEdit, onDrop, nested }: Props) {
   return (
     <TaskLine
       task={task}
       today={today}
       busy={busy}
       onComplete={onComplete}
+      nested={nested ?? false}
       actions={
         <>
           <IconButton
