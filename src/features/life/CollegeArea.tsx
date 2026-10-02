@@ -16,7 +16,7 @@ import {
   type CollegeStatus,
   type LocalDate,
 } from '../../types/domain';
-import { consumeModeFocus, requestModeFocus } from '../modes/focus-intent';
+import { useModeApi } from '../modes/mode-context';
 import { useModes } from '../modes/useModes';
 import { activeMinutes } from '../work/duration';
 
@@ -45,6 +45,7 @@ const attendable = (item: CollegeItem) => item.kind === 'class' || item.kind ===
  */
 export function CollegeArea({ today }: { today: LocalDate }) {
   const { college, work } = useRepositories();
+  const modeApi = useModeApi();
   const modes = useModes();
   const watchItems = useMemo(
     () => college.watchRange(addDays(today, -7), addDays(today, 30)),
@@ -79,11 +80,9 @@ export function CollegeArea({ today }: { today: LocalDate }) {
 
   async function startStudy() {
     setError(null);
-    requestModeFocus();
     try {
-      await work.start({ kind: 'college', intent: 'Study' });
+      await modeApi.startWork({ kind: 'college', intent: 'Study' });
     } catch {
-      consumeModeFocus();
       setError('Couldn’t start a study session. Is something else running?');
     }
   }

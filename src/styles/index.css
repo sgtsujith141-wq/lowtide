@@ -428,6 +428,33 @@
     animation: lt-fade-in var(--lt-dur-panel) var(--ease-tide);
   }
 
+  /*
+   * Sleep Mode (v2 PHASE 015): the dormant layer arrives over ~0.8 s while the
+   * app beneath desaturates and darkens; the timer comes last. Waking reverses
+   * it. Reduced motion makes both immediate (the global rule above).
+   */
+  .lt-dormant {
+    animation: lt-fade-in 800ms var(--ease-tide) both;
+  }
+  .lt-dormant > * {
+    animation: lt-dormant-content 900ms var(--ease-tide) both;
+  }
+  .lt-dormant[data-leaving] {
+    animation: lt-fade-out 700ms var(--ease-tide) both;
+  }
+
+  /* Work Mode's surface steps in quickly and quietly. */
+  .lt-focus {
+    animation: lt-focus-in 250ms var(--ease-tide) both;
+  }
+  /* While working, the desktop rail (icons only) recedes until it's wanted.
+     Phones keep their labelled tabs at full contrast. */
+  @media (min-width: 768px) {
+    [data-mode='work'] [data-recede] nav a:not(:hover):not(:focus-visible) {
+      opacity: 0.55;
+    }
+  }
+
   /* A page arriving in SPACE: a short fade, no movement. */
   .lt-fade {
     animation: lt-fade-in var(--lt-dur-panel) var(--ease-tide);
@@ -464,6 +491,23 @@
   }
   100% {
     box-shadow: 0 0 0 9px transparent;
+  }
+}
+@keyframes lt-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes lt-dormant-content {
+  0%,
+  45% {
+    opacity: 0;
+  }
+}
+@keyframes lt-focus-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
   }
 }
 @keyframes lt-fade-in {

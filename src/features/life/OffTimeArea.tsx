@@ -11,7 +11,6 @@ import { addDays } from '../../lib/calendar';
 import { formatDuration } from '../../lib/duration';
 import { fromLocalDate } from '../../lib/time';
 import type { LocalDate } from '../../types/domain';
-import { requestModeFocus, consumeModeFocus } from '../modes/focus-intent';
 import { useModes } from '../modes/useModes';
 
 const time = (at: string) => format(new Date(at), 'HH:mm');
@@ -43,14 +42,12 @@ export function OffTimeArea({ today }: { today: LocalDate }) {
 
   async function start(kind: 'sleep' | 'rest') {
     setError(null);
-    requestModeFocus();
     try {
       await offTime.start(kind);
     } catch (e) {
-      consumeModeFocus();
       setError(
         e instanceof RecordStateError && modes.work
-          ? 'Finish the work session first (see the bar above).'
+          ? 'Finish the work session first.'
           : 'Couldn’t start off time. Try again.',
       );
     }

@@ -51,7 +51,7 @@ describe('appearance (ADR-061)', () => {
       within(screen.getByRole('navigation', { name: 'Main' })).getByRole('link', { name: 'Home' }),
     );
     await user.click(await screen.findByRole('button', { name: 'Sleep Mode' }, { timeout: 5000 }));
-    await screen.findByRole('region', { name: 'Off time' }, { timeout: 8000 });
+    await screen.findByRole('dialog', { name: 'Off time' }, { timeout: 8000 });
     expect(document.querySelector('[data-mode="sleep"]')).not.toBeNull();
     expect(html()).toHaveAttribute('data-theme', 'dark');
     expect(readTheme()).toBe('dark');

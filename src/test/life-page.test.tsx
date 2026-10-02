@@ -88,8 +88,8 @@ describe('Life page', () => {
     await user.click(within(sleep).getByRole('button', { name: 'Start sleep window' }));
     // A page-wide role query: each poll walks all four 90-day grids (~360 named
     // cells), which in jsdom can take most of a second on a loaded machine.
-    const bar = await screen.findByRole('region', { name: 'Off time' }, { timeout: 8000 });
-    await user.click(within(bar).getByRole('button', { name: 'Wake up' }));
+    const dormant = await screen.findByRole('dialog', { name: 'Off time' }, { timeout: 8000 });
+    await user.click(within(dormant).getByRole('button', { name: 'Wake up' }));
     expect(await within(sleep).findByText(/marked$/)).toBeInTheDocument();
     expect(within(sleep).getByText(/not how long you slept/)).toBeInTheDocument();
 
@@ -161,7 +161,9 @@ describe('Life page', () => {
       ),
     ).toBeInTheDocument();
     await user.click(within(college).getByRole('button', { name: 'Start study' }));
-    const bar = await screen.findByRole('region', { name: 'Work session' });
-    expect(await within(bar).findByText(/College \/ study: Study/)).toBeInTheDocument();
+    // Study enters Work Mode, like any other work.
+    const focus = await screen.findByRole('region', { name: 'Work Mode' }, { timeout: 5000 });
+    expect(within(focus).getByRole('heading', { name: 'College / study' })).toBeInTheDocument();
+    expect(within(focus).getByText('Study')).toBeInTheDocument();
   });
 });

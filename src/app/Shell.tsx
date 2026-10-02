@@ -23,7 +23,8 @@ import { useCompanion, useCompanionConnection } from '../hooks/useCompanion';
 import { CommandPalette } from '../features/home/AskPanel';
 import { PALETTE_EVENT } from '../features/home/shortcut';
 import { ModeBar } from '../features/modes/ModeBar';
-import { useModes } from '../features/modes/useModes';
+import { ModeController } from '../features/modes/ModeController';
+import { useModeApi } from '../features/modes/mode-context';
 
 /*
  * Navigation (ADR-043, v2 PHASE 011).
@@ -62,12 +63,20 @@ const SECONDARY: Destination[] = [
 ];
 
 /**
- * App frame. In Sleep Mode (ADR-042) the whole frame goes dormant: it sinks
- * toward black, loses colour, the rail recedes and motion stops; the mode bar
- * (with Wake up) stays as it is.
+ * App frame. The mode controller (v2 PHASE 015) sits around it: in Sleep Mode
+ * a dormant layer covers everything and the frame underneath is inert; in
+ * Work Mode a focus surface covers the page while the rail stays, quieter.
  */
 export function Shell() {
-  const { offTime } = useModes();
+  return (
+    <ModeController>
+      <Frame />
+    </ModeController>
+  );
+}
+
+function Frame() {
+  const { offTime, work, focusOpen } = useModeApi();
   const [searching, setSearching] = useState(false);
 
   // ⌘K / Ctrl K opens the command palette anywhere (v2 PHASE 014).
@@ -88,78 +97,81 @@ export function Shell() {
   }, []);
 
   return (
-    <div
-      className="min-h-dvh bg-canvas md:grid md:grid-cols-[var(--lt-rail)_minmax(0,1fr)]"
-      data-mode={offTime ? 'sleep' : undefined}
-    >
-      <a
-        href="#main"
-        onClick={(event) => {
-          // Move focus without touching the URL.
-          event.preventDefault();
-          document.getElementById('main')?.focus();
-        }}
-        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-30 focus:rounded-md focus:bg-raised focus:px-3 focus:py-1.5 focus:text-sm"
+    <>
+      <div
+        className="min-h-dvh bg-canvas md:grid md:grid-cols-[var(--lt-rail)_minmax(0,1fr)]"
+        data-mode={offTime ? 'sleep' : work ? 'work' : undefined}
+        inert={!!offTime}
       >
-        Skip to content
-      </a>
-
-      <header
-        data-recede
-        className="sticky top-0 z-20 flex h-12 transition-[background-color,border-color] duration-700 items-center gap-2 border-b border-line bg-canvas/95 px-3 backdrop-blur md:h-dvh md:flex-col md:items-center md:gap-3 md:border-r md:border-b-0 md:px-0 md:py-3 md:backdrop-blur-none"
-      >
-        <Link
-          to="/"
-          aria-label="LOWTIDE"
-          className="grid size-9 shrink-0 place-items-center rounded-md text-fg"
+        <a
+          href="#main"
+          onClick={(event) => {
+            // Move focus without touching the URL.
+            event.preventDefault();
+            document.getElementById('main')?.focus();
+          }}
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-30 focus:rounded-md focus:bg-raised focus:px-3 focus:py-1.5 focus:text-sm"
         >
-          <Waves aria-hidden className="size-5" strokeWidth={1.75} />
-        </Link>
-        <nav aria-label="Main" className="ml-auto md:ml-0 md:w-full">
-          <ul className="flex gap-px md:flex-col md:items-center md:gap-1">
-            {PRIMARY.map((d) => (
-              <li
-                key={d.to}
-                className={
-                  d.only === 'desktop' ? 'max-md:hidden' : d.only === 'phone' ? 'md:hidden' : ''
-                }
-              >
-                <RailLink {...d} />
-              </li>
-            ))}
-          </ul>
-        </nav>
-        <Launcher />
-      </header>
+          Skip to content
+        </a>
 
-      <div className="min-w-0">
-        <div className="sticky top-12 z-10 md:top-0">
-          <ModeBar />
-          <CompanionBanner />
+        <header
+          data-recede
+          className="sticky top-0 z-20 flex h-12 transition-[background-color,border-color] duration-700 items-center gap-2 border-b border-line bg-canvas/95 px-3 backdrop-blur md:h-dvh md:flex-col md:items-center md:gap-3 md:border-r md:border-b-0 md:px-0 md:py-3 md:backdrop-blur-none"
+        >
+          <Link
+            to="/"
+            aria-label="LOWTIDE"
+            className="grid size-9 shrink-0 place-items-center rounded-md text-fg"
+          >
+            <Waves aria-hidden className="size-5" strokeWidth={1.75} />
+          </Link>
+          <nav aria-label="Main" className="ml-auto md:ml-0 md:w-full">
+            <ul className="flex gap-px md:flex-col md:items-center md:gap-1">
+              {PRIMARY.map((d) => (
+                <li
+                  key={d.to}
+                  className={
+                    d.only === 'desktop' ? 'max-md:hidden' : d.only === 'phone' ? 'md:hidden' : ''
+                  }
+                >
+                  <RailLink {...d} />
+                </li>
+              ))}
+            </ul>
+          </nav>
+          <Launcher />
+        </header>
+
+        <div className="min-w-0" inert={focusOpen}>
+          <div className="sticky top-12 z-10 md:top-0">
+            <ModeBar />
+            <CompanionBanner />
+          </div>
+          <main
+            id="main"
+            tabIndex={-1}
+            data-dimmable
+            className="min-h-[calc(100dvh-3rem)] min-w-0 bg-canvas px-4 pt-5 pb-10 outline-none sm:px-6 md:min-h-dvh md:px-8 md:pt-8 xl:px-12"
+          >
+            <Outlet />
+          </main>
         </div>
-        <main
-          id="main"
-          tabIndex={-1}
-          data-dimmable
-          className="min-h-[calc(100dvh-3rem)] min-w-0 bg-canvas px-4 pt-5 pb-10 outline-none sm:px-6 md:min-h-dvh md:px-8 md:pt-8 xl:px-12"
-        >
-          <Outlet />
-        </main>
-      </div>
 
-      {/* Phones: backup lives here rather than as a tab. */}
-      <footer
-        data-dimmable
-        data-nonessential
-        className="border-t border-line px-4 py-4 text-xs text-fg-muted md:hidden"
-      >
-        Everything here stays on this device.{' '}
-        <Link to="/data" className="text-accent-ink underline underline-offset-2">
-          Data &amp; backup
-        </Link>
-      </footer>
+        {/* Phones: backup lives here rather than as a tab. */}
+        <footer
+          data-dimmable
+          data-nonessential
+          className="border-t border-line px-4 py-4 text-xs text-fg-muted md:hidden"
+        >
+          Everything here stays on this device.{' '}
+          <Link to="/data" className="text-accent-ink underline underline-offset-2">
+            Data &amp; backup
+          </Link>
+        </footer>
+      </div>
       <CommandPalette open={searching} onClose={() => setSearching(false)} />
-    </div>
+    </>
   );
 }
 

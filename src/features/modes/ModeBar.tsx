@@ -1,155 +1,78 @@
-import { Moon, Pause, Play, Square, Sunrise } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Maximize2, Pause, Play, Square } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
-import { Announcer, ErrorNotice } from '../../components/ui/Notice';
 import { useNow } from '../../hooks/useNow';
-import { useRepositories } from '../../hooks/useRepositories';
-import { useToday } from '../../hooks/useToday';
-import { useWatch } from '../../hooks/useWatch';
-import type { OffTimeSession, WorkSession } from '../../types/domain';
-import { activeMs, clock, isPaused } from '../work/duration';
-import { consumeModeFocus } from './focus-intent';
-import { useModes } from './useModes';
-import { useWorkLabel } from './work-label';
+import type { WorkSession } from '../../types/domain';
+import { activeMs, isPaused } from '../work/duration';
+import { longClock, shortDuration } from './clocks';
+import { useModeApi, workShortcutLabel } from './mode-context';
+import { useTodayTotal, useWorkContext } from './work-context';
 
 /**
- * The global mode strip under the header: a running work session (timer,
- * pause/resume, finish, today's total) or an open off-time window (timer,
- * Wake up). Renders nothing when neither is running.
+ * The compact Work bar (v2 PHASE 015): shown while a session runs and Work
+ * Mode's surface is folded away, so the rest of LOWTIDE stays usable. One
+ * line: what, the timer, today, Pause or Resume, Finish, and back to focus.
+ * (Sleep Mode has no bar: it covers the screen.)
  */
 export function ModeBar() {
-  const { work, offTime } = useModes();
-  if (offTime) return <OffTimeStrip session={offTime} />;
-  if (work) return <WorkStrip session={work} />;
-  return null;
+  const { work, focusOpen, offTime } = useModeApi();
+  if (!work || focusOpen || offTime) return null;
+  return <WorkBar session={work} />;
 }
 
-function WorkStrip({ session }: { session: WorkSession }) {
-  const { work } = useRepositories();
+function WorkBar({ session }: { session: WorkSession }) {
+  const api = useModeApi();
   const paused = isPaused(session);
   const now = useNow(!paused);
-  const label = useWorkLabel(session);
-  const today = useToday();
-  const watchToday = useMemo(() => work.watchRange(today, today), [work, today]);
-  const todays = useWatch(watchToday);
-  const [error, setError] = useState<string | null>(null);
-  const [announcement, setAnnouncement] = useState('');
-  const primary = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (consumeModeFocus()) primary.current?.focus();
-  }, []);
-  const todayMs =
-    todays.status === 'ready'
-      ? todays.data.reduce((sum, s) => sum + (s.id === session.id ? 0 : activeMs(s, now)), 0) +
-        activeMs(session, now)
-      : activeMs(session, now);
-
-  async function run(action: () => Promise<unknown>, done: string, leaving = false) {
-    setError(null);
-    try {
-      await action();
-      setAnnouncement(done);
-      // The bar is about to disappear with the focused button; land on the page.
-      if (leaving) document.getElementById('main')?.focus();
-    } catch {
-      setError('Couldn’t update the work session. Nothing changed.');
-    }
-  }
-
+  const { title, subtitle } = useWorkContext(session);
+  const today = useTodayTotal(session, now);
   return (
     <section
       aria-label="Work session"
-      className="border-b border-line bg-canvas/95 px-4 py-2 shadow-[inset_0_-1px_0_var(--lt-work-2)] backdrop-blur sm:px-6 md:px-8 xl:px-12"
+      className="border-b border-line bg-canvas/95 px-4 py-1.5 shadow-[inset_0_-1px_0_var(--lt-work-2)] backdrop-blur sm:px-6 md:px-8 xl:px-12"
     >
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-        <span
-          aria-hidden
-          className={`size-2 rounded-full bg-work-4 ${paused ? 'opacity-50' : 'motion-safe:animate-pulse'}`}
-        />
-        <p className="min-w-0 flex-1 text-sm">
-          <span className="font-medium">{paused ? 'Paused' : 'Working'}</span>
-          <span className="ml-2 text-fg-muted">{label}</span>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+        <button
+          type="button"
+          onClick={() => api.setFocusOpen(true)}
+          aria-label={`Open Work Mode (${workShortcutLabel()})`}
+          className="group flex min-w-0 flex-1 items-center gap-2.5 rounded-md py-1 text-left text-sm"
+        >
+          <span
+            aria-hidden
+            className={`size-2 shrink-0 rounded-full bg-work-3 ${paused ? 'opacity-40' : ''}`}
+          />
+          <span className={`font-medium ${paused ? 'text-fg-muted' : ''}`}>
+            {paused ? 'Paused' : 'Working'}
+          </span>
+          <span className="min-w-0 truncate text-fg-muted group-hover:text-fg">
+            {title}
+            {subtitle ? ` · ${subtitle}` : ''}
+          </span>
+          <Maximize2 aria-hidden className="size-3.5 shrink-0 text-fg-subtle group-hover:text-fg" />
+        </button>
+        <p
+          role="timer"
+          aria-label={`Session time ${shortDuration(activeMs(session, now))}`}
+          className={`figure text-base font-semibold ${paused ? 'text-fg-muted' : 'text-work-4'}`}
+        >
+          {longClock(activeMs(session, now))}
         </p>
-        <p className="figure text-base font-semibold text-work-4" aria-label="Session time">
-          {clock(activeMs(session, now))}
-        </p>
-        <p className="figure text-xs text-fg-muted">today {clock(todayMs)}</p>
+        <p className="figure text-xs text-fg-muted">today {shortDuration(today)}</p>
         <div className="flex gap-1.5">
           {paused ? (
-            <Button
-              ref={primary}
-              onClick={() => void run(() => work.resume(session.id), 'Work resumed')}
-            >
+            <Button size="sm" onClick={() => void api.resume()}>
               <Play aria-hidden className="size-3.5" /> Resume
             </Button>
           ) : (
-            <Button
-              ref={primary}
-              onClick={() => void run(() => work.pause(session.id), 'Work paused')}
-            >
+            <Button size="sm" onClick={() => void api.pause()}>
               <Pause aria-hidden className="size-3.5" /> Pause
             </Button>
           )}
-          <Button
-            variant="primary"
-            onClick={() => void run(() => work.finish(session.id), 'Work session finished', true)}
-          >
+          <Button size="sm" variant="primary" onClick={() => void api.finish()}>
             <Square aria-hidden className="size-3.5" /> Finish
           </Button>
         </div>
       </div>
-      {error && <ErrorNotice>{error}</ErrorNotice>}
-      <Announcer message={announcement} />
-    </section>
-  );
-}
-
-function OffTimeStrip({ session }: { session: OffTimeSession }) {
-  const { offTime } = useRepositories();
-  const now = useNow(true, 15_000);
-  const [error, setError] = useState<string | null>(null);
-  const wake = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (consumeModeFocus()) wake.current?.focus();
-  }, []);
-  const minutes = Math.max(
-    0,
-    Math.floor((now.getTime() - Date.parse(session.startedAt!)) / 60_000),
-  );
-  const h = Math.floor(minutes / 60);
-
-  return (
-    <section
-      aria-label="Off time"
-      className="border-b border-line bg-dormant-bar px-4 py-3 text-fg sm:px-6 md:px-8 xl:px-12"
-    >
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-        <Moon aria-hidden className="size-4 text-sleep-4" />
-        <p className="min-w-0 flex-1 text-sm">
-          <span className="font-medium">{session.kind === 'sleep' ? 'Sleep Mode' : 'Resting'}</span>
-          <span className="figure ml-2 text-fg-muted">
-            off for {h ? `${h} h ` : ''}
-            {minutes % 60} m
-          </span>
-          <span className="block text-xs text-fg-muted">
-            A marked window, not a sleep measurement. Everything still works.
-          </span>
-        </p>
-        <Button
-          ref={wake}
-          variant="primary"
-          onClick={() => {
-            setError(null);
-            offTime.end(session.id).then(
-              () => document.getElementById('main')?.focus(),
-              () => setError('Couldn’t end off time. Try again.'),
-            );
-          }}
-        >
-          <Sunrise aria-hidden className="size-4" /> Wake up
-        </Button>
-      </div>
-      {error && <ErrorNotice>{error}</ErrorNotice>}
     </section>
   );
 }
