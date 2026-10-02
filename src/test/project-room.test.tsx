@@ -128,7 +128,7 @@ describe('Project Command Room (v2 PHASE 013)', () => {
     expect(screen.getByRole('combobox', { name: 'Project state' })).toHaveValue('active');
     expect(screen.getByRole('combobox', { name: 'Focus' })).toHaveValue('');
     expect(screen.getAllByText('Ship a calm engine').length).toBeGreaterThan(0);
-    expect(screen.getByText(/No milestones yet, so no percentage/)).toBeInTheDocument();
+    expect(screen.getByText(/Progress comes only from milestones/)).toBeInTheDocument();
   });
 
   it('derives progress from milestones only, marks the current stage, and opens a milestone’s details', async () => {
@@ -334,7 +334,7 @@ describe('Project Command Room (v2 PHASE 013)', () => {
     await user.keyboard('{End}');
     expect(screen.getByRole('tab', { name: 'History' })).toHaveFocus();
     await user.click(screen.getByRole('tab', { name: 'AI' }));
-    expect(await screen.findByText(/LOWTIDE never invents them/)).toBeInTheDocument();
+    expect(await screen.findByText(/No AI sessions yet/)).toBeInTheDocument();
   });
 
   it('starts general project work in one press, and the room shows it running', async () => {

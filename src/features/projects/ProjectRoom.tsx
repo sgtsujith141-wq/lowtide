@@ -298,8 +298,7 @@ function Progress({ summary }: { summary: ProjectSummary }) {
   if (!summary.completion)
     return (
       <p className="text-sm text-fg-muted">
-        No milestones yet, so no percentage. Add milestones on the Milestones tab; progress comes
-        only from them.
+        No milestones yet. Progress comes only from milestones.
       </p>
     );
   return (

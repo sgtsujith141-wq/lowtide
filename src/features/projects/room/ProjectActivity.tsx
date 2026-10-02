@@ -49,12 +49,7 @@ export function ProjectActivity({
     .map((e) => activityLine(e, project.name, byId))
     .filter((l): l is ActivityLine => l !== null)
     .slice(0, limit);
-  if (lines.length === 0)
-    return (
-      <p className="text-sm text-fg-muted">
-        Nothing yet. Work sessions, completed milestones, decisions and AI sessions appear here.
-      </p>
-    );
+  if (lines.length === 0) return <p className="text-sm text-fg-muted">Nothing recorded yet.</p>;
   const days = new Map<LocalDate, ActivityLine[]>();
   for (const l of lines)
     days.set(l.entry.event.localDate, [...(days.get(l.entry.event.localDate) ?? []), l]);

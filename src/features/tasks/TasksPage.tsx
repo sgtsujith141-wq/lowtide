@@ -84,9 +84,7 @@ export function TasksPage() {
           Open{open.status === 'ready' && openTasks.length > 0 ? ` · ${openTasks.length}` : ''}
         </h2>
         {open.status === 'ready' && openTasks.length === 0 && (
-          <p className="py-3 text-sm text-fg-muted">
-            No open tasks. Add one above, or make one from a thought in your inbox.
-          </p>
+          <p className="py-3 text-sm text-fg-muted">No open tasks.</p>
         )}
         <ul>
           {openTasks.map((task) =>

@@ -205,10 +205,7 @@ export function MilestonesTab({
     <div className="space-y-5">
       <ol aria-label="Milestones" className="divide-y divide-line border-y border-line">
         {milestones.length === 0 && (
-          <li className="p-3 text-sm text-fg-muted">
-            No milestones yet. Completion is shown only once there are milestones, and only from
-            them.
-          </li>
+          <li className="p-3 text-sm text-fg-muted">No milestones yet.</li>
         )}
         {milestones.map((m, i) => (
           <li key={m.id} className="flex flex-wrap items-center gap-2 px-3 py-2">
@@ -588,8 +585,7 @@ export function AiSessionsList({ project }: { project: Project }) {
   if (sessions.data.length === 0)
     return (
       <p className="text-sm text-fg-muted">
-        No AI sessions have been reported for this project. LOWTIDE never invents them: a session
-        appears here only when a connected, authorised AI client reports one.
+        No AI sessions yet. Only a connected AI client can report one.
       </p>
     );
   return (
