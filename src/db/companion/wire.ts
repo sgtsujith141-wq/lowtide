@@ -20,7 +20,7 @@ export const CLIENT_LABEL: Record<ClientKind, string> = {
  * Private categories a GLOBAL grant may be given one by one. Protected time
  * is deliberately not among them: no grant can include it.
  */
-export const SENSITIVE = ['routines', 'offTime', 'college', 'inbox'] as const;
+export const SENSITIVE = ['routines', 'offTime', 'college', 'inbox', 'personalSpace'] as const;
 export type SensitiveCategory = (typeof SENSITIVE)[number];
 
 export const SENSITIVE_LABEL: Record<SensitiveCategory, string> = {
@@ -28,6 +28,7 @@ export const SENSITIVE_LABEL: Record<SensitiveCategory, string> = {
   offTime: 'Off time (marked windows, no detail)',
   college: 'College (upcoming items)',
   inbox: 'Inbox (unprocessed thoughts)',
+  personalSpace: 'Personal SPACE (pages under Personal)',
 };
 
 export type GrantScope = 'project' | 'workspace' | 'global';

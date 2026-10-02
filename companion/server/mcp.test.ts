@@ -32,6 +32,9 @@ const READ_TOOLS = [
   'get_milestones',
   'search_workspace',
   'get_document',
+  'get_space_tree',
+  'get_space_page',
+  'search_space',
 ];
 const WRITE_TOOLS = [
   'create_note',
@@ -43,6 +46,13 @@ const WRITE_TOOLS = [
   'park_item',
   'resume_item',
   'log_ai_session',
+  'create_space_page',
+  'create_space_subpage',
+  'append_space_blocks',
+  'update_space_block',
+  'add_space_table_row',
+  'link_space_entity',
+  'archive_space_page',
 ];
 
 async function audit(t: TestCompanion): Promise<AuditEntry[]> {
