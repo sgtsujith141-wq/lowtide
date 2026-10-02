@@ -210,6 +210,14 @@ describe('Home v3 (v2 PHASE 012)', () => {
     expect(active).toMatchObject({ kind: 'project' });
   });
 
+  it('still offers a way to begin after a few seconds of off time, which reads 0 m', async () => {
+    await setup(async (r) => {
+      const window = await r.offTime.start('sleep');
+      await r.offTime.end(window.id);
+    });
+    expect(screen.getByText('Nothing started yet.')).toBeInTheDocument();
+  });
+
   it('shows one rhythm at a time, switchable, without the gym', async () => {
     const { user } = await setup();
     const grids = () => screen.getAllByRole('grid').map((g) => g.getAttribute('aria-label'));

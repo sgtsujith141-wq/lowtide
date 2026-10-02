@@ -85,9 +85,14 @@ export function TodayStrip({
       : 0;
   const inboxCount = waiting.status === 'ready' ? waiting.data.length : 0;
   const next = pickNext([...sections.attention, ...sections.planned], summaries);
-  // Before anything has happened, the useful thing is a way to begin.
+  // Before anything has happened, the useful thing is a way to begin. Minutes
+  // count as shown: a few seconds of off time still reads 0 m.
   const quiet =
-    workMinutes === 0 && doneToday === 0 && personalDone === 0 && offMinutes === 0 && !modes.work;
+    Math.round(workMinutes) === 0 &&
+    doneToday === 0 &&
+    personalDone === 0 &&
+    Math.round(offMinutes) === 0 &&
+    !modes.work;
   const lead = selectHomeProjects(summaries).shown[0]?.project;
 
   return (
