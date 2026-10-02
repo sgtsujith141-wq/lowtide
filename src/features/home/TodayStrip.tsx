@@ -11,7 +11,10 @@ import { habitLevel } from '../rhythm/intensity';
 import { CATEGORY_PRESET } from '../rhythm/presets';
 import { composeToday } from '../today/compose';
 import { activeMinutes } from '../work/duration';
-import { pickNext } from './model';
+import { pickNext, selectHomeProjects } from './model';
+import { Play } from 'lucide-react';
+import { Button } from '../../components/ui/Button';
+import { useModeApi } from '../modes/mode-context';
 
 /**
  * Today on Home (v2 PHASE 012): one strip of honest figures, then what to
@@ -30,6 +33,7 @@ export function TodayStrip({
   now: Date;
 }) {
   const { tasks, work, college, habits, offTime, inbox, protectedTime } = useRepositories();
+  const modes = useModeApi();
   const watchDay = useMemo(() => tasks.watchForDay(today), [tasks, today]);
   const day = useWatch(watchDay);
   const closed = useWatch(tasks.watchClosed);
@@ -81,6 +85,10 @@ export function TodayStrip({
       : 0;
   const inboxCount = waiting.status === 'ready' ? waiting.data.length : 0;
   const next = pickNext([...sections.attention, ...sections.planned], summaries);
+  // Before anything has happened, the useful thing is a way to begin.
+  const quiet =
+    workMinutes === 0 && doneToday === 0 && personalDone === 0 && offMinutes === 0 && !modes.work;
+  const lead = selectHomeProjects(summaries).shown[0]?.project;
 
   return (
     <section aria-labelledby="today-heading" className="mt-12">
@@ -95,9 +103,28 @@ export function TodayStrip({
           Open Today <ArrowRight aria-hidden className="size-3.5" />
         </Link>
       </div>
+      {quiet && (
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+          <p className="text-[15px]">Nothing started yet.</p>
+          {!modes.offTime && (
+            <Button
+              variant="primary"
+              onClick={() =>
+                lead
+                  ? void modes
+                      .startWork({ kind: 'project', projectId: lead.id })
+                      .catch(() => modes.openStartWork())
+                  : modes.openStartWork()
+              }
+            >
+              <Play aria-hidden className="size-3.5" /> {lead ? `Start ${lead.name}` : 'Start work'}
+            </Button>
+          )}
+        </div>
+      )}
       <dl
         aria-label="Today in figures"
-        className="mt-3 flex flex-wrap gap-y-4 border-y border-line py-4 [&>div]:min-w-[8rem] [&>div]:pr-8"
+        className={`mt-3 flex flex-wrap gap-y-4 border-y border-line py-4 [&>div]:min-w-[8rem] [&>div]:pr-8 ${quiet ? '[&_dd]:text-sm [&_dd]:font-normal' : ''}`}
       >
         <Figure label="Work" value={formatDuration(Math.round(workMinutes))} tint="text-work-4" />
         <Figure

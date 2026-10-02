@@ -31,9 +31,9 @@ export function RhythmPreview({
   const label = CATEGORIES.find((c) => c.grid === grid)!.label;
   const groupId = useId();
   return (
-    <section aria-labelledby="rhythms-heading" className="mt-12">
+    <section aria-labelledby="rhythms-heading" className="mt-14">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <h2 id="rhythms-heading" className="text-section font-semibold">
+        <h2 id="rhythms-heading" className="text-sm font-medium text-fg-muted">
           Rhythms
         </h2>
         <Link
@@ -47,7 +47,7 @@ export function RhythmPreview({
         <span id={groupId} className="sr-only">
           Rhythm to show
         </span>
-        <div role="radiogroup" aria-labelledby={groupId} className={segmentedClass}>
+        <div role="radiogroup" aria-labelledby={groupId} className={`${segmentedClass} text-xs`}>
           {CATEGORIES.map((c) => (
             <label key={c.grid} className={segmentClass(c.grid === grid)}>
               <input
@@ -66,14 +66,14 @@ export function RhythmPreview({
           {cells.size} active {cells.size === 1 ? 'day' : 'days'}
         </p>
       </div>
-      <div className="mt-3 max-w-[60rem]">
+      <div className="mt-3 max-w-[48rem]">
         <ContributionGrid
           key={grid}
           label={`${label}, last 12 months`}
           today={today}
           days={cells}
           palette={grid}
-          size="md"
+          size="sm"
         />
       </div>
     </section>

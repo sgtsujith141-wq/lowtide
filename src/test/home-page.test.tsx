@@ -191,6 +191,25 @@ describe('Home v3 (v2 PHASE 012)', () => {
     expect(screen.queryByText('Rowing')).not.toBeInTheDocument();
   });
 
+  it('offers a way to begin when nothing has happened yet, starting the top project', async () => {
+    const { user, repositories } = await setup(async (r) => {
+      const p = await r.projects.create({ name: 'Main', state: 'active' });
+      await r.projects.setFocus(p.id, 'primary');
+    });
+    expect(screen.getByText('Nothing started yet.')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Start Main' }));
+    expect(
+      await screen.findByRole('region', { name: 'Work Mode' }, { timeout: 5000 }),
+    ).toBeInTheDocument();
+    const active = await new Promise<unknown>((resolve) => {
+      const stop = repositories.work.watchActive((v) => {
+        stop();
+        resolve(v);
+      });
+    });
+    expect(active).toMatchObject({ kind: 'project' });
+  });
+
   it('shows one rhythm at a time, switchable, without the gym', async () => {
     const { user } = await setup();
     const grids = () => screen.getAllByRole('grid').map((g) => g.getAttribute('aria-label'));
