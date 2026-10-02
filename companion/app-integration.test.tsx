@@ -202,6 +202,8 @@ describe('the app with a real companion', () => {
     const clients = await screen.findByRole('region', { name: 'AI clients' }, { timeout: 8000 });
     await vi.waitFor(() => expect(within(clients).getAllByText('Never connected')).toHaveLength(4));
 
+    await user.click(screen.getByRole('button', { name: 'Give access' }));
+
     const form = screen.getByRole('form', { name: 'Give an AI client access' });
     await user.click(within(form).getByRole('radio', { name: 'Read and make changes' }));
     await user.click(within(form).getByRole('button', { name: 'Create access' }));

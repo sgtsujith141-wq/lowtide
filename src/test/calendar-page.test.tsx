@@ -144,4 +144,32 @@ describe('Calendar page', () => {
       await within(screen.getByRole('region', { name: /today/ })).findByText('Networks lab'),
     ).toBeInTheDocument();
   });
+
+  it('lists what’s coming up, and moves the selected day by keyboard', async () => {
+    const db = newDb();
+    const r = createDexieRepositories(db);
+    const today = toLocalDate(new Date());
+    await r.hackathons.create({ name: 'Spring hack', eventStart: addDays(today, 5) });
+    await r.college.create({ kind: 'assignment', title: 'Essay', date: addDays(today, 3) });
+    const { user } = await renderApp('/calendar', r);
+    const upcoming = await screen.findByRole('region', { name: 'Upcoming' }, { timeout: 5000 });
+    await within(upcoming).findByText('Spring hack');
+    expect(
+      within(upcoming)
+        .getAllByRole('listitem')
+        .map((li) => li.textContent),
+    ).toEqual([expect.stringContaining('Essay'), expect.stringContaining('Spring hack')]);
+    const todayCell = document.querySelector<HTMLButtonElement>(`[data-date="${today}"]`)!;
+    expect(todayCell).toHaveAttribute('tabindex', '0');
+    todayCell.focus();
+    await user.keyboard('{ArrowRight}');
+    const next = document.querySelector<HTMLButtonElement>(`[data-date="${addDays(today, 1)}"]`)!;
+    expect(next).toHaveAttribute('aria-pressed', 'true');
+    expect(next).toHaveFocus();
+    await user.keyboard('{ArrowDown}');
+    expect(document.querySelector(`[data-date="${addDays(today, 8)}"]`)).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+  });
 });

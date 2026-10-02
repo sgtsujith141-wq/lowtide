@@ -72,9 +72,8 @@ export function AiPage() {
       {client ? (
         <>
           <p className="mt-1 max-w-2xl text-sm text-fg-muted">
-            LOWTIDE has no AI built in. Through the companion on this computer, the AI clients you
-            allow can read and change LOWTIDE over MCP, each only within the scope you give it.
-            Every change is attributed to the client that made it and recorded below.
+            AI clients you allow reach LOWTIDE through the companion, within their scope. Every
+            change is attributed and listed below.
           </p>
           <AiAccess client={client} projects={data?.projects ?? []} />
         </>
@@ -114,10 +113,10 @@ export function AiPage() {
         </>
       )}
 
-      <section aria-labelledby="context-heading" className="mt-8 border-t border-line pt-6">
-        <h2 id="context-heading" className="text-section font-semibold">
-          Context packs
-        </h2>
+      <details className="mt-8 border-t border-line pt-6">
+        <summary className="cursor-pointer text-section font-semibold select-none">
+          <span id="context-heading">Context packs</span>
+        </summary>
         <fieldset className="mt-2">
           <legend id={ids.scope} className={labelClass}>
             Scope
@@ -201,7 +200,7 @@ export function AiPage() {
             <p className="text-sm text-fg-muted">No projects yet. Create one to get its context.</p>
           )}
         </div>
-      </section>
+      </details>
 
       <Announcer message={announcement} />
     </>

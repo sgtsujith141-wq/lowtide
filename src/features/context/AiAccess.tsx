@@ -87,25 +87,19 @@ function useCompanionAdmin(client: CompanionClient) {
 export function AiAccess({ client, projects }: { client: CompanionClient; projects: Project[] }) {
   const admin = useCompanionAdmin(client);
   const [created, setCreated] = useState<{ grant: Grant; token: string } | null>(null);
+  const [granting, setGranting] = useState(false);
   const [announcement, setAnnouncement] = useState('');
 
   return (
     <>
       {admin.failed && <ErrorNotice>Couldn’t read AI access from the companion.</ErrorNotice>}
       <Clients clients={admin.clients} />
-      <NewGrant
-        client={client}
-        projects={projects}
-        onCreated={(result) => {
-          setCreated(result);
-          setAnnouncement(`Access created for ${result.grant.label}. Copy its token now.`);
-          void admin.reload();
-        }}
-      />
       {created && admin.status && (
         <TokenOnce created={created} status={admin.status} onDone={() => setCreated(null)} />
       )}
       <Grants
+        granting={granting}
+        onGrant={() => setGranting(true)}
         grants={admin.grants}
         projects={projects}
         onRevoke={async (grant) => {
@@ -114,6 +108,19 @@ export function AiAccess({ client, projects }: { client: CompanionClient; projec
           void admin.reload();
         }}
       />
+      {granting && (
+        <NewGrant
+          client={client}
+          projects={projects}
+          onCancel={() => setGranting(false)}
+          onCreated={(result) => {
+            setCreated(result);
+            setGranting(false);
+            setAnnouncement(`Access created for ${result.grant.label}. Copy its token now.`);
+            void admin.reload();
+          }}
+        />
+      )}
       <AuditLog entries={admin.audit} projects={projects} />
       <Workspace
         info={admin.workspace}
@@ -184,7 +191,9 @@ function NewGrant({
   client,
   projects,
   onCreated,
+  onCancel,
 }: {
+  onCancel: () => void;
   client: CompanionClient;
   projects: Project[];
   onCreated: (result: { grant: Grant; token: string }) => void;
@@ -377,9 +386,14 @@ function NewGrant({
           </label>
         )}
         {error && <ErrorNotice>{error}</ErrorNotice>}
-        <Button type="submit" variant="primary">
-          Create access
-        </Button>
+        <div className="flex gap-2">
+          <Button type="submit" variant="primary">
+            Create access
+          </Button>
+          <Button variant="ghost" onClick={onCancel}>
+            Cancel
+          </Button>
+        </div>
       </form>
     </section>
   );
@@ -489,7 +503,11 @@ function Grants({
   grants,
   projects,
   onRevoke,
+  granting,
+  onGrant,
 }: {
+  granting: boolean;
+  onGrant: () => void;
   grants: Grant[];
   projects: Project[];
   onRevoke: (grant: Grant) => Promise<void>;
@@ -499,9 +517,16 @@ function Grants({
   const revoked = grants.filter((g) => g.revokedAt);
   return (
     <section aria-labelledby="grants-heading" className={box}>
-      <h2 id="grants-heading" className="text-section font-semibold">
-        Access you’ve given
-      </h2>
+      <div className="flex flex-wrap items-baseline justify-between gap-3">
+        <h2 id="grants-heading" className="text-section font-semibold">
+          Access you’ve given
+        </h2>
+        {!granting && (
+          <Button size="sm" onClick={onGrant}>
+            <KeyRound aria-hidden className="size-3.5" /> Give access
+          </Button>
+        )}
+      </div>
       {active.length === 0 ? (
         <p className="mt-1 text-sm text-fg-muted">No AI client can use LOWTIDE right now.</p>
       ) : (
@@ -656,13 +681,12 @@ function Workspace({ info, onInit }: { info: WorkspaceInfo | null; onInit: () =>
   const [error, setError] = useState<string | null>(null);
   if (!info) return null;
   return (
-    <section aria-labelledby="live-workspace-heading" className={box}>
-      <h2
-        id="live-workspace-heading"
-        className="flex items-center gap-2 text-section font-semibold"
-      >
-        <FolderGit2 aria-hidden className="size-5 text-fg-muted" /> Technical workspace
-      </h2>
+    <details className={box}>
+      <summary className="cursor-pointer text-section font-semibold select-none">
+        <span id="live-workspace-heading" className="inline-flex items-center gap-2">
+          <FolderGit2 aria-hidden className="size-5 text-fg-muted" /> Technical workspace
+        </span>
+      </summary>
       <p className="mt-1 text-sm">
         <code className="break-all">{info.dir}</code>
       </p>
@@ -720,6 +744,6 @@ function Workspace({ info, onInit }: { info: WorkspaceInfo | null; onInit: () =>
         )}
         {error && <ErrorNotice>{error}</ErrorNotice>}
       </div>
-    </section>
+    </details>
   );
 }

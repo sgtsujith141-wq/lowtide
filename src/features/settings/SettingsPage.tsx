@@ -28,14 +28,55 @@ const THEME_OPTIONS: { value: Theme; label: string; hint: string; icon: typeof S
 
 const sectionClass = 'mt-8 border-t border-line pt-6';
 
-/** Settings (ADR-058, ADR-061): appearance, and where LOWTIDE keeps its data. */
+/**
+ * Settings (ADR-058, ADR-061; compact since v2 PHASE 016): appearance, where
+ * the data lives, backup, privacy, and, set apart, the advanced switch back
+ * to browser storage.
+ */
 export function SettingsPage() {
   useDocumentTitle('Settings');
+  const { backend } = useCompanion();
   return (
     <>
       <h1 className="text-page font-semibold">Settings</h1>
       <Appearance />
       <Storage />
+      <section aria-labelledby="backup-heading" className={sectionClass}>
+        <h2 id="backup-heading" className="text-section font-semibold">
+          Backup
+        </h2>
+        <p className="mt-1 text-sm text-fg-muted">
+          Download everything as one file, or restore one, in{' '}
+          <Link to="/data" className="text-accent-ink underline underline-offset-2">
+            Data &amp; backup
+          </Link>
+          .
+        </p>
+      </section>
+      <section aria-labelledby="privacy-heading" className={sectionClass}>
+        <h2 id="privacy-heading" className="text-section font-semibold">
+          Privacy
+        </h2>
+        <ul className="mt-1 space-y-1 text-sm text-fg-muted">
+          <li>Everything stays on this computer; LOWTIDE sends nothing anywhere.</li>
+          <li>
+            AI clients see only what you grant them, in{' '}
+            <Link to="/ai" className="text-accent-ink underline underline-offset-2">
+              AI
+            </Link>
+            .
+          </li>
+          <li>Protected time is never available to AI, from any grant.</li>
+        </ul>
+      </section>
+      {backend.kind === 'companion' && (
+        <section aria-labelledby="advanced-heading" className={`${sectionClass} border-danger/30`}>
+          <h2 id="advanced-heading" className="text-section font-semibold">
+            Advanced
+          </h2>
+          <BrowserSwitch />
+        </section>
+      )}
     </>
   );
 }
@@ -75,9 +116,6 @@ function Appearance() {
           ))}
         </div>
       </fieldset>
-      <p className="mt-2 text-xs text-fg-muted">
-        Sleep Mode dims whichever theme is showing and leaves this setting alone.
-      </p>
     </section>
   );
 }
@@ -92,7 +130,7 @@ function Storage() {
         ) : (
           <HardDrive aria-hidden className="size-5 text-fg-muted" />
         )}
-        Where LOWTIDE keeps your data
+        Data &amp; companion
       </h2>
       {backend.kind === 'companion' ? <OnCompanion /> : <MoveToCompanion />}
     </section>
@@ -102,11 +140,10 @@ function Storage() {
 /* ------------------------------ companion mode ------------------------------ */
 
 function OnCompanion() {
-  const { backend, client, switchTo = switchBackend } = useCompanion();
+  const { backend, client } = useCompanion();
   const connection = useCompanionConnection();
   const [status, setStatus] = useState<CompanionStatus | null>(null);
   const [problem, setProblem] = useState<string | null>(null);
-  const [confirm, setConfirm] = useState(false);
 
   useEffect(() => {
     if (!client || connection !== 'open') return;
@@ -125,9 +162,8 @@ function OnCompanion() {
   return (
     <div className="mt-2 space-y-3 text-sm">
       <p>
-        The <strong>LOWTIDE companion</strong> on this computer (
-        {backend.url.replace('http://', '')}) holds your data in a SQLite database. AI clients you
-        allow reach the same data through it, and every change shows up here at once.
+        Your data lives in the <strong>LOWTIDE companion</strong> on this computer (
+        {backend.url.replace('http://', '')}).
       </p>
       <p className="flex items-center gap-2" role="status">
         {connection === 'open' ? (
@@ -164,7 +200,17 @@ function OnCompanion() {
           </dd>
         </dl>
       )}
-      <div className="rounded-lg border border-line p-3">
+    </div>
+  );
+}
+
+/** Switching back to browser storage: deliberate, and set apart. */
+function BrowserSwitch() {
+  const { switchTo = switchBackend } = useCompanion();
+  const [confirm, setConfirm] = useState(false);
+  return (
+    <div className="mt-2 text-sm">
+      <div className="rounded-lg border border-danger/40 p-3">
         <h3 className="font-medium">Go back to this browser’s storage</h3>
         <p className="mt-1 text-fg-muted">
           This browser still holds LOWTIDE as it was when you moved, untouched. Anything changed
