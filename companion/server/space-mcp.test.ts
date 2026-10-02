@@ -153,6 +153,24 @@ describe('SPACE over MCP (v2 PHASE 014)', () => {
       { type: 'project', id: t.projectId, label: 'Engine' },
     ]);
 
+    // "Put this idea in … Ideas and park it": a real home in SPACE and a parked idea, linked.
+    const idea = await ai.call('create_space_page', {
+      path: 'Ideas / Referral loop',
+      markdown: 'Reward both sides.',
+    });
+    const parked = await ai.call('park_item', { title: 'Referral loop' });
+    expect(parked.json).toMatchObject({ title: 'Referral loop', lane: 'parked' });
+    const ideaId = (idea.json as { id: string }).id;
+    const itemId = (parked.json as { id: string }).id;
+    expect(
+      (await ai.call('link_space_entity', { page: ideaId, type: 'projectItem', id: itemId }))
+        .isError,
+    ).toBe(false);
+    expect((await r.space.get(ideaId))!.links).toEqual([
+      { type: 'projectItem', id: itemId, label: 'Referral loop' },
+    ]);
+    expect((await r.space.get((await r.space.get(ideaId))!.parentId!))!.title).toBe('Ideas');
+
     expect((await ai.call('archive_space_page', { page: folder.id })).text).toMatch(/maintains/);
     expect((await ai.call('archive_space_page', { page: subId })).isError).toBe(false);
     expect((await r.space.get(subId))!.archived).toBe(true);

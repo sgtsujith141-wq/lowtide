@@ -851,10 +851,31 @@ const writeTools: Tool[] = [
     name: 'park_item',
     title: 'Park item',
     description:
-      'Parks an open project item (not an open approval or blocker, which only the owner resolves).',
+      'Parks an open project item (not an open approval or blocker, which only the owner resolves), or, given a title instead, records a new idea in the project as parked.',
     write: true,
-    input: z.strictObject({ item: id() }),
+    input: z.strictObject({
+      item: d(z.optional(id()), 'The item to park.'),
+      title: d(z.optional(text(300)), 'Or: a new idea to record as parked.'),
+      project: projectArg(),
+    }),
     async run(env, args) {
+      if (args.item === undefined) {
+        if (args.title === undefined)
+          throw new Refusal('Name the item to park, or give a title for a new idea');
+        const project = await projectOf(env, args.project as string | undefined);
+        const idea = await env.repos().projects.addItem(project.id, {
+          kind: 'idea',
+          title: args.title as string,
+        });
+        const parked =
+          idea.lane === 'parked' ? idea : await env.repos().projects.moveItem(idea.id, 'parked');
+        return {
+          value: { id: parked.id, title: parked.title, lane: parked.lane },
+          entityType: 'projectItem',
+          entityId: parked.id,
+          after: `${quote(parked.title)}: parked idea`,
+        };
+      }
       const item = await itemOf(env, args.item as string);
       const parked = await env.repos().projects.moveItem(item.id, 'parked');
       return {
