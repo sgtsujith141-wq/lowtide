@@ -114,6 +114,69 @@ describe('Notion import: structured records', () => {
     ]);
   });
 
+  it('reconciles an explicit milestone set: ordered, done by Notion’s edit, still tasks, idempotent, never activity', async () => {
+    const db = newDb();
+    let n = 0;
+    const newId = () => `00000000-0000-4000-8000-${String(++n).padStart(12, '0')}`;
+    const plan = {
+      ...fixturePlan(),
+      milestoneSets: [
+        {
+          project: 'widget',
+          rows: [ID.taskDraft, ID.taskShip],
+          evidence: ID.hq,
+          reason: 'The dashboard counts these rows as milestones',
+        },
+      ],
+    };
+    const run = (at: string) =>
+      importNotion(asStore(db), fixtureSnapshot(), plan, { now: new Date(at), newId });
+    await run('2026-02-10T12:00:00.000Z');
+    const widget = (await db.projects.where('slug').equals('widget').first())!;
+    const milestones = await db.milestones.where('projectId').equals(widget.id).sortBy('order');
+    // After the phase milestones the project already had; the name prefix is dropped.
+    expect(milestones.map((m) => [m.order, m.title, m.completedAt])).toEqual([
+      [0, '0 Foundation', undefined],
+      [1, '1 Build', undefined],
+      [2, 'Draft copy', '2026-01-02T10:00:00.000Z'],
+      [3, 'Ship v1', undefined],
+    ]);
+    // Provenance names the row; the rows stay tasks.
+    expect(await bySource(db, ID.taskDraft, 'milestone')).toMatchObject({
+      entityId: milestones[2]!.id,
+      role: 'canonical',
+      originalTitle: 'Widget: draft copy',
+    });
+    expect((await db.tasks.toArray()).map((t) => t.title)).toContain('Widget: draft copy');
+    // No event, no snapshot, no square.
+    expect(await db.events.count()).toBe(0);
+    expect(await db.progressSnapshots.count()).toBe(0);
+    const sources = recordWatch(
+      createDexieRepositories(db).activity.watchSources('2026-01-01', '2026-01-31'),
+    );
+    expect((await sources.until(() => true)).milestones).toEqual([]);
+    sources.stop();
+    // Idempotent.
+    const again = await run('2026-02-11T12:00:00.000Z');
+    expect(await db.milestones.count()).toBe(4);
+    expect(again.counts.milestone).toEqual({ unchanged: 4 });
+  });
+
+  it('refuses a milestone row that isn’t a planned task row', async () => {
+    const db = newDb();
+    const report = await importNotion(
+      asStore(db),
+      fixtureSnapshot(),
+      {
+        ...fixturePlan(),
+        milestoneSets: [{ project: 'widget', rows: [ID.eventJam], reason: 'test' }],
+      },
+      { now: new Date('2026-02-10T12:00:00.000Z'), newId: () => crypto.randomUUID() },
+    );
+    expect(report.failures.some((f) => f.sourceId === ID.eventJam)).toBe(true);
+    expect(await db.milestones.count()).toBe(2);
+  });
+
   it('imports hackathons, moving an end date that precedes the start into notes', async () => {
     const { db } = await shared();
     const hackathons = await db.hackathons.toArray();

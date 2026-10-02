@@ -38,6 +38,7 @@ import {
   PROJECT_SLOTS,
   type DatabasePlan,
   type MigrationPlan,
+  type MilestoneSet,
   type NotionDatabase,
   type NotionDataSource,
   type NotionId,
@@ -674,6 +675,11 @@ export async function importNotion(
       }
     }
 
+    // 3b. Milestones a source lists explicitly as task rows (ADR-065).
+    for (const set of plan.milestoneSets ?? []) {
+      await importMilestoneSet(set, projectIds, addLink);
+    }
+
     // 4. Hackathons.
     for (const [databaseId, dbPlan] of Object.entries(plan.databases)) {
       if (dbPlan.role !== 'hackathons') continue;
@@ -830,6 +836,96 @@ export async function importNotion(
     }
   }
 
+  /**
+   * One milestone per listed task row, in the set's order, after any
+   * milestones the project already has. The row stays a task too. A row Notion
+   * marks done is done by its last Notion edit (the latest moment Notion
+   * recorded it so, else when the snapshot was read): never an event, and,
+   * like every imported record, never activity.
+   */
+  async function importMilestoneSet(
+    set: MilestoneSet,
+    projectIds: Map<string, Id>,
+    addLink: (id: string, link: EntityLink) => void,
+  ) {
+    const projectId = projectIds.get(set.project);
+    const planned = plan.projects.find((p) => p.key === set.project);
+    if (!projectId || !planned) {
+      report.failures.push({
+        sourceId: set.rows[0]!,
+        message: `Milestone set for a project the plan doesn't import ("${set.project}")`,
+      });
+      return;
+    }
+    const prefix = new RegExp(
+      `^${planned.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*[:—–-]\\s*`,
+      'i',
+    );
+    const mine = new Set<Id>();
+    for (const id of set.rows) {
+      const known = await findSource(id, 'milestone');
+      if (known) mine.add(known.entityId);
+    }
+    const base = (await db.milestones.where('projectId').equals(projectId).toArray())
+      .filter((m) => !mine.has(m.id))
+      .reduce((next, m) => Math.max(next, m.order + 1), 0);
+
+    for (const [index, id] of set.rows.entries()) {
+      const indexed = rows.get(id);
+      const dbPlan = indexed ? plan.databases[indexed.database.id] : undefined;
+      if (!indexed || dbPlan?.role !== 'tasks') {
+        report.failures.push({
+          sourceId: id,
+          title: titleOf(id),
+          message: 'A milestone row must be a row of a planned tasks database',
+        });
+        continue;
+      }
+      const raw = clean(text(indexed.row, dbPlan.fields.title))?.replace(prefix, '');
+      if (!raw) {
+        report.skipped.push({ sourceId: id, message: 'Milestone row without a title' });
+        continue;
+      }
+      const title = (raw.charAt(0).toUpperCase() + raw.slice(1)).slice(0, 300);
+      const meta = metaOf(id);
+      const doneBy =
+        taskStatusOf(indexed.row, dbPlan) === 'done'
+          ? (meta.sourceUpdatedAt ?? toIso(snapshot.capturedAt) ?? now)
+          : undefined;
+      const order = base + index;
+      const milestoneId = await upsert<Milestone>({
+        table: db.milestones,
+        entityType: 'milestone',
+        sourceId: id,
+        meta,
+        content: { projectId, title, order, doneBy, evidence: set.evidence },
+        build: (newId, existing) =>
+          milestoneSchema.parse(
+            omit({
+              id: newId,
+              projectId,
+              title,
+              order: existing?.order ?? order,
+              weight: existing?.weight ?? 1,
+              notes: existing?.notes,
+              dueOn: existing?.dueOn,
+              completedAt: doneBy ? (existing?.completedAt ?? doneBy) : undefined,
+              createdAt: existing?.createdAt ?? now,
+              updatedAt: now,
+            }),
+          ),
+      });
+      if (milestoneId) addLink(id, { type: 'milestone', id: milestoneId });
+    }
+  }
+
+  function taskStatusOf(row: Row, dbPlan: Extract<DatabasePlan, { role: 'tasks' }>) {
+    const statusValue = text(row, dbPlan.fields.status);
+    return checkbox(row, dbPlan.fields.done)
+      ? 'done'
+      : (statusValue && dbPlan.statuses?.[statusValue]) || 'todo';
+  }
+
   async function importTask(
     id: NotionId,
     row: Row,
@@ -867,11 +963,7 @@ export async function importNotion(
     }
     const projectId = projectKey ? ctx.projectIds.get(projectKey) : undefined;
 
-    const done = checkbox(row, f.done);
-    const statusValue = text(row, f.status);
-    const status: Task['status'] = done
-      ? 'done'
-      : (statusValue && dbPlan.statuses?.[statusValue]) || 'todo';
+    const status: Task['status'] = taskStatusOf(row, dbPlan);
     const priority =
       (text(row, f.priority) && dbPlan.priorities?.[text(row, f.priority)!]) || 'normal';
     const notes = (f.notes ?? [])

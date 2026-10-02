@@ -244,6 +244,21 @@ const decisionsDb = z.object({
   clients: z.optional(z.record(z.string(), nonEmpty)),
 });
 
+/**
+ * Task rows that a source explicitly treats as a project's milestones, in
+ * roadmap order (v2 PHASE 013, ADR-065): a dashboard counting them as
+ * "milestones", an ordered phase list. Each row becomes one milestone and
+ * stays a task. Never inferred: only rows the plan lists.
+ */
+const milestoneSet = z.object({
+  project: key,
+  /** Task rows in roadmap order. */
+  rows: z.array(notionId).check(z.minLength(1)),
+  /** The page that says these rows are the milestones (kept as provenance). */
+  evidence: z.optional(notionId),
+  reason: nonEmpty,
+});
+
 /** Kept as a SPACE table only. Every database is also kept as a table. */
 const tableDb = z.object({ role: z.literal('table') });
 
@@ -260,6 +275,7 @@ export const migrationPlanSchema = z.object({
   projects: z.array(planProject),
   databases: z.record(notionId, databasePlan),
   placements: z.array(placement),
+  milestoneSets: z.optional(z.array(milestoneSet)),
   /** Not imported at all, each with its reason (linked views, blank rows…). */
   skip: z.array(z.object({ id: notionId, reason: nonEmpty })),
 });
@@ -268,3 +284,4 @@ export type MigrationPlan = z.infer<typeof migrationPlanSchema>;
 export type PlanProject = z.infer<typeof planProject>;
 export type DatabasePlan = z.infer<typeof databasePlan>;
 export type Placement = z.infer<typeof placement>;
+export type MilestoneSet = z.infer<typeof milestoneSet>;
