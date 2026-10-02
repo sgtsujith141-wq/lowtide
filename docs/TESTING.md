@@ -62,7 +62,15 @@ findBy…()).toHaveFocus()` can run a moment too early. Use `expectFocus(…)` f
 - `setupTestDatabase` unmounts rendered trees before deleting the database, so no live
   subscription outlives it.
 
-## Current coverage (v2 PHASE 012): 58 files, 603 tests
+## Current coverage (v2 PHASE 013): 59 files, 624 tests
+
+New: `src/test/project-display.test.ts` (display text, now and next, roadmap order,
+tiers, health, activity lines); `src/test/project-room.test.tsx` rewritten for the
+overview and Command Room; milestone-set tests in `src/test/notion-import.test.ts`.
+Screen tests that render an empty profile open the database before rendering, as a
+real visit would.
+
+## Coverage after v2 PHASE 012: 58 files, 603 tests
 
 New: `src/test/home-model.test.ts` (greeting, focus-based project selection, Needs you
 grouping, what's next, prefix handling), a rewritten `src/test/home-page.test.tsx`

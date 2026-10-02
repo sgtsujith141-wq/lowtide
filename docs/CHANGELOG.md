@@ -5,6 +5,25 @@ app's `package.json` version.
 
 ## [Unreleased]
 
+### Changed (v2 PHASE 013 — Projects flagship)
+
+- Projects: the card grid is gone. Projects are grouped by tier (primary, secondary,
+  supporting, later, not current) as full-width rows: progress line with stage ticks,
+  roadmap, now, next, needs you, last moved.
+- Command Room: name, purpose, state and priority as compact controls, a large
+  milestone-derived figure, a roadmap whose milestones open their details, Start Work
+  (general or a chosen task), a five-fact summary, a work plane (now, next, needs you;
+  waiting, blocked, parked; done folded), progress over time and time invested from real
+  records, a six-month gold grid and a timeline of meaningful events.
+- Long imported text is shown as a short display title; the original stays one step away.
+- Docs shows the project's SPACE documents by slot with a read-only preview. History shows
+  the import and reconciliation trail. The empty GitHub tab is gone.
+
+### Added
+
+- Import plans can list explicit milestone sets; two projects' stated milestones were
+  reconciled from Notion with provenance, idempotently, with no events or activity.
+
 ### Changed (v2 PHASE 012 — Home v3)
 
 - Home rebuilt: a greeting and compact actions; a full-width Daily Pulse hero with a

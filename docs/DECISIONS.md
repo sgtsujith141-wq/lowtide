@@ -1348,3 +1348,49 @@ project records must not be rewritten to fake an order.
 
 **Consequences.** Home orders projects by focus, then state, then recent movement, and
 leaves background projects to Projects.
+
+## ADR-065 — Reconciling explicit milestone sets from an import (v2)
+
+**Context.** PHASE 010 imported a dashboard's "milestone tasks" as tasks and derived no
+milestones, so projects whose roadmap lived in those rows showed no completion. Guessing
+milestones from tasks would break ADR-038; leaving them out hid real, stated structure.
+
+**Decision.** The import plan may list `milestoneSets`: for a project, the task rows a
+source explicitly treats as its milestones, in roadmap order, with the evidence page and
+a reason. The importer makes one milestone per listed row and nothing else.
+
+- Only rows the plan lists; never inferred from tasks, time or titles.
+- The rows stay tasks; milestones follow any the project already has.
+- Provenance per milestone (the row, as canonical); idempotent like every import.
+- A row the source marks done is done by the row's last recorded edit, shown as
+  "Recorded done by". No ledger event, no snapshot, and (as for every imported record)
+  never activity.
+- The run is visible in the Command Room's History as "Milestones reconciled from
+  Notion", from the provenance records, not from the ledger.
+
+**Consequences.** Progress for those projects comes from milestones like any other. The
+owner's later changes win on re-import.
+
+## ADR-066 — Projects as a portfolio: tiers, display text and meaningful activity (v2)
+
+**Context.** The card grid didn't say what mattered, imported prose overflowed portfolio
+surfaces, and the room opened on tabs and metadata.
+
+**Decision.**
+
+- The overview groups projects by tier from focus and state (primary, secondary,
+  supporting, active, later, not current), as full-width rows sized by tier.
+- Portfolio surfaces show a deterministic display title (`concise()`): the project
+  prefix and status labels dropped, a fixed list of imported phrasings said plainly,
+  parentheticals and trailing clauses removed, cut at 64 characters. The original stays
+  in the record and one step away. No AI at render time.
+- Now is the item in progress (in roadmap order), else the current milestone; next is the
+  following milestone, else the next step, else the recorded next action; never twice.
+- The Command Room opens on identity, state and priority, progress, the roadmap and Start
+  Work, then a project summary of five facts, then tabs.
+- Project activity lists only events that mean the project moved, led by who did it;
+  the gold grid covers six months of LOWTIDE's own records.
+- No tab exists for an integration that doesn't (GitHub).
+
+**Consequences.** One reading of a project across Home, Projects and the room
+(`features/projects/display.ts`).

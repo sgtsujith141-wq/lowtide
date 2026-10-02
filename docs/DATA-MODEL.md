@@ -388,6 +388,14 @@ owner's portfolio priority. Set with `projects.setFocus`, which changes nothing 
 (no `updatedAt`, no ledger event). Backups at schema 8 carry it; older backups import
 with focus unset. SQLite: companion migration 4 adds `projects.focus` where missing.
 
+## Reconciled milestones (v2 PHASE 013, ADR-065)
+
+No schema change. Milestones from an import plan's `milestoneSets` are ordinary
+milestones with a canonical `sourceRecords` entry naming their task row.
+`space.watchProjectSources(projectId)` reads the provenance for a project and everything
+in it (milestones, tasks, items, decisions), newest first: the import and reconciliation
+trail shown in History. It is never activity.
+
 ## The companion's SQLite schema (PHASE 008B, ADR-057, ADR-058)
 
 In companion mode the same records live in `~/.lowtide/lowtide.sqlite`, one table per

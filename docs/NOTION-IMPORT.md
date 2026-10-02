@@ -42,6 +42,10 @@ Notion.
     canonical project; otherwise the decision stays in its SPACE table), and which
     properties make the title, decision, context and consequences.
   - `table`: kept as a SPACE table only. Every database becomes a SPACE table anyway.
+- `milestoneSets` (optional): for a project, the task rows a source explicitly treats as
+  its milestones (a dashboard counting them, an ordered phase list), in roadmap order,
+  with the `evidence` page and a `reason` (ADR-065). Each row becomes one milestone and
+  stays a task. Never inferred: only listed rows.
 - `placements`: where a page or database goes in SPACE: a section (`projects`,
   `hackathons`, `college`, `ideas`, `personal`, `archive`, optionally with sub-sections
   like `ideas/Research`), a project (`project:<key>`) or one of its slots
@@ -60,7 +64,8 @@ Notion.
   rewritten. Each case is reported as a conflict.
 - No invented history: no ledger events, work sessions, progress snapshots or AI
   sessions, no completion times Notion didn't record, and imported records never count
-  as activity.
+  as activity. A milestone from a milestone set that Notion marks done is done by its
+  row's last Notion edit (the latest moment Notion recorded it so).
 - Provenance on everything: source id, URL, original title, path, timestamps.
 - Files are kept as external references (name and source URL), never claimed as
   downloaded.
