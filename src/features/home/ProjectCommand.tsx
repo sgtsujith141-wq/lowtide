@@ -5,7 +5,8 @@ import { formatDuration } from '../../lib/duration';
 import { formatWhen } from '../../lib/when';
 import type { Milestone } from '../../types/domain';
 import { FOCUS_LABEL, STATE_LABEL, STATE_TONE, type ProjectSummary } from '../projects/summary';
-import { selectHomeProjects, withoutProjectPrefix } from './model';
+import { concise, nowNext } from '../projects/display';
+import { selectHomeProjects } from './model';
 
 /**
  * Project Command (v2 PHASE 012): the projects that matter now, as a
@@ -56,10 +57,7 @@ export function ProjectCommand({
 
 function ProjectRow({ summary: s, now }: { summary: ProjectSummary; now: Date }) {
   const name = s.project.name;
-  const focusTitle = s.lanes.working_now[0]?.title;
-  const focus = focusTitle ? withoutProjectPrefix(focusTitle, name) : undefined;
-  const nextTitle = s.project.nextAction ?? s.lanes.next[0]?.title;
-  const next = nextTitle ? withoutProjectPrefix(nextTitle, name) : undefined;
+  const { now: focus, next } = nowNext(s);
   const approvals = s.lanes.needs_approval;
   const blocked = s.lanes.blocked;
   const waiting = s.lanes.waiting;
@@ -107,13 +105,13 @@ function ProjectRow({ summary: s, now }: { summary: ProjectSummary; now: Date })
         {focus && (
           <div className="flex gap-3">
             <dt className="w-10 shrink-0 text-xs leading-5 text-fg-muted">Now</dt>
-            <dd className="min-w-0 leading-snug">{focus}</dd>
+            <dd className="min-w-0 leading-snug">{concise(focus).text}</dd>
           </div>
         )}
         {next && (
           <div className="flex gap-3">
             <dt className="w-10 shrink-0 text-xs leading-5 text-fg-muted">Next</dt>
-            <dd className="min-w-0 leading-snug">{next}</dd>
+            <dd className="min-w-0 leading-snug">{concise(next).text}</dd>
           </div>
         )}
         {!focus && !next && (
@@ -130,22 +128,23 @@ function ProjectRow({ summary: s, now }: { summary: ProjectSummary; now: Date })
           <p className="flex items-start gap-1.5 text-warn">
             <Hand aria-hidden className="mt-0.5 size-3.5 shrink-0" />
             {approvals.length === 1
-              ? `Needs your approval: ${approvals[0]!.title}`
+              ? `Needs your approval: ${concise(approvals[0]!.title, name).text}`
               : `${approvals.length} approvals need you`}
           </p>
         )}
         {blocked.length > 0 && (
           <p className="flex items-start gap-1.5 text-danger">
             <AlertOctagon aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-            <span className="line-clamp-3 min-w-0">
-              <span className="font-medium">Blocked:</span> {blocked[0]!.title}
+            <span className="min-w-0" title={blocked[0]!.title}>
+              <span className="font-medium">Blocked:</span> {concise(blocked[0]!.title, name).text}
+              {blocked.length > 1 && ` +${blocked.length - 1}`}
             </span>
           </p>
         )}
         {waiting.length > 0 && (
           <p className="flex items-start gap-1.5 text-fg-muted">
             <Hourglass aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-            Waiting: {waiting[0]!.title}
+            Waiting: {concise(waiting[0]!.title, name).text}
             {waiting.length > 1 && ` +${waiting.length - 1}`}
           </p>
         )}

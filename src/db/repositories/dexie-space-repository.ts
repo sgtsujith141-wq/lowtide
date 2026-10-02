@@ -195,5 +195,23 @@ export function createDexieSpaceRepository(deps: RepositoryDeps): SpaceRepositor
         ),
       );
     },
+
+    watchProjectSources(projectId) {
+      return watch(async () => {
+        const [milestones, tasks, items, decisions] = await Promise.all([
+          db.milestones.where('projectId').equals(projectId).toArray(),
+          db.tasks.where('projectId').equals(projectId).toArray(),
+          db.projectItems.where('projectId').equals(projectId).toArray(),
+          db.decisions.where('projectId').equals(projectId).toArray(),
+        ]);
+        const ids = new Set<string>([
+          projectId,
+          ...[...milestones, ...tasks, ...items, ...decisions].map((r) => r.id),
+        ]);
+        return (await db.sourceRecords.filter((r) => ids.has(r.entityId)).toArray()).sort(
+          (a, b) => b.appliedAt.localeCompare(a.appliedAt) || a.sourceId.localeCompare(b.sourceId),
+        );
+      });
+    },
   };
 }

@@ -686,6 +686,12 @@ export interface SpaceRepository {
   watchLinked(type: LinkableType, id: Id): Watch<SpaceNode[]>;
   /** Where a record came from: its provenance records, canonical first. */
   watchSources(type: LinkableType, id: Id): Watch<SourceRecord[]>;
+  /**
+   * Provenance for a project and everything in it (milestones, tasks, items,
+   * decisions), most recently applied first: the import and reconciliation
+   * trail, never activity.
+   */
+  watchProjectSources(projectId: Id): Watch<SourceRecord[]>;
 }
 
 /** Raw records behind activity grids and the Daily Pulse, for a date range. */

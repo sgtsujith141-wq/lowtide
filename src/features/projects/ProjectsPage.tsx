@@ -1,33 +1,57 @@
-import { Plus } from 'lucide-react';
+import { AlertOctagon, ArrowRight, Hand, Hourglass, Plus } from 'lucide-react';
 import { useId, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { Chip } from '../../components/shared/visuals';
 import { PageHeader } from '../../components/layout';
 import { Button } from '../../components/ui/Button';
 import { ErrorNotice } from '../../components/ui/Notice';
 import { fieldClass, labelClass } from '../../components/ui/styles';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
+import { useNow } from '../../hooks/useNow';
 import { useRepositories } from '../../hooks/useRepositories';
 import { useToday } from '../../hooks/useToday';
 import { useWatch } from '../../hooks/useWatch';
-import { addDays, eachDay } from '../../lib/calendar';
-import { ProjectCard } from './ProjectCard';
+import { formatDuration } from '../../lib/duration';
+import { formatWhen } from '../../lib/when';
+import { FOCUS_RANK, STATE_RANK } from '../home/model';
+import { concise, milestoneCount, nowNext, TIER_LABEL, TIERS, tierOf, type Tier } from './display';
+import { MilestoneLine, RoadmapInline } from './room/Roadmap';
+import { STATE_LABEL, type ProjectSummary } from './summary';
 import { useProjectSummaries } from './useProjectSummaries';
-import { dailyMinutes, STATE_LABEL, STATE_TONE } from './summary';
 
-/** Projects: every live project as a card, a quick "New project", and the finished ones. */
+/**
+ * Projects (v2 PHASE 013): the whole portfolio on one page, in the owner's
+ * order of focus. No card gallery: each project is a full-width row that
+ * answers what it is, its state, how far it is, where on its roadmap, what's
+ * happening now and next, whether it needs you, and when it last moved.
+ * The primary project reads largest; projects not current are one quiet line.
+ */
 export function ProjectsPage() {
   useDocumentTitle('Projects');
   const today = useToday();
+  const now = useNow(true, 60_000);
   const data = useProjectSummaries(today);
   const { projects } = useRepositories();
   const all = useWatch(projects.watchAll);
   const [adding, setAdding] = useState(false);
-  const fortnight = eachDay(addDays(today, -13), today);
   const finished =
     all.status === 'ready'
       ? all.data.filter((p) => p.state === 'done' || p.state === 'archived')
       : [];
+
+  const groups = new Map<Tier, ProjectSummary[]>();
+  for (const s of data?.summaries ?? []) {
+    const tier = tierOf(s.project);
+    groups.set(tier, [...(groups.get(tier) ?? []), s]);
+  }
+  for (const list of groups.values()) {
+    list.sort(
+      (a, b) =>
+        FOCUS_RANK[a.project.focus ?? 'unset'] - FOCUS_RANK[b.project.focus ?? 'unset'] ||
+        STATE_RANK[a.project.state] - STATE_RANK[b.project.state] ||
+        b.lastUpdate.localeCompare(a.lastUpdate) ||
+        a.project.name.localeCompare(b.project.name),
+    );
+  }
 
   return (
     <>
@@ -45,39 +69,252 @@ export function ProjectsPage() {
         (data.summaries.length === 0 ? (
           <p className="mt-6 text-sm text-fg-muted">No active projects yet.</p>
         ) : (
-          <ul
-            aria-label="Active projects"
-            className="mt-6 grid gap-2 sm:grid-cols-2 xl:grid-cols-3 min-[1800px]:grid-cols-4"
-          >
-            {data.summaries.map((s) => (
-              <ProjectCard
-                key={s.project.id}
-                summary={s}
-                spark={dailyMinutes(data.sessions, s.project.id, fortnight)}
-                headingLevel={2}
-              />
+          <div className="mt-8 space-y-12">
+            {TIERS.filter((t) => groups.has(t)).map((tier) => (
+              <TierSection key={tier} tier={tier} summaries={groups.get(tier)!} now={now} />
             ))}
-          </ul>
+          </div>
         ))}
 
       {finished.length > 0 && (
-        <details className="mt-10 border-t border-line pt-4">
+        <details className="mt-14 border-t border-line pt-4">
           <summary className="cursor-pointer text-sm text-fg-muted">
             Done and archived ({finished.length})
           </summary>
           <ul className="mt-2 divide-y divide-line">
             {finished.map((p) => (
-              <li key={p.id} className="flex items-center justify-between gap-3 py-2">
-                <Link to={`/projects/${p.slug}`} className="text-sm hover:underline">
+              <li key={p.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                <Link to={`/projects/${p.slug}`} className="hover:underline">
                   {p.name}
                 </Link>
-                <Chip tone={STATE_TONE[p.state]}>{STATE_LABEL[p.state]}</Chip>
+                <span className="text-fg-muted">{STATE_LABEL[p.state]}</span>
               </li>
             ))}
           </ul>
         </details>
       )}
     </>
+  );
+}
+
+const QUIET_TIERS: readonly Tier[] = ['later', 'other'];
+
+function TierSection({
+  tier,
+  summaries,
+  now,
+}: {
+  tier: Tier;
+  summaries: ProjectSummary[];
+  now: Date;
+}) {
+  const headingId = useId();
+  const quiet = QUIET_TIERS.includes(tier);
+  return (
+    <section
+      aria-labelledby={headingId}
+      className="grid gap-x-10 gap-y-2 xl:grid-cols-[9rem_minmax(0,1fr)]"
+    >
+      <h2
+        id={headingId}
+        className={`text-sm font-medium xl:pt-1 ${tier === 'primary' ? 'text-projects-4' : 'text-fg-muted'}`}
+      >
+        {TIER_LABEL[tier]}
+      </h2>
+      <ul
+        className={
+          tier === 'supporting' || tier === 'unsorted'
+            ? 'grid gap-x-12 border-t border-line 2xl:grid-cols-2'
+            : 'border-t border-line'
+        }
+      >
+        {summaries.map((s) =>
+          quiet ? (
+            <QuietRow key={s.project.id} summary={s} now={now} />
+          ) : (
+            <PortfolioRow key={s.project.id} summary={s} tier={tier} now={now} />
+          ),
+        )}
+      </ul>
+    </section>
+  );
+}
+
+function PortfolioRow({
+  summary: s,
+  tier,
+  now,
+}: {
+  summary: ProjectSummary;
+  tier: Tier;
+  now: Date;
+}) {
+  const { now: current, next } = nowNext(s);
+  const name = s.project.name;
+  const needs = [
+    ...s.lanes.needs_approval.map((e) => ({ kind: 'approval' as const, title: e.title })),
+    ...s.lanes.blocked.map((e) => ({ kind: 'blocker' as const, title: e.title })),
+  ];
+  const waiting = s.lanes.waiting.length;
+  const large = tier === 'primary';
+  const medium = tier === 'secondary';
+  return (
+    <li className={`border-b border-line ${large ? 'py-8' : medium ? 'py-7' : 'py-6'}`}>
+      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+        <h3
+          className={`font-semibold tracking-tight ${large ? 'text-[28px] leading-tight' : medium ? 'text-[22px] leading-tight' : 'text-lg'}`}
+        >
+          <Link to={`/projects/${s.project.slug}`} className="hover:underline">
+            {name}
+          </Link>
+        </h3>
+        <p className="text-sm text-fg-muted">
+          <span
+            className={
+              s.project.state === 'blocked' || s.project.state === 'needs_approval'
+                ? 'text-warn'
+                : ''
+            }
+          >
+            {STATE_LABEL[s.project.state]}
+          </span>
+        </p>
+      </div>
+
+      {s.completion ? (
+        <div className={large ? 'mt-5' : 'mt-4'}>
+          <div className="flex items-center gap-4">
+            <div className="min-w-0 flex-1">
+              <MilestoneLine
+                milestones={s.milestones}
+                percent={s.completion.percent}
+                size={large ? 'lg' : 'md'}
+                label={`${name}: ${s.completion.percent}% of milestone weight done`}
+              />
+            </div>
+            <span
+              className={`figure shrink-0 font-semibold text-projects-4 ${large ? 'text-2xl' : 'text-lg'}`}
+            >
+              {s.completion.percent}%
+            </span>
+          </div>
+          <div className="mt-3 flex flex-wrap items-start justify-between gap-x-6 gap-y-2">
+            <RoadmapInline milestones={s.milestones} />
+            <span className="text-xs text-fg-muted">{milestoneCount(s.milestones)}</span>
+          </div>
+        </div>
+      ) : (
+        <p className="mt-3 text-sm text-fg-muted">No milestones yet, so no percentage.</p>
+      )}
+
+      <div
+        className={`grid gap-x-10 gap-y-4 sm:grid-cols-2 ${large || medium ? 'mt-6 lg:grid-cols-[1fr_1fr_1.2fr_auto]' : 'mt-5 lg:grid-cols-[1fr_1fr_1.2fr_auto] 2xl:grid-cols-[1fr_1fr_auto]'}`}
+      >
+        <Fact label="Now" value={current} empty="Nothing in progress" />
+        <Fact label="Next" value={next} empty="No next step recorded" />
+        <div className={`min-w-0 ${large || medium ? '' : '2xl:col-span-2 2xl:row-start-2'}`}>
+          <p className="text-xs text-fg-muted">Needs you</p>
+          {needs.length === 0 ? (
+            <p className="mt-0.5 text-sm text-fg-muted">
+              {waiting > 0 ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <Hourglass aria-hidden className="size-3.5" /> Waiting on {waiting}
+                </span>
+              ) : (
+                'Nothing'
+              )}
+            </p>
+          ) : (
+            <ul className="mt-0.5 space-y-1 text-sm">
+              {needs.slice(0, 2).map((n) => {
+                const c = concise(n.title, name);
+                const Icon = n.kind === 'approval' ? Hand : AlertOctagon;
+                return (
+                  <li key={n.title} className="flex items-start gap-1.5">
+                    <Icon
+                      aria-hidden
+                      className={`mt-0.5 size-3.5 shrink-0 ${n.kind === 'approval' ? 'text-warn' : 'text-danger'}`}
+                    />
+                    <span className="min-w-0" title={c.shortened ? c.full : undefined}>
+                      <span className="sr-only">
+                        {n.kind === 'approval' ? 'Approval: ' : 'Blocker: '}
+                      </span>
+                      {c.text}
+                    </span>
+                  </li>
+                );
+              })}
+              {needs.length > 2 && (
+                <li className="text-xs text-fg-muted">and {needs.length - 2} more</li>
+              )}
+            </ul>
+          )}
+        </div>
+        <div className="flex items-end justify-between gap-6 sm:col-span-2 lg:col-span-1 lg:flex-col lg:items-end lg:justify-end">
+          <p className="text-xs whitespace-nowrap text-fg-muted">
+            {s.minutesThisWeek > 0 && (
+              <span className="figure mr-3 text-fg">
+                {formatDuration(s.minutesThisWeek)} this week
+              </span>
+            )}
+            Last moved {formatWhen(s.lastUpdate, now)}
+          </p>
+          <Link
+            to={`/projects/${s.project.slug}`}
+            aria-label={`Open ${name}`}
+            className="inline-flex items-center gap-1 text-sm font-medium text-fg hover:underline"
+          >
+            Open <ArrowRight aria-hidden className="size-3.5" />
+          </Link>
+        </div>
+      </div>
+    </li>
+  );
+}
+
+function Fact({
+  label,
+  value,
+  empty,
+}: {
+  label: string;
+  value?: string | undefined;
+  empty: string;
+}) {
+  const c = value ? concise(value) : null;
+  return (
+    <div className="min-w-0">
+      <p className="text-xs text-fg-muted">{label}</p>
+      <p
+        className={`mt-0.5 text-sm leading-snug ${c ? 'font-medium' : 'text-fg-muted'}`}
+        title={c?.shortened ? c.full : undefined}
+      >
+        {c ? c.text : empty}
+      </p>
+    </div>
+  );
+}
+
+/** Projects not current: one line each, still complete enough to act on. */
+function QuietRow({ summary: s, now }: { summary: ProjectSummary; now: Date }) {
+  const { next } = nowNext(s);
+  const needs = s.lanes.needs_approval.length + s.lanes.blocked.length;
+  return (
+    <li className="grid gap-x-8 gap-y-1 border-b border-line py-3.5 text-sm md:grid-cols-[minmax(10rem,14rem)_7rem_minmax(0,1fr)_auto] md:items-baseline">
+      <h3 className="font-medium">
+        <Link to={`/projects/${s.project.slug}`} className="hover:underline">
+          {s.project.name}
+        </Link>
+      </h3>
+      <span className="text-fg-muted">{STATE_LABEL[s.project.state]}</span>
+      <p className="min-w-0 truncate text-fg-muted" title={next}>
+        {next ? <>Next: {concise(next, s.project.name).text}</> : 'No next step recorded'}
+        {needs > 0 && <span className="ml-2 text-warn">· needs you ({needs})</span>}
+      </p>
+      <span className="text-xs whitespace-nowrap text-fg-muted">
+        Last moved {formatWhen(s.lastUpdate, now)}
+      </span>
+    </li>
   );
 }
 

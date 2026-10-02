@@ -428,6 +428,11 @@
     animation: lt-fade-in var(--lt-dur-panel) var(--ease-tide);
   }
 
+  /* The roadmap's current stage announces itself once on arrival, then rests. */
+  .lt-current {
+    animation: lt-current-in 1.4s var(--ease-tide) 1;
+  }
+
   /* Numbers that people read at a glance: timers, percentages, counts. */
   .figure {
     font-variant-numeric: tabular-nums;
@@ -446,6 +451,14 @@
   from {
     opacity: 0;
     transform: translateX(24px);
+  }
+}
+@keyframes lt-current-in {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--lt-projects-3) 60%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 9px transparent;
   }
 }
 @keyframes lt-fade-in {

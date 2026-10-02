@@ -9,11 +9,16 @@ import { renderApp } from './render';
 const newDb = setupTestDatabase();
 
 async function setup(seed?: (r: Repositories) => Promise<unknown>) {
-  const repositories = createDexieRepositories(newDb());
+  const db = newDb();
+  // Open the database first, as a real visit would have: an empty profile
+  // otherwise opens it inside the first render, racing every live query.
+  await db.open();
+  const repositories = createDexieRepositories(db);
   await seed?.(repositories);
   const rendered = await renderApp('/', repositories);
-  await screen.findByText(/with a pulse in the last 12 months/, {}, { timeout: 5000 });
-  await screen.findByRole('heading', { level: 2, name: 'Today' }, { timeout: 5000 });
+  // Generous waits: a busy machine renders the first frame slowly.
+  await screen.findByText(/with a pulse in the last 12 months/, {}, { timeout: 10_000 });
+  await screen.findByRole('heading', { level: 2, name: 'Today' }, { timeout: 10_000 });
   return { repositories, ...rendered };
 }
 

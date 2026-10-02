@@ -1,199 +1,223 @@
-import { Check } from 'lucide-react';
 import { format } from 'date-fns';
+import { useState } from 'react';
 import { formatDuration } from '../../../lib/duration';
 import { fromLocalDate } from '../../../lib/time';
-import type { Milestone } from '../../../types/domain';
+import type { LocalDate } from '../../../types/domain';
 import type { ProgressPoint, WeekBar } from '../charts';
 
-/** Large milestone-derived completion ring (ADR-038). */
-export function CompletionRing({ percent, label }: { percent: number | null; label: string }) {
-  const r = 42;
-  const c = 2 * Math.PI * r;
-  return (
-    <div className="relative grid size-28 shrink-0 place-items-center">
-      <svg viewBox="0 0 100 100" className="absolute inset-0 -rotate-90" aria-hidden>
-        <circle cx="50" cy="50" r={r} strokeWidth="9" className="fill-none stroke-grid-0" />
-        {percent !== null && percent > 0 && (
-          <circle
-            cx="50"
-            cy="50"
-            r={r}
-            strokeWidth="9"
-            strokeLinecap="round"
-            strokeDasharray={`${(percent / 100) * c} ${c}`}
-            className="fill-none stroke-projects-3"
-          />
-        )}
-      </svg>
-      <p className="relative text-center" role="img" aria-label={label}>
-        {percent === null ? (
-          <span className="block px-3 text-[11px] leading-tight text-fg-muted">
-            No milestones yet
-          </span>
-        ) : (
-          <>
-            <span className="figure block text-figure leading-none font-semibold">
-              {percent}
-              <span className="text-base">%</span>
-            </span>
-            <span className="text-[10px] text-fg-muted">of milestones</span>
-          </>
-        )}
-      </p>
-    </div>
-  );
-}
+/*
+ * The Command Room's two small charts (v2 PHASE 013): plain SVG, no chart
+ * library, every value also in words. Nothing drawn that the records don't
+ * hold: no line before the first snapshot, no bar for a week without work.
+ */
+
+const day = (d: LocalDate) => format(fromLocalDate(d), 'd MMM');
 
 /**
- * The milestone rail: ✓ done ── ● current ── ○ upcoming. Scrolls sideways
- * when long; an ordered list for screen readers.
+ * Progress over time from real snapshots (a step line with a soft area),
+ * ending at today's live value. With no snapshots yet it says so and shows
+ * only where the project stands now.
  */
-export function MilestonePipeline({ milestones }: { milestones: readonly Milestone[] }) {
-  if (milestones.length === 0) return null;
-  const current = milestones.find((m) => !m.completedAt)?.id;
-  return (
-    // Focusable so keyboard users can scroll a long pipeline.
-    <div tabIndex={0} className="relative overflow-x-auto pb-1 outline-offset-2">
-      <ol aria-label="Milestone pipeline" className="flex min-w-max items-start">
-        {milestones.map((m, i) => {
-          const done = m.completedAt !== undefined;
-          const now = m.id === current;
-          return (
-            <li key={m.id} className="flex items-start">
-              {i > 0 && (
-                <span
-                  aria-hidden
-                  className={`mt-[11px] h-0.5 w-8 sm:w-12 ${done || now ? 'bg-projects-3' : 'bg-line'}`}
-                />
-              )}
-              <span className="flex w-20 flex-col items-center gap-1 text-center sm:w-24">
-                <span
-                  className={`grid size-6 place-items-center rounded-full border-2 ${
-                    done
-                      ? 'border-projects-3 bg-projects-3 text-canvas'
-                      : now
-                        ? 'border-projects-3 bg-projects-1'
-                        : 'border-line bg-raised'
-                  }`}
-                >
-                  {done ? (
-                    <Check aria-hidden className="size-3.5" strokeWidth={3} />
-                  ) : now ? (
-                    <span aria-hidden className="size-2 rounded-full bg-projects-3" />
-                  ) : null}
-                </span>
-                <span
-                  className={`text-xs leading-tight ${now ? 'font-semibold' : done ? '' : 'text-fg-muted'}`}
-                >
-                  {m.title}
-                  <span className="sr-only">
-                    {done ? ' (done)' : now ? ' (current)' : ' (upcoming)'}
-                  </span>
-                </span>
-                {m.weight !== 1 && (
-                  <span className="text-[10px] text-fg-muted">weight {m.weight}</span>
-                )}
-              </span>
-            </li>
-          );
-        })}
-      </ol>
-    </div>
-  );
-}
+export function ProgressHistory({
+  points,
+  current,
+  today,
+}: {
+  points: readonly ProgressPoint[];
+  /** Today's milestone completion, live; null without milestones. */
+  current: number | null;
+  today: LocalDate;
+}) {
+  const [focus, setFocus] = useState<number | null>(null);
+  if (current === null && points.length === 0)
+    return (
+      <p className="text-sm text-fg-muted">No milestones yet, so there’s no progress to chart.</p>
+    );
 
-/** Progress over time from real snapshots (step line; carried days are dashed). */
-export function ProgressChart({ points }: { points: readonly ProgressPoint[] }) {
-  if (points.length === 0)
-    return <p className="text-sm text-fg-muted">Progress is tracked from the first change on.</p>;
-  const w = 320;
-  const h = 90;
-  const n = Math.max(1, points.length - 1);
+  const recorded = points.filter((p) => !p.carried && p.percent !== null);
+  if (recorded.length === 0)
+    return (
+      <div>
+        <p className="figure text-sm">
+          Now <span className="font-semibold text-projects-4">{current ?? 0}%</span>
+        </p>
+        <p className="mt-1 text-sm text-fg-muted">
+          History starts with the first milestone change recorded in LOWTIDE. Nothing earlier is
+          drawn.
+        </p>
+      </div>
+    );
+
+  const w = 600;
+  const h = 120;
+  const series = points.length > 0 ? points : [];
+  const n = Math.max(1, series.length - 1);
   const x = (i: number) => (i / n) * w;
   const y = (p: number) => h - (p / 100) * h;
-  const path: string[] = [];
-  let started = false;
-  points.forEach((pt, i) => {
-    if (pt.percent === null) {
-      started = false;
-      return;
+  let line = '';
+  let area = '';
+  let open = false;
+  let firstX = 0;
+  series.forEach((pt, i) => {
+    if (pt.percent === null) return;
+    const px = x(i).toFixed(1);
+    const py = y(pt.percent).toFixed(1);
+    if (!open) {
+      line += `M${px},${py}`;
+      area += `M${px},${h} L${px},${py}`;
+      firstX = x(i);
+      open = true;
+    } else {
+      const prev = series[i - 1]!.percent ?? pt.percent;
+      line += ` L${px},${y(prev).toFixed(1)} L${px},${py}`;
+      area += ` L${px},${y(prev).toFixed(1)} L${px},${py}`;
     }
-    path.push(`${started ? 'L' : 'M'}${x(i).toFixed(1)},${y(pt.percent).toFixed(1)}`);
-    started = true;
   });
-  const lastKnown = [...points].reverse().find((p) => p.percent !== null);
-  const first = points[0]!.date;
+  const lastX = x(series.length - 1);
+  area += ` L${lastX.toFixed(1)},${h} L${firstX.toFixed(1)},${h} Z`;
+  const now = current ?? series.at(-1)?.percent ?? 0;
+  const shown = focus !== null ? series[focus] : undefined;
+
   return (
     <figure>
-      <svg
-        viewBox={`-2 -4 ${w + 4} ${h + 8}`}
-        className="h-28 w-full"
-        role="img"
-        aria-label={`Completion over time, from ${format(fromLocalDate(first), 'd MMM')}: now ${lastKnown?.percent ?? 0}%`}
-        preserveAspectRatio="none"
-      >
-        {[0, 50, 100].map((g) => (
-          <line
-            key={g}
-            x1={0}
-            x2={w}
-            y1={y(g)}
-            y2={y(g)}
-            className="stroke-line"
-            strokeDasharray="2 3"
-            vectorEffect="non-scaling-stroke"
-          />
-        ))}
-        {path.length > 0 && (
+      <div className="relative">
+        <svg
+          viewBox={`-6 -10 ${w + 12} ${h + 20}`}
+          preserveAspectRatio="none"
+          className="h-36 w-full overflow-visible"
+          role="img"
+          aria-label={`Milestone completion from ${day(series[0]!.date)} to today: ${recorded
+            .map((p) => `${day(p.date)} ${p.percent}%`)
+            .join(', ')}; now ${now}%`}
+          onPointerLeave={() => setFocus(null)}
+          onPointerMove={(e) => {
+            const box = e.currentTarget.getBoundingClientRect();
+            const i = Math.round(((e.clientX - box.left) / box.width) * n);
+            setFocus(Math.max(0, Math.min(series.length - 1, i)));
+          }}
+        >
+          {[0, 50, 100].map((g) => (
+            <line
+              key={g}
+              x1={0}
+              x2={w}
+              y1={y(g)}
+              y2={y(g)}
+              className="stroke-line"
+              strokeDasharray="2 4"
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+          <path d={area} className="fill-projects-3/15" />
           <path
-            d={path.join(' ')}
+            d={line}
             className="fill-none stroke-projects-3"
             strokeWidth={2}
             vectorEffect="non-scaling-stroke"
           />
+          {focus !== null && (
+            <line
+              x1={x(focus)}
+              x2={x(focus)}
+              y1={0}
+              y2={h}
+              className="stroke-fg-subtle"
+              vectorEffect="non-scaling-stroke"
+            />
+          )}
+        </svg>
+        {/* Points drawn in HTML so they stay round at any width. */}
+        {series.map((p, i) =>
+          !p.carried && p.percent !== null ? (
+            <span
+              key={p.date}
+              aria-hidden
+              title={`${day(p.date)}: ${p.percent}%`}
+              className="absolute size-2 -translate-1/2 rounded-full bg-projects-3"
+              style={{
+                left: `${(x(i) / w) * 100}%`,
+                top: `${((y(p.percent) + 10) / (h + 20)) * 100}%`,
+              }}
+            />
+          ) : null,
         )}
-      </svg>
-      <figcaption className="mt-1 flex justify-between text-[11px] text-fg-muted">
-        <span>Since {format(fromLocalDate(first), 'd MMM')}</span>
+        <span
+          aria-hidden
+          className="absolute size-3 -translate-1/2 rounded-full border-2 border-projects-3 bg-canvas"
+          style={{ left: '100%', top: `${((y(now) + 10) / (h + 20)) * 100}%` }}
+        />
+      </div>
+      <figcaption className="mt-2 flex items-baseline justify-between gap-3 text-xs text-fg-muted">
         <span>
-          {points.length} day{points.length === 1 ? '' : 's'} tracked
+          {shown
+            ? `${day(shown.date)}: ${shown.percent ?? 0}%${shown.carried ? ' (no change that day)' : ''}`
+            : `Since ${day(series[0]!.date)}`}
+        </span>
+        <span>
+          {day(today)} · now <span className="figure font-semibold text-projects-4">{now}%</span>
         </span>
       </figcaption>
     </figure>
   );
 }
 
-/** Time invested per week (real work sessions only). */
-export function TimeChart({ weeks }: { weeks: readonly WeekBar[] }) {
+/**
+ * Time invested from real work sessions: this week, the last weeks as bars,
+ * and the total. Nothing at all without sessions; the caller says so quietly.
+ */
+export function TimeInvested({
+  weeks,
+  thisWeek,
+  total,
+}: {
+  weeks: readonly WeekBar[];
+  thisWeek: number;
+  total: number;
+}) {
   const max = Math.max(60, ...weeks.map((w) => w.minutes));
-  const total = weeks.reduce((s, w) => s + w.minutes, 0);
+  const recent = weeks.reduce((s, w) => s + w.minutes, 0);
   return (
     <figure>
+      <dl className="flex flex-wrap gap-x-8 gap-y-2">
+        <div>
+          <dt className="text-xs text-fg-muted">This week</dt>
+          <dd className="figure text-lg font-semibold">{formatDuration(Math.round(thisWeek))}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-fg-muted">Last {weeks.length} weeks</dt>
+          <dd className="figure text-lg font-semibold">{formatDuration(Math.round(recent))}</dd>
+        </div>
+        <div>
+          <dt className="text-xs text-fg-muted">All time</dt>
+          <dd className="figure text-lg font-semibold">{formatDuration(Math.round(total))}</dd>
+        </div>
+      </dl>
       <div
         role="img"
-        aria-label={`Work on this project: ${formatDuration(total)} over the last ${weeks.length} weeks`}
-        className="flex h-28 items-end gap-1"
+        aria-label={`Work per week, last ${weeks.length} weeks: ${weeks
+          .filter((w) => w.minutes > 0)
+          .map((w) => `week of ${day(w.weekStart)} ${formatDuration(Math.round(w.minutes))}`)
+          .join(', ')}`}
+        className="mt-4 flex h-14 items-end gap-1"
       >
         {weeks.map((wk) => (
           <div
             key={wk.weekStart}
             className="flex h-full flex-1 flex-col justify-end"
-            title={`${format(fromLocalDate(wk.weekStart), 'd MMM')}: ${formatDuration(wk.minutes)}`}
+            title={`Week of ${day(wk.weekStart)}: ${formatDuration(Math.round(wk.minutes))}`}
           >
             <div
-              className={`w-full rounded-t-[3px] ${wk.minutes > 0 ? 'bg-work-3' : 'bg-grid-0'}`}
+              className={`w-full rounded-t-[2px] ${wk.minutes > 0 ? 'bg-work-3' : 'bg-grid-0'}`}
               style={{
-                height: wk.minutes > 0 ? `${Math.max(4, (wk.minutes / max) * 100)}%` : '2px',
+                height: wk.minutes > 0 ? `${Math.max(6, (wk.minutes / max) * 100)}%` : '2px',
               }}
             />
           </div>
         ))}
       </div>
       <figcaption className="mt-1 flex justify-between text-[11px] text-fg-muted">
-        <span>{format(fromLocalDate(weeks[0]!.weekStart), 'd MMM')}</span>
-        <span>
-          {formatDuration(total)} in {weeks.length} weeks
-        </span>
+        <span>{day(weeks[0]!.weekStart)}</span>
+        <span>This week</span>
       </figcaption>
     </figure>
   );

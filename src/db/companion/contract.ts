@@ -126,6 +126,7 @@ export const REPOSITORY_CONTRACT = {
     watchAll: 'watch',
     watchLinked: 'watchFactory',
     watchSources: 'watchFactory',
+    watchProjectSources: 'watchFactory',
   },
 } as const satisfies {
   [R in keyof Repositories]: { [M in keyof Repositories[R]]: MemberKind };

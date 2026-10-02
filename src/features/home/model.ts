@@ -29,7 +29,7 @@ export function greeting(now: Date): string {
         : 'Good evening';
 }
 
-const FOCUS_RANK: Record<ProjectFocus | 'unset', number> = {
+export const FOCUS_RANK: Record<ProjectFocus | 'unset', number> = {
   primary: 0,
   secondary: 1,
   supporting: 2,
@@ -37,7 +37,7 @@ const FOCUS_RANK: Record<ProjectFocus | 'unset', number> = {
   background: 4,
 };
 
-const STATE_RANK: Record<ProjectState, number> = {
+export const STATE_RANK: Record<ProjectState, number> = {
   needs_approval: 0,
   blocked: 1,
   active: 2,

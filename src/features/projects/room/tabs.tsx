@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Check, GitBranch, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { useId, useMemo, useState, type FormEvent } from 'react';
 import { Button, IconButton } from '../../../components/ui/Button';
 import { ErrorNotice } from '../../../components/ui/Notice';
@@ -596,46 +596,99 @@ export function AiSessionsList({ project }: { project: Project }) {
   );
 }
 
-/* GitHub ------------------------------------------------------------------ */
-
-export function GithubTab({ project }: { project: Project }) {
-  return (
-    <div className="max-w-xl space-y-2 text-sm">
-      <p className="flex items-center gap-2 font-medium">
-        <GitBranch aria-hidden className="size-4" /> GitHub isn’t connected
-      </p>
-      {project.repoUrl ? (
-        <p>
-          Repository:{' '}
-          <a
-            href={project.repoUrl}
-            className="text-accent-ink underline"
-            rel="noreferrer"
-            target="_blank"
-          >
-            {project.repoUrl}
-          </a>
-        </p>
-      ) : (
-        <p className="text-fg-muted">No repository set. Add one in the project details.</p>
-      )}
-      <p className="text-fg-muted">
-        LOWTIDE fetches nothing from GitHub. A read-only, repository-scoped connection is planned
-        through the local companion, with the token kept outside the browser (ADR-041).
-      </p>
-    </div>
-  );
-}
-
 /* History ----------------------------------------------------------------- */
 
 export function HistoryTab({ project }: { project: Project }) {
   return (
-    <div>
-      <p className="mb-3 text-xs text-fg-muted">
-        Everything that happened in {project.name}, newest first, from the timeline ledger.
-      </p>
-      <Timeline projectId={project.id} limit={200} showProject={false} />
+    <div className="grid gap-x-14 gap-y-10 2xl:grid-cols-[minmax(0,1.6fr)_minmax(20rem,1fr)]">
+      <section aria-labelledby="ledger-heading">
+        <h2 id="ledger-heading" className="text-section font-semibold">
+          Timeline
+        </h2>
+        <p className="mt-1 mb-4 text-xs text-fg-muted">
+          Everything that happened in {project.name}, newest first, from the timeline ledger.
+        </p>
+        <Timeline projectId={project.id} limit={200} showProject={false} />
+      </section>
+      <Provenance project={project} />
     </div>
+  );
+}
+
+const ENTITY_WORD: Partial<Record<string, [string, string]>> = {
+  project: ['project record', 'project records'],
+  milestone: ['milestone', 'milestones'],
+  task: ['task', 'tasks'],
+  projectItem: ['board item', 'board items'],
+  decision: ['decision', 'decisions'],
+};
+
+/**
+ * The import and reconciliation trail: what was brought in from another
+ * system and when, grouped by run. An audit record, never activity: none of
+ * it colours a square or appears in the timeline.
+ */
+function Provenance({ project }: { project: Project }) {
+  const { space } = useRepositories();
+  const watch = useMemo(() => space.watchProjectSources(project.id), [space, project.id]);
+  const sources = useWatch(watch);
+  if (sources.status !== 'ready' || sources.data.length === 0) return null;
+  const runs = new Map<string, typeof sources.data>();
+  for (const s of sources.data) {
+    const key = s.importedAt.slice(0, 10);
+    runs.set(key, [...(runs.get(key) ?? []), s]);
+  }
+  const now = new Date();
+  return (
+    <section aria-labelledby="provenance-heading">
+      <h2 id="provenance-heading" className="text-section font-semibold">
+        Imported and reconciled
+      </h2>
+      <p className="mt-1 mb-4 text-xs text-fg-muted">
+        Records brought in from Notion, read-only. Not counted as activity.
+      </p>
+      <ol className="space-y-5">
+        {[...runs].map(([dayKey, list]) => {
+          const counts = new Map<string, number>();
+          for (const s of list.filter((s) => s.role === 'canonical')) {
+            counts.set(s.entityType, (counts.get(s.entityType) ?? 0) + 1);
+          }
+          const onlyMilestones = counts.size === 1 && counts.has('milestone');
+          const milestones = list.filter(
+            (s) => s.entityType === 'milestone' && s.role === 'canonical',
+          );
+          return (
+            <li key={dayKey} className="border-l border-line pl-4">
+              <p className="text-sm font-medium">
+                <time dateTime={list[0]!.importedAt} title={formatFull(list[0]!.importedAt)}>
+                  {formatWhen(list[0]!.importedAt, now)}
+                </time>
+                {onlyMilestones
+                  ? ' · Milestones reconciled from Notion'
+                  : ' · Imported from Notion'}
+              </p>
+              <p className="mt-0.5 text-sm text-fg-muted">
+                {[...counts]
+                  .map(([type, n]) => {
+                    const word = ENTITY_WORD[type] ?? [type, type];
+                    return `${n} ${n === 1 ? word[0] : word[1]}`;
+                  })
+                  .join(', ') || 'Provenance links only'}
+              </p>
+              {milestones.length > 0 && (
+                <details className="mt-1 text-xs text-fg-muted">
+                  <summary className="cursor-pointer hover:text-fg">Source rows</summary>
+                  <ul className="mt-1 space-y-0.5">
+                    {milestones.map((m) => (
+                      <li key={m.id}>{m.originalTitle}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </li>
+          );
+        })}
+      </ol>
+    </section>
   );
 }
