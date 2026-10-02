@@ -1,6 +1,7 @@
 import { Search } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
+import { CREATE } from '../../hooks/useCreateRequest';
 import { useRepositories } from '../../hooks/useRepositories';
 import { useWatch } from '../../hooks/useWatch';
 import { blocksOf, blockText } from '../../lib/space-blocks';
@@ -70,6 +71,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
 export function AskPanel({ onClose }: { onClose: () => void }) {
   const { projects, tasks, hackathons, space } = useRepositories();
   const modes = useModeApi();
+  const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const inputId = useId();
   const all = useWatch(projects.watchAll);
@@ -150,7 +152,7 @@ export function AskPanel({ onClose }: { onClose: () => void }) {
 
   // The mode actions that make sense right now; none that can't happen.
   const q = query.trim().toLowerCase();
-  const possible: { label: string; run: () => void }[] = modes.offTime
+  const possible: { label: string; kind?: string; run: () => void }[] = modes.offTime
     ? [{ label: 'Wake up', run: () => void modes.wake() }]
     : modes.work
       ? [
@@ -165,9 +167,26 @@ export function AskPanel({ onClose }: { onClose: () => void }) {
           { label: 'Start work', run: () => modes.openStartWork() },
           { label: 'Sleep mode', run: modes.requestSleep },
         ];
-  const actions = modes.ready
-    ? possible.filter((a) => !q || a.label.toLowerCase().includes(q))
-    : [];
+  // Creating opens the same form the page itself offers; nothing is saved here
+  // except a new SPACE page, which is how SPACE creates one anywhere.
+  const create: { label: string; kind?: string; run: () => void }[] = [
+    { label: 'New task', run: () => void navigate('/tasks', { state: CREATE }) },
+    {
+      label: 'New SPACE page',
+      run: () => {
+        const ideas =
+          nodes.status === 'ready' ? nodes.data.find((n) => n.key === 'ideas') : undefined;
+        void space
+          .create({ ...(ideas ? { parentId: ideas.id } : {}), title: 'Untitled', blocks: [] })
+          .then((page) => navigate(`/space/${page.id}`));
+      },
+    },
+    { label: 'New project', run: () => void navigate('/projects', { state: CREATE }) },
+    { label: 'New hackathon', run: () => void navigate('/hackathons', { state: CREATE }) },
+  ].map((c) => ({ ...c, kind: 'Create' }));
+  const actions = [...(modes.ready ? possible : []), ...(modes.offTime ? [] : create)].filter(
+    (a) => !q || a.label.toLowerCase().includes(q),
+  );
 
   return (
     <div role="search" className="p-3" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
@@ -200,7 +219,9 @@ export function AskPanel({ onClose }: { onClose: () => void }) {
                 }}
                 className="flex w-full items-baseline gap-2 rounded-md px-1 py-1.5 text-left text-sm hover:bg-hover"
               >
-                <span className="w-24 shrink-0 text-[11px] text-fg-muted">Action</span>
+                <span className="w-24 shrink-0 text-[11px] text-fg-muted">
+                  {a.kind ?? 'Action'}
+                </span>
                 <span>{a.label}</span>
               </button>
             </li>

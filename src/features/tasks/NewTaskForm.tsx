@@ -3,6 +3,7 @@ import { useId, useRef, useState, type FormEvent } from 'react';
 import { Button } from '../../components/ui/Button';
 import { ErrorNotice } from '../../components/ui/Notice';
 import { fieldClass } from '../../components/ui/styles';
+import { useCreateRequest } from '../../hooks/useCreateRequest';
 import { useRepositories } from '../../hooks/useRepositories';
 import { draftToNewTask, emptyDraft } from './draft';
 import { TaskFields } from './TaskFields';
@@ -22,6 +23,7 @@ export function NewTaskForm({
   const [saving, setSaving] = useState(false);
   const title = useRef<HTMLInputElement>(null);
   const id = useId();
+  useCreateRequest(() => title.current?.focus());
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();

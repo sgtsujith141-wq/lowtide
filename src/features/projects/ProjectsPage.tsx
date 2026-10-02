@@ -5,6 +5,7 @@ import { PageHeader } from '../../components/layout';
 import { Button } from '../../components/ui/Button';
 import { ErrorNotice } from '../../components/ui/Notice';
 import { fieldClass, labelClass } from '../../components/ui/styles';
+import { useCreateRequest } from '../../hooks/useCreateRequest';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useNow } from '../../hooks/useNow';
 import { useRepositories } from '../../hooks/useRepositories';
@@ -33,6 +34,7 @@ export function ProjectsPage() {
   const { projects } = useRepositories();
   const all = useWatch(projects.watchAll);
   const [adding, setAdding] = useState(false);
+  useCreateRequest(() => setAdding(true));
   const finished =
     all.status === 'ready'
       ? all.data.filter((p) => p.state === 'done' || p.state === 'archived')

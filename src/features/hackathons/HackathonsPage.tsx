@@ -3,6 +3,7 @@ import { useMemo, useRef, useState } from 'react';
 import { Drawer } from '../../components/layout';
 import { Button } from '../../components/ui/Button';
 import { Announcer, ErrorNotice } from '../../components/ui/Notice';
+import { useCreateRequest } from '../../hooks/useCreateRequest';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useRepositories } from '../../hooks/useRepositories';
 import { useToday } from '../../hooks/useToday';
@@ -36,6 +37,7 @@ export function HackathonsPage() {
   );
   const all = useWatch(hackathons.watchAll);
   const [adding, setAdding] = useState(false);
+  useCreateRequest(() => setAdding(true));
   const [openId, setOpenId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
