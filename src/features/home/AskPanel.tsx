@@ -3,6 +3,22 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { useRepositories } from '../../hooks/useRepositories';
 import { useWatch } from '../../hooks/useWatch';
+import { blocksOf, blockText } from '../../lib/space-blocks';
+
+/** Places to go by name. */
+const DESTINATIONS: [string, string][] = [
+  ['Home', '/'],
+  ['Today', '/today'],
+  ['Projects', '/projects'],
+  ['SPACE', '/space'],
+  ['Tasks', '/tasks'],
+  ['Hackathons', '/hackathons'],
+  ['Rhythm', '/rhythm'],
+  ['Inbox', '/inbox'],
+  ['Calendar', '/calendar'],
+  ['AI', '/ai'],
+  ['Settings', '/settings'],
+];
 
 interface Hit {
   key: string;
@@ -12,8 +28,8 @@ interface Hit {
 }
 
 /**
- * The command palette (v2 PHASE 012): a modal dialog around the search, opened
- * from Home's ⌘K button or the shortcut. Escape or a click outside closes it,
+ * The command palette (v2 PHASE 012, global since PHASE 014): a modal dialog
+ * around the search, opened by ⌘K / Ctrl K anywhere or Home's ⌘K button. Escape or a click outside closes it,
  * and focus returns to what opened it.
  */
 export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -51,7 +67,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
  * leaves the device. (Protected time and the inbox aren't searched here.)
  */
 export function AskPanel({ onClose }: { onClose: () => void }) {
-  const { projects, tasks, hackathons } = useRepositories();
+  const { projects, tasks, hackathons, space } = useRepositories();
   const [query, setQuery] = useState('');
   const inputId = useId();
   const all = useWatch(projects.watchAll);
@@ -60,6 +76,8 @@ export function AskPanel({ onClose }: { onClose: () => void }) {
   const open = useWatch(tasks.watchOpen);
   const closed = useWatch(tasks.watchClosed);
   const hacks = useWatch(hackathons.watchAll);
+  const nodes = useWatch(space.watchAll);
+  const decisions = useWatch(projects.watchAllDecisions);
 
   const hits = useMemo<Hit[]>(() => {
     const q = query.trim().toLowerCase();
@@ -70,6 +88,8 @@ export function AskPanel({ onClose }: { onClose: () => void }) {
       all.status === 'ready' ? all.data.map((p) => [p.id, p.slug] as const) : [],
     );
     const out: Hit[] = [];
+    for (const [title, to] of DESTINATIONS)
+      if (title.toLowerCase().startsWith(q)) out.push({ key: to, kind: 'Go to', title, to });
     if (all.status === 'ready')
       for (const p of all.data)
         if (has(p.name, p.objective, p.nextAction, p.phase))
@@ -101,8 +121,30 @@ export function AskPanel({ onClose }: { onClose: () => void }) {
       for (const h of hacks.data)
         if (has(h.name, h.problemStatement, h.nextAction, h.notes))
           out.push({ key: h.id, kind: 'Hackathon', title: h.name, to: '/hackathons' });
-    return out.slice(0, 20);
-  }, [query, all, milestones, items, open, closed, hacks]);
+    if (decisions.status === 'ready')
+      for (const d of decisions.data)
+        if (has(d.title, d.decision, d.context))
+          out.push({
+            key: d.id,
+            kind: 'Decision',
+            title: d.title,
+            to: `/projects/${slug.get(d.projectId)}`,
+          });
+    if (nodes.status === 'ready')
+      for (const n of nodes.data)
+        if (
+          !n.archived &&
+          n.kind !== 'section' &&
+          (has(n.title) || has(blocksOf(n).map(blockText).join(' ')))
+        )
+          out.push({
+            key: n.id,
+            kind: n.kind === 'table' ? 'SPACE table' : 'SPACE page',
+            title: n.title,
+            to: `/space/${n.id}`,
+          });
+    return out.slice(0, 24);
+  }, [query, all, milestones, items, open, closed, hacks, nodes, decisions]);
 
   return (
     <div role="search" className="p-3" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
@@ -116,7 +158,7 @@ export function AskPanel({ onClose }: { onClose: () => void }) {
           autoFocus
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search projects, milestones, tasks, hackathons…"
+          placeholder="Search projects, tasks, hackathons, SPACE, decisions…"
           className="min-w-0 flex-1 bg-transparent py-1 text-sm text-fg placeholder:text-fg-subtle focus:outline-none"
         />
       </div>

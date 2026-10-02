@@ -20,6 +20,8 @@ import {
 import { useEffect, useId, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useCompanion, useCompanionConnection } from '../hooks/useCompanion';
+import { CommandPalette } from '../features/home/AskPanel';
+import { PALETTE_EVENT } from '../features/home/shortcut';
 import { ModeBar } from '../features/modes/ModeBar';
 import { useModes } from '../features/modes/useModes';
 
@@ -66,6 +68,25 @@ const SECONDARY: Destination[] = [
  */
 export function Shell() {
   const { offTime } = useModes();
+  const [searching, setSearching] = useState(false);
+
+  // ⌘K / Ctrl K opens the command palette anywhere (v2 PHASE 014).
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setSearching(true);
+      }
+    };
+    const onAsk = () => setSearching(true);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener(PALETTE_EVENT, onAsk);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener(PALETTE_EVENT, onAsk);
+    };
+  }, []);
+
   return (
     <div
       className="min-h-dvh bg-canvas md:grid md:grid-cols-[var(--lt-rail)_minmax(0,1fr)]"
@@ -137,6 +158,7 @@ export function Shell() {
           Data &amp; backup
         </Link>
       </footer>
+      <CommandPalette open={searching} onClose={() => setSearching(false)} />
     </div>
   );
 }

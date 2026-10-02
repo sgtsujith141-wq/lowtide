@@ -1,5 +1,4 @@
 import { format } from 'date-fns';
-import { useEffect, useState } from 'react';
 import { gridStart, YEAR_WEEKS } from '../../components/shared/contribution-grid';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useNow } from '../../hooks/useNow';
@@ -8,8 +7,8 @@ import { fromLocalDate } from '../../lib/time';
 import { ModeActions } from '../modes/ModeActions';
 import { useProjectSummaries } from '../projects/useProjectSummaries';
 import { useDaySummaries } from '../pulse/useDaySummaries';
-import { CommandPalette } from './AskPanel';
 import { greeting } from './model';
+import { openPalette } from './shortcut';
 import { NeedsYou } from './NeedsYou';
 import { ProjectCommand } from './ProjectCommand';
 import { PulseHero } from './PulseHero';
@@ -28,21 +27,8 @@ export function HomePage() {
   useDocumentTitle('Home');
   const today = useToday();
   const now = useNow(true, 60_000);
-  const [searching, setSearching] = useState(false);
   const { days, status } = useDaySummaries(gridStart(today, YEAR_WEEKS), today);
   const projects = useProjectSummaries(today);
-
-  // ⌘K / Ctrl+K opens the search from anywhere on Home.
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
-        event.preventDefault();
-        setSearching(true);
-      }
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, []);
 
   return (
     <>
@@ -54,9 +40,8 @@ export function HomePage() {
             <time dateTime={today}>{format(fromLocalDate(today), 'EEEE d MMMM')}</time>
           </p>
         </div>
-        <ModeActions onAsk={() => setSearching(true)} />
+        <ModeActions onAsk={openPalette} />
       </div>
-      <CommandPalette open={searching} onClose={() => setSearching(false)} />
 
       <PulseHero today={today} days={days} ready={status === 'ready'} />
       {projects && <ProjectCommand summaries={projects.summaries} now={now} />}
