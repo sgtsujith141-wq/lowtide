@@ -57,24 +57,37 @@ function sentence({ event, title }: TimelineEntry): string {
  */
 export function Timeline({
   projectId,
+  day,
   limit = 8,
   showProject = true,
+  clamp = false,
   emptyText = 'Nothing has happened here yet. Activity appears as you work.',
 }: {
+  /** Long entries cut to two lines (Home). */
+  clamp?: boolean;
   projectId?: string;
+  /** Only that local day's events. */
+  day?: string;
   limit?: number;
   showProject?: boolean;
-  emptyText?: string;
+  /** Shown when there's nothing; `null` renders nothing at all. */
+  emptyText?: string | null;
 }) {
   const { events } = useRepositories();
   const watch = useMemo(
-    () => events.watchTimeline({ limit, ...(projectId ? { projectId } : {}) }),
-    [events, limit, projectId],
+    () =>
+      events.watchTimeline({
+        limit,
+        ...(projectId ? { projectId } : {}),
+        ...(day ? { day } : {}),
+      }),
+    [events, limit, projectId, day],
   );
   const entries = useWatch(watch);
   const now = new Date();
   if (entries.status !== 'ready') return null;
-  if (entries.data.length === 0) return <p className="py-2 text-sm text-fg-muted">{emptyText}</p>;
+  if (entries.data.length === 0)
+    return emptyText === null ? null : <p className="py-2 text-sm text-fg-muted">{emptyText}</p>;
   return (
     <ol className="relative ml-2 border-l border-line">
       {entries.data.map((entry) => {
@@ -84,7 +97,7 @@ export function Timeline({
             <span className="absolute top-0.5 -left-[9px] grid size-[18px] place-items-center rounded-full border border-line bg-raised">
               <Icon aria-hidden className="size-2.5 text-fg-muted" />
             </span>
-            <p className="text-sm leading-snug">
+            <p className={`text-sm leading-snug ${clamp ? 'line-clamp-2' : ''}`}>
               {sentence(entry)}
               {entry.event.source === 'ai-client' && (
                 <span className="ml-1 text-xs text-fg-muted">

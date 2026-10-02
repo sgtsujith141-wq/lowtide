@@ -1,6 +1,7 @@
 import { Moon, Play, Search } from 'lucide-react';
 import { useId, useMemo, useRef, useState, type FormEvent } from 'react';
 import { Button } from '../../components/ui/Button';
+import { shortcutLabel } from '../home/shortcut';
 import { ErrorNotice } from '../../components/ui/Notice';
 import { fieldClass, labelClass, segmentClass, segmentedClass } from '../../components/ui/styles';
 import { RecordStateError } from '../../db/repositories';
@@ -62,15 +63,22 @@ export function ModeActions({ onAsk }: { onAsk?: () => void }) {
           <Play aria-hidden className="size-4" /> Start Work
         </Button>
         <Button
+          aria-label="Sleep Mode"
           onClick={() => void sleep()}
           disabled={modes.offTime !== undefined}
           className="h-9 px-3.5"
         >
-          <Moon aria-hidden className="size-4" /> Sleep Mode
+          <Moon aria-hidden className="size-4" /> Sleep
         </Button>
         {onAsk && (
-          <Button onClick={onAsk} className="h-9 px-3.5">
-            <Search aria-hidden className="size-4" /> Ask LOWTIDE
+          <Button
+            onClick={onAsk}
+            aria-label={`Search LOWTIDE (${shortcutLabel()})`}
+            aria-keyshortcuts="Meta+K Control+K"
+            className="h-9 px-3"
+          >
+            <Search aria-hidden className="size-4" />
+            <kbd className="font-sans text-xs text-fg-muted">{shortcutLabel()}</kbd>
           </Button>
         )}
       </div>

@@ -45,19 +45,22 @@ export interface GridDay {
  * recent weeks.
  */
 
-const MAX_CELL = { sm: 12, md: 14, lg: 20 } as const;
+const MAX_CELL = { sm: 12, md: 14, lg: 20, xl: 30 } as const;
 const MIN_CELL = 6;
 /** The weekday column (w-7). */
 const LABELS = 28;
 
-function fitCell(width: number, weeks: number, size: keyof typeof MAX_CELL) {
+function fitCell(width: number, weeks: number, size: keyof typeof MAX_CELL, minCell: number) {
   for (const gap of [3, 2]) {
     const cell = Math.floor((width - LABELS - gap - 8) / weeks) - gap;
-    if (cell >= 9 || gap === 2) {
-      return { cell: Math.max(MIN_CELL, Math.min(MAX_CELL[size], cell)), gap };
+    if (cell >= 9 || gap === 2 || minCell >= 9) {
+      return {
+        cell: Math.max(minCell, Math.min(MAX_CELL[size], cell)),
+        gap: minCell >= 9 ? 3 : gap,
+      };
     }
   }
-  return { cell: MIN_CELL, gap: 2 };
+  return { cell: minCell, gap: 2 };
 }
 export const ContributionGrid = memo(function ContributionGrid({
   label,
@@ -66,6 +69,7 @@ export const ContributionGrid = memo(function ContributionGrid({
   palette,
   weeks = YEAR_WEEKS,
   size = 'md',
+  minCell = MIN_CELL,
   selected,
   onSelect,
   emptyLabel = 'nothing recorded',
@@ -79,7 +83,12 @@ export const ContributionGrid = memo(function ContributionGrid({
   days: ReadonlyMap<LocalDate, GridDay>;
   palette: GridPalette;
   weeks?: number;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  /**
+   * The smallest square (px). Below it the grid scrolls sideways instead of
+   * shrinking further (the Home hero keeps its squares readable on phones).
+   */
+  minCell?: number;
   selected?: LocalDate | null;
   onSelect?: (date: LocalDate) => void;
   emptyLabel?: string;
@@ -115,7 +124,7 @@ export const ContributionGrid = memo(function ContributionGrid({
     const fit = () => {
       const width = el.clientWidth;
       if (!width) return;
-      const next = fitCell(width, weeks, size);
+      const next = fitCell(width, weeks, size, minCell);
       setGeometry((g) => (g.cell === next.cell && g.gap === next.gap ? g : next));
     };
     fit();
@@ -123,15 +132,24 @@ export const ContributionGrid = memo(function ContributionGrid({
     const observer = new ResizeObserver(fit);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [weeks, size]);
+  }, [weeks, size, minCell]);
 
   const describe = (date: LocalDate): GridDay =>
     days.get(date) ?? { level: 0, label: `${longDay(date)}: ${emptyLabel}` };
 
+  // Months whose label would be clipped under the pinned weekday column are
+  // hidden while the grid is scrolled (no "c" left over from "Dec").
+  const [hiddenBefore, setHiddenBefore] = useState(0);
+  const pitch = geometry.cell + geometry.gap;
   useEffect(() => {
     const el = scroller.current;
-    if (el) el.scrollLeft = el.scrollWidth;
-  }, [weeks]);
+    if (!el) return;
+    el.scrollLeft = el.scrollWidth;
+    const onScroll = () => setHiddenBefore(Math.ceil(el.scrollLeft / pitch));
+    onScroll();
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [weeks, pitch]);
 
   function showTip(date: LocalDate, cell: HTMLElement) {
     const box = scroller.current;
@@ -182,7 +200,7 @@ export const ContributionGrid = memo(function ContributionGrid({
               <span className={`sticky left-0 z-[1] w-7 shrink-0 ${pinned}`} />
               {months.map((month, i) => (
                 <span key={i} className="w-(--cell) shrink-0 overflow-visible whitespace-nowrap">
-                  {month}
+                  {i >= hiddenBefore ? month : null}
                 </span>
               ))}
             </div>

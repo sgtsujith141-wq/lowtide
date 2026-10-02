@@ -1,33 +1,32 @@
-import { AlertOctagon, CalendarClock, Hand, Trophy } from 'lucide-react';
+import {
+  AlertOctagon,
+  CalendarClock,
+  GraduationCap,
+  Hand,
+  Trophy,
+  type LucideIcon,
+} from 'lucide-react';
 import { useMemo } from 'react';
 import { Link } from 'react-router';
 import { useRepositories } from '../../hooks/useRepositories';
 import { useWatch } from '../../hooks/useWatch';
 import { addDays } from '../../lib/calendar';
-import { localDateOfDeadline } from '../../lib/time';
 import type { LocalDate } from '../../types/domain';
-import { hackathonsForToday } from '../hackathons/schedule';
-import { isLive } from '../projects/summary';
+import { groupNeeds, type NeedKind } from './model';
 
-interface Need {
-  key: string;
-  tone: 'approval' | 'blocked' | 'due' | 'hackathon';
-  title: string;
-  context: string;
-  to: string;
-}
-
-const TONE = {
+const KIND: Record<NeedKind, { icon: LucideIcon; tint: string; label: string }> = {
   approval: { icon: Hand, tint: 'text-warn', label: 'Needs approval' },
-  blocked: { icon: AlertOctagon, tint: 'text-danger', label: 'Blocked' },
-  due: { icon: CalendarClock, tint: 'text-warn', label: 'Due' },
+  blocker: { icon: AlertOctagon, tint: 'text-danger', label: 'Blocked' },
+  overdue: { icon: CalendarClock, tint: 'text-warn', label: 'Overdue' },
+  due: { icon: CalendarClock, tint: 'text-fg-muted', label: 'Due today' },
   hackathon: { icon: Trophy, tint: 'text-accent-ink', label: 'Hackathon' },
-} as const;
+  college: { icon: GraduationCap, tint: 'text-college-4', label: 'College' },
+};
 
 /**
- * Needs You: what only you can move. Open approvals, open blockers, projects
- * waiting on your approval or blocked, deadlines due or overdue, and
- * hackathon deadlines this week. Empty is good news, said plainly.
+ * Needs You (v2 PHASE 012), grouped by what each thing belongs to:
+ * approvals and blockers by name, deadlines counted per project. Hidden when
+ * nothing needs you.
  */
 export function NeedsYou({ today }: { today: LocalDate }) {
   const { projects, tasks, hackathons, college } = useRepositories();
@@ -42,7 +41,7 @@ export function NeedsYou({ today }: { today: LocalDate }) {
   const day = useWatch(watchDay);
   const hacks = useWatch(hackathons.watchAll);
 
-  const needs = useMemo<Need[] | null>(() => {
+  const groups = useMemo(() => {
     if (
       all.status !== 'ready' ||
       items.status !== 'ready' ||
@@ -51,102 +50,63 @@ export function NeedsYou({ today }: { today: LocalDate }) {
       coursework.status !== 'ready'
     )
       return null;
-    const byId = new Map(all.data.map((p) => [p.id, p]));
-    const list: Need[] = [];
-    for (const item of items.data) {
-      const project = byId.get(item.projectId);
-      if (!project || !isLive(project)) continue;
-      if (item.lane === 'needs_approval' || item.lane === 'blocked') {
-        list.push({
-          key: item.id,
-          tone: item.lane === 'needs_approval' ? 'approval' : 'blocked',
-          title: item.title,
-          context: project.name,
-          to: `/projects/${project.slug}`,
-        });
-      }
-    }
-    for (const project of all.data) {
-      if (project.state !== 'needs_approval' && project.state !== 'blocked') continue;
-      if (list.some((n) => n.context === project.name)) continue;
-      list.push({
-        key: project.id,
-        tone: project.state === 'needs_approval' ? 'approval' : 'blocked',
-        title:
-          project.state === 'needs_approval' ? 'Waiting for your approval' : 'Project is blocked',
-        context: project.name,
-        to: `/projects/${project.slug}`,
-      });
-    }
-    for (const task of day.data) {
-      if (!task.dueAt || localDateOfDeadline(task.dueAt) > today) continue;
-      const overdue = localDateOfDeadline(task.dueAt) < today;
-      list.push({
-        key: task.id,
-        tone: 'due',
-        title: task.title,
-        context: overdue ? 'Overdue' : 'Due today',
-        to: '/today',
-      });
-    }
-    for (const item of coursework.data) {
-      if (item.status !== 'planned' || item.kind === 'class' || item.kind === 'lab') continue;
-      list.push({
-        key: item.id,
-        tone: 'due',
-        title: item.title,
-        context: `College ${item.kind} · ${item.date < today ? 'overdue' : 'due today'}`,
-        to: '/life',
-      });
-    }
-    for (const row of hackathonsForToday(hacks.data, today).rows) {
-      list.push({
-        key: row.hackathon.id,
-        tone: 'hackathon',
-        title: row.hackathon.name,
-        context: row.label,
-        to: '/hackathons',
-      });
-    }
-    return list;
+    return groupNeeds({
+      today,
+      projects: all.data,
+      items: items.data,
+      dayTasks: day.data,
+      hackathons: hacks.data,
+      coursework: coursework.data,
+    });
   }, [all, items, day, hacks, coursework, today]);
 
-  if (!needs) return null;
+  if (!groups || groups.length === 0) return null;
   return (
-    <section aria-labelledby="needs-heading" className="mt-10 border-t border-line pt-6">
+    <section aria-labelledby="needs-heading" className="mt-12">
       <h2 id="needs-heading" className="flex items-baseline gap-2 text-section font-semibold">
         Needs you
-        {needs.length > 0 && (
-          <span className="figure text-sm font-semibold text-warn">{needs.length}</span>
-        )}
+        <span className="figure text-sm font-semibold text-warn">{groups.length}</span>
       </h2>
-      {needs.length === 0 ? (
-        <p className="mt-2 text-sm text-fg-muted">Nothing is waiting on you.</p>
-      ) : (
-        <ul className="mt-3 grid gap-x-8 border-t border-line sm:grid-cols-2 [&>li]:border-b [&>li]:border-line">
-          {needs.map((need) => {
-            const tone = TONE[need.tone];
-            const Icon = tone.icon;
-            return (
-              <li key={need.key}>
-                <Link
-                  to={need.to}
-                  className="-mx-2 flex items-start gap-3 rounded-md px-2 py-2.5 transition-colors duration-150 hover:bg-hover"
-                >
-                  <Icon aria-hidden className={`mt-0.5 size-4 shrink-0 ${tone.tint}`} />
-                  <span className="min-w-0">
-                    <span className="block text-sm leading-snug font-medium">{need.title}</span>
-                    <span className="block text-xs text-fg-muted">
-                      <span className={tone.tint}>{tone.label}</span>
-                      <span className="ml-2">{need.context}</span>
-                    </span>
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      <ul className="mt-3 grid gap-x-10 border-t border-line md:grid-cols-2 2xl:grid-cols-3">
+        {groups.map((group) => (
+          <li key={group.key} className="border-b border-line">
+            <Link
+              to={group.to}
+              className="-mx-2 block rounded-md px-2 py-3 transition-colors duration-150 hover:bg-hover"
+            >
+              <span className="flex items-center gap-2 text-sm font-semibold">
+                <span
+                  aria-hidden
+                  className={`size-1.5 rounded-full ${group.urgent ? 'bg-danger' : 'bg-fg-subtle'}`}
+                />
+                {group.label}
+              </span>
+              <ul className="mt-1 space-y-0.5 pl-3.5">
+                {group.lines.slice(0, 3).map((line) => {
+                  const kind = KIND[line.kind];
+                  const Icon = kind.icon;
+                  return (
+                    <li key={line.key} className="flex items-start gap-2 text-sm leading-snug">
+                      <Icon aria-hidden className={`mt-0.5 size-3.5 shrink-0 ${kind.tint}`} />
+                      <span className="min-w-0">
+                        {(line.kind === 'approval' ||
+                          line.kind === 'blocker' ||
+                          line.kind === 'hackathon') && (
+                          <span className={`${kind.tint} mr-1.5 text-xs`}>{kind.label}</span>
+                        )}
+                        {line.text}
+                      </span>
+                    </li>
+                  );
+                })}
+                {group.lines.length > 3 && (
+                  <li className="text-xs text-fg-subtle">+{group.lines.length - 3} more</li>
+                )}
+              </ul>
+            </Link>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

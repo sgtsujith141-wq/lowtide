@@ -1,61 +1,70 @@
 import { format } from 'date-fns';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { gridStart, YEAR_WEEKS } from '../../components/shared/contribution-grid';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
+import { useNow } from '../../hooks/useNow';
 import { useToday } from '../../hooks/useToday';
 import { fromLocalDate } from '../../lib/time';
 import { ModeActions } from '../modes/ModeActions';
-import { AskPanel } from './AskPanel';
+import { useProjectSummaries } from '../projects/useProjectSummaries';
+import { useDaySummaries } from '../pulse/useDaySummaries';
+import { CommandPalette } from './AskPanel';
+import { greeting } from './model';
 import { NeedsYou } from './NeedsYou';
-import { ProjectCards } from './ProjectCards';
-import { PulseSection, SecondaryGrids } from './PulseSection';
-import { Timeline } from '../activity/Timeline';
-import { TodaySummary } from './TodaySummary';
+import { ProjectCommand } from './ProjectCommand';
+import { PulseHero } from './PulseHero';
+import { RecentActivity } from './RecentActivity';
+import { RhythmPreview } from './RhythmPreview';
+import { TodayStrip } from './TodayStrip';
 
 /**
- * Home (ADR-043), in order: actions (Start Work, Sleep Mode, Ask LOWTIDE);
- * the year of Daily Pulse; project command summary; what needs you; a compact
- * Today; recent activity; then the individual rhythm grids. The gym is not a
- * Home card.
+ * Home v3 (v2 PHASE 012). Understood in seconds, top to bottom:
+ * how the year is going (the Daily Pulse), which projects are moving
+ * (Project Command), what needs you, today in figures and what's next, the
+ * latest few events, and one rhythm at a time. Deeper detail lives on its
+ * own screen; sections with nothing to say stay hidden.
  */
 export function HomePage() {
   useDocumentTitle('Home');
   const today = useToday();
-  const [asking, setAsking] = useState(false);
+  const now = useNow(true, 60_000);
+  const [searching, setSearching] = useState(false);
+  const { days, status } = useDaySummaries(gridStart(today, YEAR_WEEKS), today);
+  const projects = useProjectSummaries(today);
+
+  // ⌘K / Ctrl+K opens the search from anywhere on Home.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setSearching(true);
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
 
   return (
     <>
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-        <h1 className="text-page font-semibold">Home</h1>
-        <p className="text-sm text-fg-muted">
-          <time dateTime={today}>{format(fromLocalDate(today), 'EEEE d MMMM')}</time>
-        </p>
-      </div>
-
-      <div className="mt-4">
-        <ModeActions onAsk={() => setAsking((v) => !v)} />
-        {asking && <AskPanel onClose={() => setAsking(false)} />}
-      </div>
-
-      <PulseSection today={today} />
-      <ProjectCards today={today} />
-      <NeedsYou today={today} />
-      <TodaySummary today={today} />
-
-      <section
-        aria-labelledby="recent-heading"
-        className="mt-10 border-t border-line pt-6"
-        data-nonessential
-      >
-        <h2 id="recent-heading" className="text-section font-semibold">
-          Recent activity
-        </h2>
-        <div className="mt-3">
-          <Timeline limit={8} />
+      <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
+        <div className="min-w-0">
+          <h1 className="sr-only">Home</h1>
+          <p className="text-page font-semibold">{greeting(now)}.</p>
+          <p className="mt-0.5 text-sm text-fg-muted">
+            <time dateTime={today}>{format(fromLocalDate(today), 'EEEE d MMMM')}</time>
+          </p>
         </div>
-      </section>
+        <ModeActions onAsk={() => setSearching(true)} />
+      </div>
+      <CommandPalette open={searching} onClose={() => setSearching(false)} />
 
+      <PulseHero today={today} days={days} ready={status === 'ready'} />
+      {projects && <ProjectCommand summaries={projects.summaries} now={now} />}
+      <NeedsYou today={today} />
+      {projects && <TodayStrip today={today} summaries={projects.summaries} now={now} />}
+      <RecentActivity />
       <div data-nonessential>
-        <SecondaryGrids today={today} />
+        <RhythmPreview today={today} days={days} />
       </div>
     </>
   );

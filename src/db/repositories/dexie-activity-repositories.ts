@@ -50,10 +50,15 @@ export function createDexieEventRepository(deps: RepositoryDeps): EventRepositor
   }
 
   async function recent(query: EventQuery | undefined) {
-    const source = query?.projectId
-      ? db.events.where('projectId').equals(query.projectId)
-      : db.events.toCollection();
-    const events = (await source.toArray()).filter(visible(query)).sort(newestFirst);
+    const source = query?.day
+      ? db.events.where('localDate').equals(query.day)
+      : query?.projectId
+        ? db.events.where('projectId').equals(query.projectId)
+        : db.events.toCollection();
+    const events = (await source.toArray())
+      .filter(visible(query))
+      .filter((e) => query?.projectId === undefined || e.projectId === query.projectId)
+      .sort(newestFirst);
     return query?.limit ? events.slice(0, query.limit) : events;
   }
 

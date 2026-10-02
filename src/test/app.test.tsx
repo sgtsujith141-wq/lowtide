@@ -35,7 +35,7 @@ describe('App shell', () => {
     expect(launcher).toHaveAttribute('aria-expanded', 'false');
     expect(screen.queryByRole('navigation', { name: 'More destinations' })).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { level: 1, name: 'Home' })).toBeInTheDocument();
-    for (const name of ['Start Work', 'Sleep Mode', 'Ask LOWTIDE'])
+    for (const name of ['Start Work', 'Sleep Mode', /^Search LOWTIDE/])
       expect(screen.getByRole('button', { name })).toBeInTheDocument();
     await vi.waitFor(() => expect(document.title).toBe('Home · LOWTIDE')); // set in an effect
   });
