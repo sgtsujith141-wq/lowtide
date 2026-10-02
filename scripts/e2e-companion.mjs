@@ -127,6 +127,8 @@ try {
   await page.getByRole('button', { name: 'New project' }).click();
   const form = page.getByRole('form', { name: 'New project' });
   await form.getByLabel('Name').fill('Engine');
+  await form.getByLabel('Purpose').fill('Runs the local companion.');
+  await form.getByText('More options').click();
   await form.getByLabel(/Objective/).fill('Ship the companion');
   await form.getByRole('button', { name: 'Create project' }).click();
   await page.getByRole('heading', { level: 1, name: 'Engine' }).waitFor();
@@ -175,7 +177,7 @@ try {
   const grant = page.getByRole('form', { name: 'Give an AI client access' });
   // Custom access: one project, reading plus the changes this run makes.
   await grant.getByRole('radio', { name: /^Custom/ }).check();
-  await grant.getByRole('radio', { name: 'One project' }).check();
+  await grant.getByRole('radio', { name: 'One project', exact: true }).check();
   for (const permission of [
     'Edit projects (details, state, focus, pins)',
     'Blockers, waiting, parked ideas and approval requests',
@@ -265,6 +267,7 @@ try {
     .getByRole('region', { name: 'AI clients' })
     .getByText('Connected', { exact: true })
     .waitFor({ timeout: 10000 });
+  await page.getByText('Technical log', { exact: true }).click();
   await page
     .getByRole('list', { name: 'AI activity' })
     .getByText(/^Claude Code resolved an approval/)

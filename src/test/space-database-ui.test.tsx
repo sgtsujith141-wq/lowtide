@@ -43,6 +43,32 @@ async function open(r: Repositories, id: string) {
 const latest = async (r: Repositories, id: string) => (await r.space.get(id))!.table!;
 
 describe('SPACE databases (v2.1)', () => {
+  it('draws a big board column 50 cards at a time', async () => {
+    const rows = Array.from({ length: 60 }, (_, i) => ({
+      id: `r${i}`,
+      cells: { name: `Card ${i + 1}`, stage: 'Todo' },
+    }));
+    const db = newDb();
+    await db.open();
+    const r = createDexieRepositories(db);
+    const ideas = (await r.space.ensureRoots()).find((n) => n.key === 'ideas')!;
+    const node = await r.space.create({
+      parentId: ideas.id,
+      title: 'Big board',
+      table: {
+        columns: [{ id: 'name', name: 'Name', type: 'text' }, stage],
+        rows,
+        views: [{ id: 'v', name: 'Board', type: 'board', groupBy: 'stage' }],
+      },
+    });
+    const { user } = await open(r, node.id);
+    const todo = await screen.findByRole('region', { name: 'Todo' });
+    expect(within(todo).getAllByRole('listitem')).toHaveLength(50);
+    await user.click(within(todo).getByRole('button', { name: 'Show 10 more (10 hidden)' }));
+    expect(within(todo).getAllByRole('listitem')).toHaveLength(60);
+    expect(within(todo).queryByRole('button', { name: /Show .* more/ })).toBeNull();
+  });
+
   it('adds a property, and refuses a type change that would lose values', async () => {
     const { r, node } = await seed();
     const { user } = await open(r, node.id);

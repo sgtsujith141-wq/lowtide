@@ -35,13 +35,13 @@ function WorkBar({ session }: { session: WorkSession }) {
           type="button"
           onClick={() => api.setFocusOpen(true)}
           aria-label={`Open Work Mode (${workShortcutLabel()})`}
-          className="group flex min-w-0 flex-1 items-center gap-2.5 rounded-md py-1 text-left text-sm"
+          className="group flex min-w-[9rem] flex-1 items-center gap-2.5 rounded-md py-1 text-left text-sm"
         >
           <span
             aria-hidden
             className={`size-2 shrink-0 rounded-full bg-work-3 ${paused ? 'opacity-40' : ''}`}
           />
-          <span className={`font-medium ${paused ? 'text-fg-muted' : ''}`}>
+          <span className={`shrink-0 font-medium ${paused ? 'text-fg-muted' : ''}`}>
             {paused ? 'Paused' : 'Working'}
           </span>
           <span className="min-w-0 truncate text-fg-muted group-hover:text-fg">

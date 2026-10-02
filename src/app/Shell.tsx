@@ -122,7 +122,7 @@ function Frame() {
 
         <header
           data-recede
-          className="sticky top-0 z-20 flex h-12 transition-[background-color,border-color] duration-700 items-center gap-2 border-b border-line bg-canvas/95 px-3 backdrop-blur md:h-dvh md:flex-col md:items-center md:gap-3 md:border-r md:border-b-0 md:px-0 md:py-3 md:backdrop-blur-none"
+          className="sticky top-0 z-20 flex h-12 transition-[background-color,border-color] duration-700 items-center gap-2 border-b border-line bg-canvas/95 px-3 backdrop-blur max-[359px]:gap-1 max-[359px]:px-2 md:h-dvh md:flex-col md:items-center md:gap-3 md:border-r md:border-b-0 md:px-0 md:py-3 md:backdrop-blur-none"
         >
           <Link
             to="/"
@@ -188,7 +188,7 @@ function RailLink({ to, label, icon: Icon, end }: Destination) {
       to={to}
       end={end ?? false}
       className={({ isActive }) =>
-        `group relative flex h-11 min-w-12 flex-col items-center justify-center gap-1 rounded-md px-1.5 text-[10px] leading-none transition-colors md:size-10 md:min-w-0 md:px-0 ${
+        `group relative flex h-11 min-w-12 flex-col items-center justify-center gap-1 rounded-md px-1.5 text-[10px] max-[359px]:px-0.5 leading-none transition-colors md:size-10 md:min-w-0 md:px-0 ${
           isActive ? 'text-fg' : 'text-fg-muted hover:bg-hover hover:text-fg'
         }`
       }

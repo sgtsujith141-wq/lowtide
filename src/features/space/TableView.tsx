@@ -465,7 +465,7 @@ function TableLayout({
         tabIndex={0}
         role="region"
         aria-label={`${node.title}, scrolls sideways`}
-        className="overflow-x-auto rounded-md border border-line"
+        className="relative overflow-x-auto rounded-md border border-line"
       >
         <table className="w-full border-collapse text-left text-sm">
           <caption className="sr-only">{node.title}</caption>

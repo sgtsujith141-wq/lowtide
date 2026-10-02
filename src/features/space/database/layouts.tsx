@@ -14,6 +14,29 @@ import type {
 import { Cell } from './Cell';
 import { display, isDateLike, rowTitle } from './model';
 
+/** Cards (or list lines) drawn per group before “Show more”: big databases stay quick. */
+const CARDS = 50;
+/** Rows shown in a calendar day before “+N more”. */
+const PER_DAY = 4;
+
+/** How many of each group's rows are shown, growing by CARDS on request. */
+function useShown() {
+  const [shown, setShown] = useState<Record<string, number>>({});
+  return {
+    limit: (key: string) => shown[key] ?? CARDS,
+    more: (key: string) => setShown((s) => ({ ...s, [key]: (s[key] ?? CARDS) + CARDS })),
+  };
+}
+
+function ShowMore({ total, limit, onMore }: { total: number; limit: number; onMore: () => void }) {
+  if (total <= limit) return null;
+  return (
+    <Button size="sm" variant="ghost" className="mt-1 self-start" onClick={onMore}>
+      Show {Math.min(CARDS, total - limit)} more ({total - limit} hidden)
+    </Button>
+  );
+}
+
 /*
  * The other ways to see a database (v2.1): a board grouped by a choice, a
  * compact list, and a month calendar by a date. Each reads the same rows a
@@ -75,6 +98,7 @@ export function BoardLayout({
 }: LayoutProps) {
   const group = table.columns.find((c) => c.id === view.groupBy);
   const [over, setOver] = useState<string | null>(null);
+  const shown = useShown();
   if (!group || !result.groups)
     return (
       <p className="text-sm text-fg-muted">
@@ -89,7 +113,11 @@ export function BoardLayout({
     if (rowId) setCell(rowId, group.id, key || null);
   };
   return (
-    <div className="flex gap-3 overflow-x-auto pb-2" role="group" aria-label={`${view.name} board`}>
+    <div
+      className="relative flex gap-3 overflow-x-auto pb-2"
+      role="group"
+      aria-label={`${view.name} board`}
+    >
       {result.groups.map((g) => {
         const name = g.key || `No ${group.name}`;
         return (
@@ -110,7 +138,7 @@ export function BoardLayout({
               <span className="font-normal text-fg-muted">{g.rows.length}</span>
             </h3>
             <ul className="flex flex-col gap-1.5">
-              {g.rows.map((r) => (
+              {g.rows.slice(0, shown.limit(g.key)).map((r) => (
                 <li
                   key={r.id}
                   draggable={editable}
@@ -148,6 +176,11 @@ export function BoardLayout({
                 </li>
               ))}
             </ul>
+            <ShowMore
+              total={g.rows.length}
+              limit={shown.limit(g.key)}
+              onMore={() => shown.more(g.key)}
+            />
             {editable && (
               <Button
                 size="sm"
@@ -167,6 +200,7 @@ export function BoardLayout({
 
 export function ListLayout({ table, result, ctx, openRow, view }: LayoutProps) {
   const group = table.columns.find((c) => c.id === view.groupBy);
+  const shown = useShown();
   const line = (r: SpaceRow) => (
     <li key={r.id} className="border-b border-line py-2 last:border-0">
       <button
@@ -182,9 +216,16 @@ export function ListLayout({ table, result, ctx, openRow, view }: LayoutProps) {
   if (result.rows.length === 0) return <p className="text-sm text-fg-muted">No rows match.</p>;
   if (!group || !result.groups)
     return (
-      <ul aria-label={view.name} className="rounded-md border border-line px-3">
-        {result.rows.map(line)}
-      </ul>
+      <div className="flex flex-col">
+        <ul aria-label={view.name} className="rounded-md border border-line px-3">
+          {result.rows.slice(0, shown.limit('')).map(line)}
+        </ul>
+        <ShowMore
+          total={result.rows.length}
+          limit={shown.limit('')}
+          onMore={() => shown.more('')}
+        />
+      </div>
     );
   return (
     <div className="space-y-4">
@@ -195,7 +236,14 @@ export function ListLayout({ table, result, ctx, openRow, view }: LayoutProps) {
             <h3 className="mb-1 text-xs font-semibold text-fg-muted">
               {g.key || `No ${group.name}`} · {g.rows.length}
             </h3>
-            <ul className="rounded-md border border-line px-3">{g.rows.map(line)}</ul>
+            <ul className="rounded-md border border-line px-3">
+              {g.rows.slice(0, shown.limit(g.key)).map(line)}
+            </ul>
+            <ShowMore
+              total={g.rows.length}
+              limit={shown.limit(g.key)}
+              onMore={() => shown.more(g.key)}
+            />
           </section>
         ))}
     </div>
@@ -222,6 +270,7 @@ export function CalendarLayout({ table, view, result, ctx, openRow }: LayoutProp
     ),
   );
   const headingId = useId();
+  const daysOpen = useShown();
   if (!column)
     return (
       <p className="text-sm text-fg-muted">
@@ -286,18 +335,29 @@ export function CalendarLayout({ table, view, result, ctx, openRow }: LayoutProp
                 <>
                   <span className="text-fg-muted">{Number(day.slice(8))}</span>
                   <ul>
-                    {(byDay.get(day) ?? []).map((r) => (
-                      <li key={r.id}>
-                        <button
-                          type="button"
-                          onClick={() => openRow(r.id)}
-                          className="block w-full truncate rounded bg-hover px-1 text-left hover:underline"
-                        >
-                          {rowTitle(table, r)}
-                        </button>
-                      </li>
-                    ))}
+                    {(byDay.get(day) ?? [])
+                      .slice(0, daysOpen.limit(day) === CARDS ? PER_DAY : undefined)
+                      .map((r) => (
+                        <li key={r.id}>
+                          <button
+                            type="button"
+                            onClick={() => openRow(r.id)}
+                            className="block w-full truncate rounded bg-hover px-1 text-left hover:underline"
+                          >
+                            {rowTitle(table, r)}
+                          </button>
+                        </li>
+                      ))}
                   </ul>
+                  {daysOpen.limit(day) === CARDS && (byDay.get(day)?.length ?? 0) > PER_DAY && (
+                    <button
+                      type="button"
+                      onClick={() => daysOpen.more(day)}
+                      className="px-1 text-fg-muted hover:text-fg hover:underline"
+                    >
+                      +{(byDay.get(day)?.length ?? 0) - PER_DAY} more
+                    </button>
+                  )}
                 </>
               )}
             </div>
@@ -308,7 +368,7 @@ export function CalendarLayout({ table, view, result, ctx, openRow }: LayoutProp
         <section aria-label="No date" className="mt-3">
           <h3 className="mb-1 text-xs font-semibold text-fg-muted">No date · {undated.length}</h3>
           <ul className="flex flex-wrap gap-1.5">
-            {undated.map((r) => (
+            {undated.slice(0, daysOpen.limit('')).map((r) => (
               <li key={r.id}>
                 <button
                   type="button"
@@ -320,6 +380,11 @@ export function CalendarLayout({ table, view, result, ctx, openRow }: LayoutProp
               </li>
             ))}
           </ul>
+          <ShowMore
+            total={undated.length}
+            limit={daysOpen.limit('')}
+            onMore={() => daysOpen.more('')}
+          />
         </section>
       )}
     </div>

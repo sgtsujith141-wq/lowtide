@@ -1883,7 +1883,7 @@ function GridEditor({
         tabIndex={0}
         role="region"
         aria-label="Simple table, scrolls sideways"
-        className="overflow-x-auto rounded-md border border-line"
+        className="relative overflow-x-auto rounded-md border border-line"
       >
         <table className="w-full border-collapse text-left text-sm">
           <tbody>

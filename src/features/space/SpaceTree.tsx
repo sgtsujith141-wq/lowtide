@@ -534,7 +534,7 @@ function TreeRow({
         style={{ paddingLeft: 6 + (row.level - 1) * 14 }}
         className={`group/row flex h-8 cursor-pointer items-center gap-1 rounded-md pr-1 text-[13px] transition-colors ${
           active ? 'bg-hover font-medium text-fg' : 'text-fg-muted hover:bg-hover/70 hover:text-fg'
-        } ${node?.archived || row.project ? 'opacity-60' : ''} ${
+        } ${node?.archived || row.project ? 'italic [&>svg]:opacity-60' : ''} ${
           dropZone === 'inside' ? 'ring-1 ring-accent' : ''
         } ${dropZone === 'before' ? 'shadow-[0_-2px_0_var(--lt-accent)]' : dropZone === 'after' ? 'shadow-[0_2px_0_var(--lt-accent)]' : ''}`}
       >
