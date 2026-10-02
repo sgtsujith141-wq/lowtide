@@ -1,21 +1,24 @@
-import { Plus } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowRight, Plus } from 'lucide-react';
+import { useMemo, useRef, useState } from 'react';
+import { Drawer } from '../../components/layout';
 import { Button } from '../../components/ui/Button';
 import { Announcer, ErrorNotice } from '../../components/ui/Notice';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useRepositories } from '../../hooks/useRepositories';
 import { useToday } from '../../hooks/useToday';
 import { useWatch } from '../../hooks/useWatch';
-import type { Hackathon } from '../../types/domain';
+import type { Hackathon, LocalDate } from '../../types/domain';
 import { HackathonForm } from './HackathonForm';
 import { HackathonSheet } from './HackathonSheet';
 import { STATUS_LABEL } from './labels';
-import { isOpen, orderHackathons } from './schedule';
+import { isOpen, orderHackathons, primaryMoment } from './schedule';
+import { StageRail } from './StageRail';
 
 /**
- * Hackathons: every event you're considering or in, soonest meaningful date
- * first, each with its next action and where registration, PPT and build
- * stand. Finished and dropped ones stay under Past (ADR-027–029).
+ * Hackathons (v2 PHASE 016): a scannable progress view. Each hackathon is one
+ * row: name, how soon, its stage rail, the next action and its status. Open
+ * one to edit it in a side sheet; nothing else shows its controls until then.
+ * Finished and dropped ones stay under Past (ADR-027–029).
  */
 export function HackathonsPage() {
   useDocumentTitle('Hackathons');
@@ -33,20 +36,12 @@ export function HackathonsPage() {
   );
   const all = useWatch(hackathons.watchAll);
   const [adding, setAdding] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [busyId, setBusyId] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState('');
   const addButton = useRef<HTMLButtonElement>(null);
-  const pastSummary = useRef<HTMLElement>(null);
-  /**
-   * Where focus goes once the list shows a change: an id (its Edit button) or
-   * 'past' (the Past summary). `inOpen` means the Edit button must be in the
-   * open list, so a stale render with the sheet still under Past can't take it.
-   */
-  const focusAfterUpdate = useRef<string | null>(null);
-  const focusInOpenList = useRef(false);
-  const openList = useRef<HTMLUListElement>(null);
 
   const list = useMemo(() => (all.status === 'ready' ? all.data : []), [all]);
   const open = useMemo(() => orderHackathons(list.filter(isOpen), today), [list, today]);
@@ -57,195 +52,197 @@ export function HackathonsPage() {
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id)),
     [list],
   );
+  const current = openId ? list.find((h) => h.id === openId) : undefined;
 
-  // Once the list re-renders after a save, put focus where the item now is:
-  // its Edit button, or the Past summary if it moved there.
-  useEffect(() => {
-    const target = focusAfterUpdate.current;
-    if (!target) return;
-    const scope = focusInOpenList.current ? openList.current : document;
-    const el =
-      target === 'past'
-        ? pastSummary.current
-        : (scope?.querySelector<HTMLElement>(`[data-hackathon-edit="${CSS.escape(target)}"]`) ??
-          null);
-    if (!el) return;
-    focusAfterUpdate.current = null;
-    focusInOpenList.current = false;
-    el.focus();
-  }, [all, editingId, adding]);
-
-  // Status selects stay enabled while saving (disabling a focused control
-  // drops keyboard focus); a second change during a save is ignored instead.
-  async function run(h: Hackathon, action: () => Promise<Hackathon>, message: string) {
-    if (busyId === h.id) return null;
-    setBusyId(h.id);
+  async function run(action: () => Promise<unknown>, message: string) {
+    if (busy) return false;
+    setBusy(true);
     setError(null);
     try {
-      const updated = await action();
+      await action();
       setAnnouncement(message);
-      return updated;
+      return true;
     } catch {
       setError('Couldn’t save that. Nothing changed.');
-      return null;
+      return false;
     } finally {
-      setBusyId(null);
+      setBusy(false);
     }
   }
 
-  function renderSheet(h: Hackathon) {
-    if (editingId === h.id) {
-      return (
-        <li key={h.id}>
-          <HackathonForm
-            initial={h}
-            quick={false}
-            formLabel={`Edit ${h.name}`}
-            submitLabel="Save"
-            onSave={async (changes) => {
-              const updated = await hackathons.update(h.id, changes);
-              setEditingId(null);
-              setAnnouncement(`Saved ${updated.name}.`);
-              focusAfterUpdate.current = isOpen(h) && !isOpen(updated) ? 'past' : h.id;
-            }}
-            onCancel={() => {
-              setEditingId(null);
-              focusAfterUpdate.current = h.id;
-            }}
-          />
-        </li>
-      );
-    }
-    return (
-      <li key={h.id}>
-        <HackathonSheet
-          hackathon={h}
-          today={today}
-          busy={busyId === h.id}
-          project={h.projectId ? projectsById.get(h.projectId) : undefined}
-          onTrackProject={() =>
-            void run(
-              h,
-              async () => {
-                await projects.createFromHackathon(h.id);
-                return h;
-              },
-              `${h.name}: the build is now a project.`,
-            )
-          }
-          onUnlinkProject={() =>
-            void run(
-              h,
-              () => hackathons.update(h.id, { projectId: null }),
-              `${h.name}: unlinked from its project.`,
-            )
-          }
-          onEdit={() => setEditingId(h.id)}
-          onStatus={(field, value) => {
-            // Decide where focus goes before saving: the live list can re-render
-            // with the moved sheet before the save's promise resolves, and the
-            // effect only looks for a target when the list changes.
-            const moves = isOpen({ ...h, [field]: value } as Hackathon) !== isOpen(h);
-            if (moves) {
-              focusAfterUpdate.current = isOpen(h) ? 'past' : h.id;
-              focusInOpenList.current = !isOpen(h);
-            }
-            void run(
-              h,
-              () => hackathons.update(h.id, { [field]: value }),
-              field === 'status'
-                ? `${h.name}: ${STATUS_LABEL[value as Hackathon['status']]}`
-                : `${h.name} updated`,
-            ).then((updated) => {
-              if (!updated && moves) focusAfterUpdate.current = null;
-            });
-          }}
-          onNextAction={async (value) =>
-            (await run(
-              h,
-              () => hackathons.update(h.id, { nextAction: value }),
-              `Next action saved for ${h.name}.`,
-            )) !== null
-          }
-        />
-      </li>
-    );
-  }
+  const close = () => {
+    setOpenId(null);
+    setEditing(false);
+  };
 
   if (all.status === 'loading') return null;
 
   return (
     <>
-      <h1 className="text-page font-semibold">Hackathons</h1>
-      <p className="mt-1 text-sm text-fg-muted">What’s coming up, and the next step for each.</p>
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <h1 className="text-page font-semibold">Hackathons</h1>
+        {!adding && (
+          <Button ref={addButton} variant="primary" onClick={() => setAdding(true)}>
+            <Plus aria-hidden className="size-4" /> Add hackathon
+          </Button>
+        )}
+      </div>
 
       {all.status === 'error' && (
         <ErrorNotice>Couldn’t read your hackathons. Try reloading.</ErrorNotice>
       )}
-      {error && <ErrorNotice>{error}</ErrorNotice>}
+      {error && !current && <ErrorNotice>{error}</ErrorNotice>}
 
-      <section aria-labelledby="coming-up-heading" className="mt-5">
-        <div className="flex min-h-8 items-end justify-between gap-3 border-b border-line pb-1">
-          <h2 id="coming-up-heading" className="text-section font-semibold">
-            Coming up{open.length > 0 ? ` · ${open.length}` : ''}
-          </h2>
-          {!adding && (
-            <Button
-              ref={addButton}
-              variant="ghost"
-              onClick={() => setAdding(true)}
-              className="-mr-2.5 h-7"
-            >
-              <Plus aria-hidden className="size-4" />
-              Add hackathon
-            </Button>
-          )}
-        </div>
+      {adding && (
+        <HackathonForm
+          initial={{}}
+          quick
+          formLabel="Add hackathon"
+          submitLabel="Add"
+          onSave={async (draft) => {
+            const created = await hackathons.create({
+              name: draft.name,
+              ...(draft.eventStart ? { eventStart: draft.eventStart } : {}),
+              ...(draft.eventEnd ? { eventEnd: draft.eventEnd } : {}),
+            });
+            setAdding(false);
+            setAnnouncement(`Added ${created.name}.`);
+          }}
+          onCancel={() => {
+            setAdding(false);
+            requestAnimationFrame(() => addButton.current?.focus());
+          }}
+        />
+      )}
 
-        {adding && (
-          <HackathonForm
-            initial={{}}
-            quick
-            formLabel="Add hackathon"
-            submitLabel="Add"
-            onSave={async (draft) => {
-              const created = await hackathons.create({
-                name: draft.name,
-                ...(draft.eventStart ? { eventStart: draft.eventStart } : {}),
-                ...(draft.eventEnd ? { eventEnd: draft.eventEnd } : {}),
-              });
-              setAdding(false);
-              setAnnouncement(`Added ${created.name}.`);
-              focusAfterUpdate.current = created.id;
-            }}
-            onCancel={() => {
-              setAdding(false);
-              requestAnimationFrame(() => addButton.current?.focus());
-            }}
-          />
+      <section aria-labelledby="coming-up-heading" className="mt-6">
+        <h2 id="coming-up-heading" className="text-section font-semibold">
+          Coming up{open.length > 0 ? ` · ${open.length}` : ''}
+        </h2>
+        {open.length === 0 && !adding ? (
+          <p className="mt-2 text-sm text-fg-muted">No hackathons yet.</p>
+        ) : (
+          <ul className="mt-2 border-t border-line">
+            {open.map((h) => (
+              <HackathonRow key={h.id} hackathon={h} today={today} onOpen={() => setOpenId(h.id)} />
+            ))}
+          </ul>
         )}
-
-        {open.length === 0 && !adding && (
-          <p className="py-3 text-sm text-fg-muted">
-            Nothing on the radar. When a hackathon comes up, add it here; a name and a date are
-            enough to start.
-          </p>
-        )}
-        <ul ref={openList}>{open.map(renderSheet)}</ul>
       </section>
 
       {past.length > 0 && (
-        <details className="mt-6">
-          <summary
-            ref={pastSummary}
-            className="cursor-pointer text-sm font-medium text-fg-muted select-none hover:text-fg"
-          >
+        <details className="mt-8">
+          <summary className="cursor-pointer text-sm font-medium text-fg-muted select-none hover:text-fg">
             Past · {past.length}
           </summary>
-          <ul className="mt-1">{past.map(renderSheet)}</ul>
+          <ul className="mt-2 border-t border-line">
+            {past.map((h) => (
+              <HackathonRow key={h.id} hackathon={h} today={today} onOpen={() => setOpenId(h.id)} />
+            ))}
+          </ul>
         </details>
       )}
+
+      <Drawer open={!!current} onClose={close} title={current?.name ?? 'Hackathon'}>
+        {current &&
+          (editing ? (
+            <HackathonForm
+              initial={current}
+              quick={false}
+              formLabel={`Edit ${current.name}`}
+              submitLabel="Save"
+              onSave={async (changes) => {
+                const updated = await hackathons.update(current.id, changes);
+                setEditing(false);
+                setAnnouncement(`Saved ${updated.name}.`);
+              }}
+              onCancel={() => setEditing(false)}
+            />
+          ) : (
+            <>
+              {error && <ErrorNotice>{error}</ErrorNotice>}
+              <HackathonSheet
+                embedded
+                hackathon={current}
+                today={today}
+                busy={busy}
+                project={current.projectId ? projectsById.get(current.projectId) : undefined}
+                onTrackProject={() =>
+                  void run(
+                    () => projects.createFromHackathon(current.id),
+                    `${current.name}: the build is now a project.`,
+                  )
+                }
+                onUnlinkProject={() =>
+                  void run(
+                    () => hackathons.update(current.id, { projectId: null }),
+                    `${current.name}: unlinked from its project.`,
+                  )
+                }
+                onEdit={() => setEditing(true)}
+                onStatus={(field, value) =>
+                  void run(
+                    () => hackathons.update(current.id, { [field]: value }),
+                    field === 'status'
+                      ? `${current.name}: ${STATUS_LABEL[value as Hackathon['status']]}`
+                      : `${current.name} updated`,
+                  )
+                }
+                onNextAction={(value) =>
+                  run(
+                    () => hackathons.update(current.id, { nextAction: value }),
+                    `Next action saved for ${current.name}.`,
+                  )
+                }
+              />
+            </>
+          ))}
+      </Drawer>
       <Announcer message={announcement} />
     </>
+  );
+}
+
+/** One hackathon at a glance; Open shows and edits the rest. */
+function HackathonRow({
+  hackathon: h,
+  today,
+  onOpen,
+}: {
+  hackathon: Hackathon;
+  today: LocalDate;
+  onOpen: () => void;
+}) {
+  const moment = primaryMoment(h, today);
+  return (
+    <li className="border-b border-line py-4">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+        <h3 className="min-w-0 text-[15px] font-medium break-words">{h.name}</h3>
+        {moment && (
+          <span
+            className={`text-sm ${moment.tone === 'today' || moment.tone === 'now' ? 'font-medium text-accent-ink' : moment.tone === 'soon' ? 'text-fg' : 'text-fg-muted'}`}
+          >
+            {moment.text}
+          </span>
+        )}
+      </div>
+      <StageRail hackathon={h} />
+      <div className="mt-2 flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+        <p className="min-w-0 flex-1 text-sm">
+          <span className="mr-2 text-xs text-fg-muted">Next</span>
+          {h.nextAction ? (
+            <span className="break-words">{h.nextAction}</span>
+          ) : (
+            <span className="text-fg-muted">Not set</span>
+          )}
+        </p>
+        <span className="flex items-center gap-4">
+          <span className="text-xs text-fg-muted">{STATUS_LABEL[h.status]}</span>
+          <Button size="sm" variant="ghost" onClick={onOpen} aria-label={`Open ${h.name}`}>
+            Open <ArrowRight aria-hidden className="size-3.5" />
+          </Button>
+        </span>
+      </div>
+    </li>
   );
 }

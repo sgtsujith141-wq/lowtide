@@ -64,7 +64,10 @@ export function HackathonSheet({
   onEdit,
   onTrackProject,
   onUnlinkProject,
+  embedded = false,
 }: {
+  /** Inside the detail sheet, whose title already names the hackathon. */
+  embedded?: boolean;
   hackathon: Hackathon;
   today: LocalDate;
   busy: boolean;
@@ -91,13 +94,17 @@ export function HackathonSheet({
   return (
     <article
       aria-labelledby={`${id}-name`}
-      className="border-b border-line py-3"
+      className={embedded ? '' : 'border-b border-line py-3'}
       aria-busy={busy || undefined}
     >
       <div className="flex items-start gap-2">
-        <h3 id={`${id}-name`} className="min-w-0 flex-1 font-medium break-words">
+        <h3
+          id={`${id}-name`}
+          className={embedded ? 'sr-only' : 'min-w-0 flex-1 font-medium break-words'}
+        >
           {h.name}
         </h3>
+        {embedded && <span className="flex-1" />}
         <IconButton
           label={`Edit ${h.name}`}
           icon={<Pencil aria-hidden className="size-4" />}
@@ -223,7 +230,7 @@ export function HackathonSheet({
       </p>
 
       {hasDetails && (
-        <details className="mt-1.5 text-sm">
+        <details className="mt-1.5 text-sm" open={embedded || undefined}>
           <summary className="cursor-pointer text-xs text-fg-muted select-none hover:text-fg">
             {[h.problemStatement && 'Problem statement', h.team && 'Team', h.notes && 'Notes']
               .filter(Boolean)

@@ -39,7 +39,8 @@ describe('Hackathons in v2 (ADR-039, ADR-053)', () => {
     const r = createDexieRepositories(db);
     await r.hackathons.create({ name: 'Spring hack', problemStatement: 'Clean water' });
     const { user } = await renderApp('/hackathons', r);
-    await screen.findByRole('article', { name: 'Spring hack' });
+    await user.click(await screen.findByRole('button', { name: 'Open Spring hack' }));
+    await screen.findByRole('dialog', { name: 'Spring hack' });
     expect(await db.projects.count()).toBe(0);
 
     await user.click(screen.getByRole('button', { name: 'Track the build as a project' }));

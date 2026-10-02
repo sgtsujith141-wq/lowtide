@@ -11,6 +11,7 @@ import { addDays } from '../../lib/calendar';
 import { formatDuration } from '../../lib/duration';
 import { fromLocalDate } from '../../lib/time';
 import type { LocalDate } from '../../types/domain';
+import { useModeApi } from '../modes/mode-context';
 import { useModes } from '../modes/useModes';
 
 const time = (at: string) => format(new Date(at), 'HH:mm');
@@ -24,6 +25,7 @@ const time = (at: string) => format(new Date(at), 'HH:mm');
 export function OffTimeArea({ today }: { today: LocalDate }) {
   const { offTime } = useRepositories();
   const modes = useModes();
+  const modeApi = useModeApi();
   const watch = useMemo(
     () => offTime.watchRange(addDays(today, -14), addDays(today, 90)),
     [offTime, today],
@@ -65,85 +67,98 @@ export function OffTimeArea({ today }: { today: LocalDate }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap gap-2">
-        <Button onClick={() => void start('sleep')} disabled={modes.offTime !== undefined}>
-          <Moon aria-hidden className="size-4" /> Start sleep window
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          variant="primary"
+          onClick={modeApi.requestSleep}
+          disabled={modes.offTime !== undefined}
+        >
+          <Moon aria-hidden className="size-4" /> Start Sleep
         </Button>
         <Button onClick={() => void start('rest')} disabled={modes.offTime !== undefined}>
-          <Sofa aria-hidden className="size-4" /> Start rest
+          <Sofa aria-hidden className="size-4" /> Rest
         </Button>
       </div>
       {error && <ErrorNotice>{error}</ErrorNotice>}
 
-      <div>
-        <h3 className="text-xs font-semibold text-fg-muted">Recent windows</h3>
-        {windows.length === 0 ? (
-          <p className="py-2 text-sm text-fg-muted">No off time marked in the last two weeks.</p>
-        ) : (
-          <ul className="mt-1 divide-y divide-line">
-            {windows.map((w) => {
-              const minutes = Math.round(
-                (Date.parse(w.endedAt!) - Date.parse(w.startedAt!)) / 60_000,
-              );
-              return (
-                <li key={w.id} className="flex items-baseline gap-3 py-1.5 text-sm">
-                  <span className="w-24 shrink-0 text-fg-muted">
-                    {format(fromLocalDate(w.localDate), 'EEE d MMM')}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    {w.kind === 'sleep' ? 'Sleep window' : 'Rest'} {time(w.startedAt!)}–
-                    {time(w.endedAt!)}
-                  </span>
-                  <span className="tabular-nums">{formatDuration(minutes)} marked</span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-        <p className="mt-1 text-[11px] text-fg-muted">
-          Lengths are the windows you marked, not how long you slept.
-        </p>
-      </div>
-
-      <div>
-        <h3 className="text-xs font-semibold text-fg-muted">Days off</h3>
-        <form onSubmit={(e) => void declare(e)} className="mt-1 flex flex-wrap items-end gap-2">
+      <details className="group">
+        <summary className="cursor-pointer text-xs text-fg-muted select-none hover:text-fg">
+          Recent windows and days off
+        </summary>
+        <div className="mt-3 space-y-4">
           <div>
-            <label htmlFor={dateId} className={labelClass}>
-              Day
-            </label>
-            <input
-              id={dateId}
-              type="date"
-              value={date}
-              min={today}
-              onChange={(e) => setDate(e.target.value)}
-              className={`${fieldClass} w-auto`}
-            />
+            <h3 className="text-xs font-semibold text-fg-muted">Recent windows</h3>
+            {windows.length === 0 ? (
+              <p className="py-2 text-sm text-fg-muted">
+                No off time marked in the last two weeks.
+              </p>
+            ) : (
+              <ul className="mt-1 divide-y divide-line">
+                {windows.map((w) => {
+                  const minutes = Math.round(
+                    (Date.parse(w.endedAt!) - Date.parse(w.startedAt!)) / 60_000,
+                  );
+                  return (
+                    <li key={w.id} className="flex items-baseline gap-3 py-1.5 text-sm">
+                      <span className="w-24 shrink-0 text-fg-muted">
+                        {format(fromLocalDate(w.localDate), 'EEE d MMM')}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        {w.kind === 'sleep' ? 'Sleep window' : 'Rest'} {time(w.startedAt!)}–
+                        {time(w.endedAt!)}
+                      </span>
+                      <span className="tabular-nums">{formatDuration(minutes)} marked</span>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            <p className="mt-1 text-[11px] text-fg-muted">
+              Lengths are the windows you marked, not how long you slept.
+            </p>
           </div>
-          <Button type="submit">Declare a day off</Button>
-        </form>
-        {daysOff.length > 0 && (
-          <ul aria-label="Upcoming days off" className="mt-2 divide-y divide-line">
-            {daysOff.map((d) => (
-              <li key={d.id} className="flex items-center gap-2 py-1 text-sm">
-                <span className="flex-1">
-                  {format(fromLocalDate(d.localDate), 'EEEE d MMMM')}
-                  {d.localDate === today && <span className="ml-1 text-fg-muted">(today)</span>}
-                </span>
-                <IconButton
-                  label={`Remove day off ${format(fromLocalDate(d.localDate), 'EEEE d MMMM')}`}
-                  icon={<Trash2 aria-hidden className="size-4" />}
-                  onClick={() => void offTime.removeDayOff(d.localDate)}
+
+          <div>
+            <h3 className="text-xs font-semibold text-fg-muted">Days off</h3>
+            <form onSubmit={(e) => void declare(e)} className="mt-1 flex flex-wrap items-end gap-2">
+              <div>
+                <label htmlFor={dateId} className={labelClass}>
+                  Day
+                </label>
+                <input
+                  id={dateId}
+                  type="date"
+                  value={date}
+                  min={today}
+                  onChange={(e) => setDate(e.target.value)}
+                  className={`${fieldClass} w-auto`}
                 />
-              </li>
-            ))}
-          </ul>
-        )}
-        <p className="mt-1 text-[11px] text-fg-muted">
-          A declared day off can still have a strong Daily Pulse: rest counts.
-        </p>
-      </div>
+              </div>
+              <Button type="submit">Declare a day off</Button>
+            </form>
+            {daysOff.length > 0 && (
+              <ul aria-label="Upcoming days off" className="mt-2 divide-y divide-line">
+                {daysOff.map((d) => (
+                  <li key={d.id} className="flex items-center gap-2 py-1 text-sm">
+                    <span className="flex-1">
+                      {format(fromLocalDate(d.localDate), 'EEEE d MMMM')}
+                      {d.localDate === today && <span className="ml-1 text-fg-muted">(today)</span>}
+                    </span>
+                    <IconButton
+                      label={`Remove day off ${format(fromLocalDate(d.localDate), 'EEEE d MMMM')}`}
+                      icon={<Trash2 aria-hidden className="size-4" />}
+                      onClick={() => void offTime.removeDayOff(d.localDate)}
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="mt-1 text-[11px] text-fg-muted">
+              A declared day off can still have a strong Daily Pulse: rest counts.
+            </p>
+          </div>
+        </div>
+      </details>
     </div>
   );
 }

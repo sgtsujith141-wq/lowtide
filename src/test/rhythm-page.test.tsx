@@ -17,7 +17,12 @@ async function setup(
   const base = createDexieRepositories(db);
   await seed?.(base);
   const repositories = override ? override(base) : base;
-  return { db, repositories, ...(await renderApp('/rhythm', repositories)) };
+  const rendered = await renderApp('/rhythm', repositories);
+  // Most of these tests are about routines: show their history.
+  await rendered.user.click(
+    await screen.findByRole('radio', { name: 'Routines' }, { timeout: 5000 }),
+  );
+  return { db, repositories, ...rendered };
 }
 
 const cell = (date: string) =>
@@ -25,12 +30,28 @@ const cell = (date: string) =>
 const todayLog = () => screen.getByRole('region', { name: 'Today' });
 
 describe('Rhythm page', () => {
-  it('starts with a calm empty state and no grid', async () => {
-    await setup();
+  it('opens on the year’s history, before any routine exists, without scores', async () => {
+    const { user } = await setup();
     expect(screen.getByRole('heading', { level: 1, name: 'Rhythm' })).toBeInTheDocument();
-    expect(await screen.findByText(/Nothing here yet/)).toBeInTheDocument();
-    expect(screen.queryByRole('grid')).not.toBeInTheDocument();
+    expect(await screen.findByText('No routines yet.')).toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: 'Overall' }));
+    expect(screen.getByRole('grid', { name: 'Daily Pulse, last 12 months' })).toBeInTheDocument();
+    for (const name of ['Work', 'Sleep', 'Projects', 'College', 'Personal', 'Gym']) {
+      expect(screen.getByRole('radio', { name })).toBeInTheDocument();
+    }
     expect(screen.queryByText(/streak|score|missed|perfect/i)).not.toBeInTheDocument();
+  });
+
+  it('steps a count routine up and down, saving at each tap', async () => {
+    const { user, db } = await setup((r) =>
+      r.habits.create({ name: 'Water', category: 'personal', unit: 'count', target: 4 }),
+    );
+    const more = await within(todayLog()).findByRole('button', { name: 'Water: 1 more' });
+    await user.click(more);
+    await user.click(more);
+    await vi.waitFor(async () => expect((await db.habitEntries.toArray())[0]?.value).toBe(2));
+    await user.click(within(todayLog()).getByRole('button', { name: 'Water: 1 less' }));
+    await vi.waitFor(async () => expect((await db.habitEntries.toArray())[0]?.value).toBe(1));
   });
 
   it('creates habits with the form; targets only for amounts', async () => {

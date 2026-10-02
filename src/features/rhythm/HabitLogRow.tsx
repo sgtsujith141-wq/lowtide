@@ -1,4 +1,4 @@
-import { Check, X } from 'lucide-react';
+import { Check, Minus, Plus, X } from 'lucide-react';
 import { useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { IconButton } from '../../components/ui/Button';
 import { ErrorNotice } from '../../components/ui/Notice';
@@ -11,8 +11,9 @@ import { habitPalette } from './palette';
 
 /**
  * Today's quick log for one habit. `check`: one press toggles. `count` and
- * `minutes`: type an amount; Enter or leaving the field saves it (replacing
- * today's amount), since phone number pads often have no Enter key. The clear
+ * `minutes`: a stepper (− / +, by 1 or by 5 minutes) saves at each tap, or
+ * type an amount; Enter or leaving the field saves it (replacing today's
+ * amount), since phone number pads often have no Enter key. The clear
  * button removes today's entry. Nothing is logged without you typing or tapping.
  */
 export function HabitLogRow({
@@ -99,6 +100,7 @@ export function HabitLogRow({
       square={square}
       setError={setError}
       run={run}
+      onSaved={onChange}
     />
   );
 }
@@ -112,7 +114,9 @@ function AmountRow({
   square,
   setError,
   run,
+  onSaved,
 }: {
+  onSaved: (message: string) => void;
   habit: Habit;
   entry: HabitEntry | undefined;
   today: LocalDate;
@@ -129,6 +133,40 @@ function AmountRow({
   const id = useId();
   const unitWord = habit.unit === 'minutes' ? 'min' : '';
   const input = useRef<HTMLInputElement>(null);
+
+  const step = habit.unit === 'minutes' ? 5 : 1;
+  /**
+   * The stepper: each tap changes today's amount at once and saves it; quick
+   * taps queue up in order, so none is lost.
+   */
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
+  const wanted = useRef<number | null>(null);
+  function nudge(delta: number) {
+    const base = wanted.current ?? Number(saved || 0);
+    const next = Math.max(0, base + delta);
+    if (next === base) return;
+    wanted.current = next;
+    setDraft(next ? String(next) : '');
+    setError(null);
+    const label = habit.unit === 'minutes' ? `${next} min` : String(next);
+    queue.current = queue.current
+      .then(async () => {
+        if (next === 0) await habits.clearEntry(habit.id, today);
+        else await habits.setEntry(habit.id, today, next);
+      })
+      .then(() => {
+        onSaved(next === 0 ? `${habit.name}: cleared for today` : `${habit.name}: ${label} today`);
+        if (wanted.current === next) {
+          wanted.current = null;
+          setDraft(null);
+        }
+      })
+      .catch(() => {
+        wanted.current = null;
+        setDraft(null);
+        setError('Couldn’t save that. Nothing changed.');
+      });
+  }
 
   async function commit() {
     if (busy) return;
@@ -178,6 +216,13 @@ function AmountRow({
         <label htmlFor={`${id}-amount`} className="min-w-0 flex-1 break-words">
           {habit.name}
         </label>
+        <IconButton
+          label={`${habit.name}: ${step} less`}
+          icon={<Minus aria-hidden className="size-3.5" />}
+          disabled={!entry && !draft}
+          onClick={() => nudge(-step)}
+          className="size-8"
+        />
         <input
           id={`${id}-amount`}
           aria-label={`${habit.name}, ${habit.unit === 'minutes' ? 'minutes' : 'count'} today`}
@@ -203,7 +248,13 @@ function AmountRow({
           }}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? `${id}-error` : `${id}-hint`}
-          className={`${fieldClass} max-w-20 shrink-0 py-1 text-right text-sm tabular-nums`}
+          className={`${fieldClass} max-w-16 shrink-0 py-1 text-center text-sm tabular-nums [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none`}
+        />
+        <IconButton
+          label={`${habit.name}: ${step} more`}
+          icon={<Plus aria-hidden className="size-3.5" />}
+          onClick={() => nudge(step)}
+          className="size-8"
         />
         <span id={`${id}-hint`} className="w-16 shrink-0 text-xs text-fg-muted tabular-nums">
           {unitWord}

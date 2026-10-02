@@ -26,7 +26,13 @@ export function RangeGrid({
   initial = '182',
   showDetail = false,
   surface = 'canvas',
+  size = 'md',
+  selected,
+  onSelect,
 }: {
+  size?: 'sm' | 'md' | 'lg' | 'xl';
+  selected?: LocalDate | null;
+  onSelect?: (date: LocalDate) => void;
   /** What the grid shows, e.g. "All rhythms"; the grid's label adds the range. */
   name: string;
   today: LocalDate;
@@ -57,6 +63,9 @@ export function RangeGrid({
         {...(short ? { since: addDays(today, -(range.days - 1)) } : {})}
         showDetail={showDetail}
         surface={surface}
+        size={size}
+        {...(selected !== undefined ? { selected } : {})}
+        {...(onSelect ? { onSelect } : {})}
       />
       <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
         <span id={groupId} className="text-fg-muted">

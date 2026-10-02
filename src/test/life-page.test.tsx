@@ -14,35 +14,42 @@ async function setup(seed?: (r: Repositories) => Promise<unknown>) {
   const repositories = createDexieRepositories(db);
   await seed?.(repositories);
   const rendered = await renderApp('/life', repositories);
-  await screen.findByRole('grid', { name: 'College, last 90 days' });
+  await screen.findByRole('grid', { name: 'College, last 30 days' }, { timeout: 5000 });
   return { db, repositories, ...rendered };
 }
 
 const area = (name: string) => screen.getByRole('region', { name });
 
 describe('Life page', () => {
-  it('has four areas, each with its own grid and range switch', async () => {
+  it('shows four sections, each with today’s state, a recent pattern and one quick action', async () => {
     await setup();
     for (const name of ['Personal', 'Sleep & off time', 'Gym', 'College']) {
       expect(
-        within(area(name)).getByRole('grid', { name: `${name}, last 90 days` }),
+        within(area(name)).getByRole('grid', { name: `${name}, last 30 days` }),
       ).toBeInTheDocument();
-      expect(within(area(name)).getByRole('radiogroup', { name: 'Range' })).toBeInTheDocument();
     }
-    expect(screen.getByText(/gives no dosage advice/)).toBeInTheDocument();
+    expect(within(area('Personal')).getByText('No routines yet')).toBeInTheDocument();
+    expect(within(area('Sleep & off time')).getByText('Last off time')).toBeInTheDocument();
+    expect(within(area('Gym')).getByText('0 sessions')).toBeInTheDocument();
+    expect(
+      within(area('Sleep & off time')).getByRole('button', { name: 'Start Sleep' }),
+    ).toBeInTheDocument();
+    expect(
+      within(area('College')).getByRole('button', { name: 'Start study' }),
+    ).toBeInTheDocument();
+    // Forms only appear when asked for.
+    expect(screen.queryByRole('form')).not.toBeInTheDocument();
+    expect(screen.getByText(/no dosage advice/)).toBeInTheDocument();
   });
 
-  it('switches a grid to the last 7 days, drawing exactly seven squares', async () => {
-    const { user } = await setup();
-    await user.click(within(area('Gym')).getByRole('radio', { name: '7 days' }));
-    const grid = within(area('Gym')).getByRole('grid', { name: 'Gym, last 7 days' });
-    const dates = within(grid)
+  it('draws exactly the last 30 days in each pattern', async () => {
+    await setup();
+    const dates = within(within(area('Gym')).getByRole('grid'))
       .getAllByRole('gridcell')
       .map((c) => c.getAttribute('data-date'));
-    expect(dates).toHaveLength(7);
+    expect(dates).toHaveLength(30);
     expect(dates).toContain(today());
-    expect(dates).toContain(addDays(today(), -6));
-    expect(dates).not.toContain(addDays(today(), -7));
+    expect(dates).not.toContain(addDays(today(), -30));
   });
 
   it('logs a personal routine, which colours the Personal grid', async () => {
@@ -62,6 +69,7 @@ describe('Life page', () => {
     const { user, db } = await setup((r) =>
       r.habits.create({ name: 'Strength', category: 'fitness', unit: 'minutes' }),
     );
+    await user.click(await within(area('Gym')).findByRole('button', { name: 'Log session' }));
     const form = await within(area('Gym')).findByRole('form', { name: 'Log a gym session' });
     await user.type(within(form).getByRole('spinbutton', { name: 'Minutes' }), '45');
     await user.type(within(form).getByRole('textbox', { name: 'Note (optional)' }), 'heavy day');
@@ -77,6 +85,7 @@ describe('Life page', () => {
     const { user } = await setup((r) =>
       r.habits.create({ name: 'Cardio', category: 'fitness', unit: 'minutes' }),
     );
+    await user.click(await within(area('Gym')).findByRole('button', { name: 'Log session' }));
     const form = await within(area('Gym')).findByRole('form', { name: 'Log a gym session' });
     await user.click(within(form).getByRole('button', { name: 'Log session' }));
     expect(within(form).getByRole('alert')).toHaveTextContent('How many minutes?');
@@ -85,11 +94,12 @@ describe('Life page', () => {
   it('marks a sleep window, shows it as marked (not measured), and declares a day off', async () => {
     const { user } = await setup();
     const sleep = area('Sleep & off time');
-    await user.click(within(sleep).getByRole('button', { name: 'Start sleep window' }));
+    await user.click(within(sleep).getByRole('button', { name: 'Start Sleep' }));
     // A page-wide role query: each poll walks all four 90-day grids (~360 named
     // cells), which in jsdom can take most of a second on a loaded machine.
     const dormant = await screen.findByRole('dialog', { name: 'Off time' }, { timeout: 8000 });
     await user.click(within(dormant).getByRole('button', { name: 'Wake up' }));
+    await user.click(within(sleep).getByText('Recent windows and days off'));
     expect(await within(sleep).findByText(/marked$/)).toBeInTheDocument();
     expect(within(sleep).getByText(/not how long you slept/)).toBeInTheDocument();
 
@@ -110,8 +120,8 @@ describe('Life page', () => {
 
   it('won’t start off time while work runs, and says why', async () => {
     const { user } = await setup((r) => r.work.start({ kind: 'general' }));
-    await screen.findByRole('region', { name: 'Work session' });
-    await user.click(within(area('Sleep & off time')).getByRole('button', { name: 'Start rest' }));
+    await screen.findByRole('region', { name: 'Work session' }, { timeout: 5000 });
+    await user.click(within(area('Sleep & off time')).getByRole('button', { name: 'Rest' }));
     expect(await within(area('Sleep & off time')).findByRole('alert')).toHaveTextContent(
       'Finish the work session first',
     );

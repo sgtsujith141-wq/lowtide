@@ -29,6 +29,7 @@ export function GymArea({
   const [minutes, setMinutes] = useState('');
   const [note, setNote] = useState('');
   const [adding, setAdding] = useState(false);
+  const [logging, setLogging] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const addButton = useRef<HTMLButtonElement>(null);
   const ids = { type: useId(), minutes: useId(), note: useId() };
@@ -48,6 +49,7 @@ export function GymArea({
       onChange(`Logged ${chosen.name}.`);
       setMinutes('');
       setNote('');
+      setLogging(false);
     } catch {
       setError('Couldn’t log that. Nothing changed.');
     }
@@ -56,9 +58,11 @@ export function GymArea({
   return (
     <div className="space-y-4">
       {types.length === 0 && !adding ? (
-        <p className="text-sm text-fg-muted">
-          Add the kinds of session you do (strength, cardio, yoga…) to log them here.
-        </p>
+        <p className="text-sm text-fg-muted">No session types yet.</p>
+      ) : types.length > 0 && !logging ? (
+        <Button variant="primary" onClick={() => setLogging(true)}>
+          <Plus aria-hidden className="size-4" /> Log session
+        </Button>
       ) : (
         types.length > 0 && (
           <form
@@ -111,9 +115,12 @@ export function GymArea({
               />
             </div>
             {error && <ErrorNotice>{error}</ErrorNotice>}
-            <div>
+            <div className="flex gap-2">
               <Button type="submit" variant="primary">
                 Log session
+              </Button>
+              <Button variant="ghost" onClick={() => setLogging(false)}>
+                Cancel
               </Button>
             </div>
           </form>

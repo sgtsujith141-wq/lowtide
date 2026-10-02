@@ -10,6 +10,9 @@ import { useWatch } from '../../hooks/useWatch';
 import type { Habit } from '../../types/domain';
 import { RangeGrid } from '../../components/shared/RangeGrid';
 import { gridStart, YEAR_WEEKS } from '../../components/shared/contribution-grid';
+import { segmentClass, segmentedClass } from '../../components/ui/styles';
+import { describeDay, gridDays, type ThemedGrid } from '../pulse/days';
+import { useDaySummaries } from '../pulse/useDaySummaries';
 import { buildGrid, RHYTHM_GROUPS, type GridView } from './grid';
 import { gridDaysOf, viewPalette } from './palette';
 import { HabitForm } from './HabitForm';
@@ -27,6 +30,19 @@ function describeHabit(habit: Habit): string {
           : 'count';
   return `${CATEGORY_LABEL[habit.category]} · ${unit}`;
 }
+
+type Category = ThemedGrid | 'routines';
+
+const CATEGORIES: { id: Category; label: string; name: string }[] = [
+  { id: 'pulse', label: 'Overall', name: 'Daily Pulse' },
+  { id: 'work', label: 'Work', name: 'Work' },
+  { id: 'sleep', label: 'Sleep', name: 'Sleep' },
+  { id: 'projects', label: 'Projects', name: 'Projects' },
+  { id: 'college', label: 'College', name: 'College' },
+  { id: 'personal', label: 'Personal', name: 'Personal' },
+  { id: 'gym', label: 'Gym', name: 'Gym' },
+  { id: 'routines', label: 'Routines', name: 'Routines' },
+];
 
 /**
  * Rhythm: where you've been showing up. A contribution-style grid (overall or
@@ -46,6 +62,10 @@ export function RhythmPage() {
   );
   const entries = useWatch(watchEntries);
   const [viewId, setViewId] = useState('overall');
+  const [category, setCategory] = useState<Category>('pulse');
+  const [selected, setSelected] = useState<string | null>(null);
+  const { days: summaries } = useDaySummaries(range.start, range.end);
+  const categoryGroup = useId();
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -67,9 +87,19 @@ export function RhythmPage() {
     return { kind: 'overall' };
   }, [viewId, habitList]);
   const days = useMemo(
-    () => gridDaysOf(buildGrid(today, habitList, entryList, view, YEAR_WEEKS + 1)),
-    [today, habitList, entryList, view],
+    () =>
+      category === 'routines'
+        ? gridDaysOf(buildGrid(today, habitList, entryList, view, YEAR_WEEKS + 1))
+        : gridDays(summaries, category),
+    [today, habitList, entryList, view, category, summaries],
   );
+  const selectedDetail =
+    selected && category !== 'routines'
+      ? (() => {
+          const d = summaries.get(selected);
+          return d ? describeDay(d) : [];
+        })()
+      : null;
   const todayEntries = new Map(
     entryList.filter((e) => e.date === today).map((e) => [e.habitId, e]),
   );
@@ -108,26 +138,43 @@ export function RhythmPage() {
   return (
     <>
       <h1 className="text-page font-semibold">Rhythm</h1>
-      <p className="mt-1 text-sm text-fg-muted">Where you’ve been showing up.</p>
 
       {all.status === 'error' && (
         <ErrorNotice>Couldn’t read your rhythms. Try reloading.</ErrorNotice>
       )}
       {error && <ErrorNotice>{error}</ErrorNotice>}
 
-      {habitList.length === 0 && !adding && (
-        <p className="mt-6 text-sm text-fg-muted">
-          Nothing here yet. Add something you’d like to see yourself show up for: coding, study, the
-          gym, reading. Each day you record it becomes a square.
-        </p>
-      )}
-
-      {habitList.length > 0 && (
-        <section aria-labelledby="grid-heading" className="mt-5">
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <h2 id="grid-heading" className="text-section font-semibold">
-              History
-            </h2>
+      <section aria-labelledby="grid-heading" className="mt-6">
+        <h2 id="grid-heading" className="sr-only">
+          History
+        </h2>
+        <div className="flex flex-wrap items-center gap-3">
+          <span id={categoryGroup} className="sr-only">
+            History of
+          </span>
+          <div
+            role="radiogroup"
+            aria-labelledby={categoryGroup}
+            className={`${segmentedClass} max-w-full overflow-x-auto`}
+          >
+            {CATEGORIES.map((c) => (
+              <label key={c.id} className={segmentClass(c.id === category)}>
+                <input
+                  type="radio"
+                  name={categoryGroup}
+                  value={c.id}
+                  checked={c.id === category}
+                  onChange={() => {
+                    setCategory(c.id);
+                    setSelected(null);
+                  }}
+                  className="sr-only"
+                />
+                {c.label}
+              </label>
+            ))}
+          </div>
+          {category === 'routines' && habitList.length > 0 && (
             <label htmlFor={selectId} className="flex items-center gap-2 text-xs text-fg-muted">
               Show
               <select
@@ -170,17 +217,56 @@ export function RhythmPage() {
                 )}
               </select>
             </label>
+          )}
+        </div>
+        <div className="mt-4">
+          {category === 'routines' && habitList.length === 0 ? (
+            <p className="text-sm text-fg-muted">No routines yet.</p>
+          ) : (
+            <RangeGrid
+              key={category}
+              name={
+                category === 'routines'
+                  ? viewLabel
+                  : CATEGORIES.find((c) => c.id === category)!.name
+              }
+              today={today}
+              days={days}
+              palette={category === 'routines' ? viewPalette(view, habitList) : category}
+              initial={category === 'routines' ? '182' : '365'}
+              size="lg"
+              selected={selected}
+              onSelect={(d) => setSelected((s) => (s === d ? null : d))}
+              showDetail
+              surface="canvas"
+            />
+          )}
+        </div>
+        {selectedDetail && (
+          <div
+            role="region"
+            aria-label="Selected day"
+            className="mt-4 max-w-[40rem] border-l-2 border-line pl-4 text-sm"
+          >
+            <p className="font-medium">
+              {new Date(`${selected}T12:00:00`).toLocaleDateString(undefined, {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+              })}
+            </p>
+            {selectedDetail.length === 0 ? (
+              <p className="text-fg-muted">Nothing recorded.</p>
+            ) : (
+              <ul className="mt-1 space-y-0.5 text-fg-muted">
+                {selectedDetail.map((line) => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            )}
           </div>
-          <RangeGrid
-            name={viewLabel}
-            today={today}
-            days={days}
-            palette={viewPalette(view, habitList)}
-            showDetail
-            surface="canvas"
-          />
-        </section>
-      )}
+        )}
+      </section>
 
       {active.length > 0 && (
         <section aria-labelledby="today-log-heading" className="mt-7">

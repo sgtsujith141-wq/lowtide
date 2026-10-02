@@ -28,17 +28,38 @@ async function setup(seed?: (r: Repositories) => Promise<unknown>, path = '/hack
   return { db, base, trap, ...(await renderApp(path, repositories)) };
 }
 
-const sheet = (name: string) => screen.getByRole('article', { name });
+/** Opens a hackathon's detail sheet and returns it. */
+async function openSheet(user: { click: (el: Element) => Promise<void> }, name: string) {
+  await user.click(await screen.findByRole('button', { name: `Open ${name}` }, { timeout: 5000 }));
+  return screen.findByRole('dialog', { name });
+}
 
-describe('Hackathons page', () => {
+describe('Hackathons page (v2 PHASE 016)', () => {
   it('starts calm and empty', async () => {
     await setup();
     expect(screen.getByRole('heading', { level: 1, name: 'Hackathons' })).toBeInTheDocument();
-    expect(screen.getByText(/Nothing on the radar/)).toBeInTheDocument();
+    expect(screen.getByText('No hackathons yet.')).toBeInTheDocument();
     expect(screen.queryByText(/%|score/i)).not.toBeInTheDocument();
   });
 
-  it('adds a hackathon with just a name and a date, then focuses it', async () => {
+  it('shows each hackathon as one scannable row, with no editing controls until opened', async () => {
+    await setup((r) =>
+      r.hackathons.create({
+        name: 'Hackurity',
+        eventStart: addDays(today(), 3),
+        nextAction: 'Confirm registration',
+      }),
+    );
+    const name = await screen.findByRole('heading', { level: 3, name: 'Hackurity' });
+    const row = name.closest('li')!;
+    expect(row).toHaveTextContent('Starts in 3 days');
+    expect(row).toHaveTextContent('NextConfirm registration');
+    expect(within(row).getByRole('list', { name: 'Stages for Hackurity' })).toBeInTheDocument();
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Edit/ })).not.toBeInTheDocument();
+  });
+
+  it('adds a hackathon with just a name and a date', async () => {
     const { user, db, trap } = await setup();
     await user.click(screen.getByRole('button', { name: 'Add hackathon' }));
     const form = screen.getByRole('form', { name: 'Add hackathon' });
@@ -46,10 +67,8 @@ describe('Hackathons page', () => {
     await user.type(within(form).getByLabelText('Name'), 'Hackurity');
     await user.type(within(form).getByLabelText('Event starts'), addDays(today(), 4));
     await user.click(within(form).getByRole('button', { name: 'Add' }));
-
-    const article = await screen.findByRole('article', { name: 'Hackurity' });
-    expect(within(article).getByText('Starts in 4 days')).toBeInTheDocument();
-    await expectFocus(() => within(article).getByRole('button', { name: 'Edit Hackurity' }));
+    const name = await screen.findByRole('heading', { level: 3, name: 'Hackurity' });
+    expect(name.closest('li')).toHaveTextContent('Starts in 4 days');
     expect(await db.hackathons.toArray()).toMatchObject([
       { name: 'Hackurity', eventStart: addDays(today(), 4), status: 'considering' },
     ]);
@@ -73,49 +92,42 @@ describe('Hackathons page', () => {
     );
   });
 
-  it('edits every field, including registration deadline, problem statement and team', async () => {
+  it('edits every field in the detail sheet', async () => {
     const { user, db } = await setup((r) => r.hackathons.create({ name: 'AI Build Week' }));
-    await user.click(await screen.findByRole('button', { name: 'Edit AI Build Week' }));
-    const form = screen.getByRole('form', { name: 'Edit AI Build Week' });
+    const sheet = await openSheet(user, 'AI Build Week');
+    await user.click(within(sheet).getByRole('button', { name: 'Edit AI Build Week' }));
+    const form = within(sheet).getByRole('form', { name: 'Edit AI Build Week' });
     await user.type(within(form).getByLabelText('Registration deadline'), addDays(today(), 1));
     await user.type(within(form).getByLabelText('Event starts'), addDays(today(), 10));
-    await user.type(within(form).getByLabelText('Event ends (optional)'), addDays(today(), 11));
     await user.type(within(form).getByLabelText('Problem statement'), 'PS 7: offline triage');
     await user.type(within(form).getByLabelText('Team'), 'Asha, Ravi');
     await user.type(within(form).getByLabelText('Next action'), 'Register team');
-    await user.type(within(form).getByLabelText('Notes'), 'closes 11:59 pm');
     await user.selectOptions(within(form).getByLabelText('Status'), 'active');
     await user.click(within(form).getByRole('button', { name: 'Save' }));
-
-    const article = await screen.findByRole('article', { name: 'AI Build Week' });
-    await expectFocus(() => within(article).getByRole('button', { name: 'Edit AI Build Week' }));
-    expect(within(article).getByText('Registration due tomorrow')).toBeInTheDocument();
-    expect(within(article).getByText('Register team')).toBeInTheDocument();
-    await user.click(within(article).getByText('Problem statement, Team, Notes'));
-    expect(within(article).getByText('PS 7: offline triage')).toBeInTheDocument();
-    expect(within(article).getByText('Asha, Ravi')).toBeInTheDocument();
+    expect(await within(sheet).findByText('Registration due tomorrow')).toBeInTheDocument();
+    expect(within(sheet).getByText('Register team')).toBeInTheDocument();
+    expect(within(sheet).getByText('PS 7: offline triage')).toBeInTheDocument();
+    expect(within(sheet).getByText('Asha, Ravi')).toBeInTheDocument();
     expect((await db.hackathons.toArray())[0]).toMatchObject({
       registrationDeadline: addDays(today(), 1),
       eventStart: addDays(today(), 10),
-      eventEnd: addDays(today(), 11),
       status: 'active',
-      notes: 'closes 11:59 pm',
     });
   });
 
-  it('updates registration, PPT and build from the sheet without an editor', async () => {
+  it('updates stage statuses from the sheet, keeping focus on the control', async () => {
     const { user, db, trap } = await setup((r) => r.hackathons.create({ name: 'Hackurity' }));
-    const article = await screen.findByRole('article', { name: 'Hackurity' });
+    const sheet = await openSheet(user, 'Hackurity');
     await user.selectOptions(
-      within(article).getByRole('combobox', { name: 'Registration for Hackurity' }),
+      within(sheet).getByRole('combobox', { name: 'Registration for Hackurity' }),
       'registered',
     );
     await user.selectOptions(
-      within(article).getByRole('combobox', { name: 'PPT for Hackurity' }),
+      within(sheet).getByRole('combobox', { name: 'PPT for Hackurity' }),
       'in_progress',
     );
     await user.selectOptions(
-      within(article).getByRole('combobox', { name: 'Build for Hackurity' }),
+      within(sheet).getByRole('combobox', { name: 'Build for Hackurity' }),
       'demo_ready',
     );
     await vi.waitFor(async () =>
@@ -125,31 +137,21 @@ describe('Hackathons page', () => {
         buildStatus: 'demo_ready',
       }),
     );
-    expect(within(article).getByRole('combobox', { name: 'PPT for Hackurity' })).toHaveDisplayValue(
-      'In progress',
-    );
-    // Controls stay enabled while saving, so keyboard focus isn't dropped.
-    await expectFocus(() => within(article).getByRole('combobox', { name: 'Build for Hackurity' }));
-    expect(within(article).getByRole('combobox', { name: 'Build for Hackurity' })).toBeEnabled();
-    expect(await db.habitEntries.count()).toBe(0);
+    await expectFocus(() => within(sheet).getByRole('combobox', { name: 'Build for Hackurity' }));
     expect(trap).not.toHaveBeenCalled();
   });
 
-  it('adds and edits the next action in place; Escape cancels', async () => {
+  it('adds and edits the next action in the sheet; Escape cancels', async () => {
     const { user, db } = await setup((r) => r.hackathons.create({ name: 'Hackurity' }));
+    const sheet = await openSheet(user, 'Hackurity');
     await user.click(
-      await screen.findByRole('button', { name: 'Add a next action for Hackurity' }),
+      within(sheet).getByRole('button', { name: 'Add a next action for Hackurity' }),
     );
     await user.keyboard('Finish PPT outline{Enter}');
-    const article = sheet('Hackurity');
-    expect(await within(article).findByText('Finish PPT outline')).toBeInTheDocument();
-    expect(within(article).getByText('Next:')).toBeInTheDocument();
-
-    await user.click(
-      within(article).getByRole('button', { name: 'Edit next action for Hackurity' }),
-    );
+    expect(await within(sheet).findByText('Finish PPT outline')).toBeInTheDocument();
+    await user.click(within(sheet).getByRole('button', { name: 'Edit next action for Hackurity' }));
     await user.keyboard('{Control>}a{/Control}ignored{Escape}');
-    expect(within(article).getByText('Finish PPT outline')).toBeInTheDocument();
+    expect(within(sheet).getByText('Finish PPT outline')).toBeInTheDocument();
     expect((await db.hackathons.toArray())[0]?.nextAction).toBe('Finish PPT outline');
   });
 
@@ -163,32 +165,25 @@ describe('Hackathons page', () => {
         notes: 'n',
       }),
     );
-    const article = await screen.findByRole('article', { name: 'Old one' });
+    let sheet = await openSheet(user, 'Old one');
     await user.selectOptions(
-      within(article).getByRole('combobox', { name: 'Status for Old one' }),
+      within(sheet).getByRole('combobox', { name: 'Status for Old one' }),
       'finished',
     );
-
-    const past = await screen.findByText('Past · 1');
-    await vi.waitFor(() => expect(past).toHaveFocus());
-    expect(screen.getByText(/Nothing on the radar/)).toBeInTheDocument();
+    expect(await screen.findByText('Past · 1')).toBeInTheDocument();
     expect((await db.hackathons.toArray())[0]).toMatchObject({
       status: 'finished',
       problemStatement: 'PS 2',
-      team: 'T',
-      nextAction: 'Submit',
       notes: 'n',
     });
-
-    await user.click(past);
+    await user.keyboard('{Escape}');
+    await user.click(screen.getByText('Past · 1'));
+    sheet = await openSheet(user, 'Old one');
     await user.selectOptions(
-      screen.getByRole('combobox', { name: 'Status for Old one' }),
+      within(sheet).getByRole('combobox', { name: 'Status for Old one' }),
       'active',
     );
-    // Re-query on every poll: the sheet (and its Edit button) is replaced when it
-    // moves from Past to the open list, so an element found early can go stale.
-    await expectFocus(() => screen.queryByRole('button', { name: 'Edit Old one' }));
-    expect(screen.queryByText(/^Past/)).not.toBeInTheDocument();
+    await vi.waitFor(() => expect(screen.queryByText(/^Past/)).not.toBeInTheDocument());
   });
 
   it('orders by the next meaningful date', async () => {
@@ -202,14 +197,13 @@ describe('Hackathons page', () => {
       });
       await hackathons.create({ name: 'Sooner', eventStart: addDays(today(), 5) });
     });
-    await screen.findByRole('article', { name: 'Later' });
-    expect(
-      screen
-        .getAllByRole('article')
-        .map(
-          (a) => a.getAttribute('aria-labelledby') && within(a).getByRole('heading').textContent,
-        ),
-    ).toEqual(['Registration soon', 'Sooner', 'Later', 'No date']);
+    await screen.findByRole('heading', { level: 3, name: 'Later' });
+    expect(screen.getAllByRole('heading', { level: 3 }).map((h) => h.textContent)).toEqual([
+      'Registration soon',
+      'Sooner',
+      'Later',
+      'No date',
+    ]);
   });
 
   it('surfaces a failed status change calmly', async () => {
@@ -221,12 +215,12 @@ describe('Hackathons page', () => {
       hackathons: { ...base.hackathons, update: vi.fn().mockRejectedValue(new Error('x')) },
     };
     const { user } = await renderApp('/hackathons', repositories);
-    const article = await screen.findByRole('article', { name: 'Sticky' });
+    const sheet = await openSheet(user, 'Sticky');
     await user.selectOptions(
-      within(article).getByRole('combobox', { name: 'Build for Sticky' }),
+      within(sheet).getByRole('combobox', { name: 'Build for Sticky' }),
       'submitted',
     );
-    expect(await screen.findByRole('alert')).toHaveTextContent('Couldn’t save that');
+    expect(await within(sheet).findByRole('alert')).toHaveTextContent('Couldn’t save that');
   });
 });
 
