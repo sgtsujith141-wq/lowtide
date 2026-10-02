@@ -149,6 +149,8 @@ export function DataPage() {
   }
 
   const current = counts.status === 'ready' ? counts.data : null;
+  // Where restoring writes: the companion's data on this computer, or this browser.
+  const where = companion ? 'on this computer' : 'in this browser';
 
   return (
     <>
@@ -185,8 +187,8 @@ export function DataPage() {
           Restore
         </h2>
         <p className="mt-2 text-sm">
-          Restoring replaces everything LOWTIDE holds in this browser with the backup. You’ll see
-          what’s in the file before anything changes.
+          Restoring replaces everything LOWTIDE holds {where} with the backup. You’ll see what’s in
+          the file before anything changes.
         </p>
         <label htmlFor={`${id}-file`} className="mt-3 block text-sm font-medium">
           Choose a LOWTIDE backup file
@@ -224,7 +226,7 @@ export function DataPage() {
               {preview.fileName} · {describeSourceSchema(preview.backup.sourceSchemaVersion)}
             </p>
             <table className="mt-3 w-full max-w-sm text-sm">
-              <caption className="sr-only">Records in the backup and in this browser now</caption>
+              <caption className="sr-only">Records in the backup and {where} now</caption>
               <thead>
                 <tr className="text-left text-xs text-fg-muted">
                   <th scope="col" className="py-1 font-normal">
@@ -234,7 +236,7 @@ export function DataPage() {
                     In the backup
                   </th>
                   <th scope="col" className="py-1 text-right font-normal">
-                    Now in this browser
+                    Now {where}
                   </th>
                 </tr>
               </thead>
@@ -253,7 +255,7 @@ export function DataPage() {
               </tbody>
             </table>
             <p className="mt-3 text-sm">
-              Importing this backup will replace the LOWTIDE data currently stored in this browser.
+              Importing this backup will replace the LOWTIDE data currently stored {where}.
             </p>
             <label className="mt-2 flex items-start gap-2 text-sm">
               <input
@@ -262,7 +264,7 @@ export function DataPage() {
                 onChange={(e) => setConfirmed(e.target.checked)}
                 className="mt-0.5 size-4 accent-(--lt-accent-ink)"
               />
-              I understand this replaces the LOWTIDE data in this browser.
+              I understand this replaces the LOWTIDE data {where}.
             </label>
             {restoreError && <ErrorNotice>{restoreError}</ErrorNotice>}
             <div className="mt-3 flex flex-wrap gap-2">
