@@ -62,7 +62,23 @@ findBy…()).toHaveFocus()` can run a moment too early. Use `expectFocus(…)` f
 - `setupTestDatabase` unmounts rendered trees before deleting the database, so no live
   subscription outlives it.
 
-## Current coverage (v2 PHASE 016): 65 files, 677 tests
+## Current coverage (v2.1): 72 files, 743 tests
+
+New: `companion/server/operator-mcp.test.ts` runs thirty owner workflows over the MCP
+protocol against SQLite as a Full operator, plus undo (refused after a later edit), dry
+runs and checkpoints, permission refusals, Protected Time, ambiguity and the capability
+matrix. `src/test/v10-repositories.test.ts` covers schema V10 repositories;
+`src/test/space-database.test.ts` and `space-database-ui.test.tsx` the database
+evaluator, views and big boards; `src/test/space-ux.test.tsx` folders, the empty page,
+slash commands, `[[`, Trash, pins, import and export; `src/test/palette-create.test.tsx`
+and `v21-ui.test.tsx` the New menu, short forms, subtasks, the Command Room roadmap and
+templates; `src/test/ai-changes.test.tsx` review and undo. `store.test.ts` covers
+migrations 6–7 and the pre-upgrade copy.
+
+Outside Vitest: `scripts/upgrade-companion.mjs --check-only` runs the backup, integrity,
+dry-run and rollback checks against a running companion without touching it.
+
+## Coverage after v2 PHASE 016: 65 files, 677 tests
 
 New or strengthened: the rhythm stepper (rapid taps, sequences, clearing, reload) in
 `src/test/rhythm-page.test.tsx`; Home's way to begin in `src/test/home-page.test.tsx`;

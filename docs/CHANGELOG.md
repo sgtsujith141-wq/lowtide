@@ -5,6 +5,36 @@ app's `package.json` version.
 
 ## [Unreleased]
 
+### Added (v2.1 — operator parity, SPACE simplification, full creation, live upgrade)
+
+- Claude can operate LOWTIDE like the owner, within a grant: 127 MCP tools covering
+  projects, tasks and subtasks, milestones, hackathons, decisions, approvals, blockers,
+  waiting, parked items, ideas and all of SPACE. Granular capabilities with Read only,
+  Project, Workspace and Full LOWTIDE operator presets; refusals say what was missing.
+  Dry runs, automatic checkpoints before bulk changes, name resolution with ambiguity
+  refused, idempotent creation, and `get_lowtide_capabilities`. Protected Time stays out
+  of reach and permanent deletion is off for AI clients.
+- AI → What AI changed: every AI change, with Undo that refuses to overwrite a later edit.
+- One New button and ⌘K for tasks, projects, SPACE pages, folders and databases,
+  hackathons, ideas and decisions; Command Room adds milestones and tasks, renames,
+  archives and restores milestones; subtasks; pinned projects and hackathons; archived
+  hackathons.
+- SPACE: real folders with a folder view, + New and right-click menus, a page that is
+  obviously ready to type in, `[[` links, bookmarks, templates, Trash with guarded
+  permanent delete, pins, Markdown/CSV import and export, a short guide; databases with
+  relations, rollups, formulas and table, board, list and calendar views.
+- Settings: start the companion at login, health details, logs, restart, checkpoints.
+- `scripts/upgrade-companion.mjs`: backup, integrity check, dry run, rollback test and a
+  timed swap of a running companion (live cutover: 417 ms unavailable).
+- Schema V10 (Dexie 10, companion migrations 6–7), all additive.
+
+### Fixed (v2.1)
+
+- Phones never scroll sideways on database tables, boards or simple tables, and the
+  phone bar fits at 320 px.
+- The work bar keeps "Working" readable at narrow widths.
+- Empty and archived rows in the SPACE tree meet contrast requirements.
+
 ### Changed (v2 PHASE 016 — final refinement and QA)
 
 - Fixed: quick taps on a rhythm's − / + could store the wrong amount.
