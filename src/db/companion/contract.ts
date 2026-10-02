@@ -91,6 +91,7 @@ export const REPOSITORY_CONTRACT = {
     pause: 'call',
     resume: 'call',
     finish: 'call',
+    describe: 'call',
     discard: 'call',
     watchActive: 'watch',
     watchRange: 'watchFactory',

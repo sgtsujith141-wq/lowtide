@@ -147,6 +147,18 @@ export function createDexieWorkRepository(deps: RepositoryDeps): WorkRepository 
       );
     },
 
+    describe(id, outcome) {
+      return db.transaction('rw', tables, async () => {
+        const session = await getSession(id);
+        if (!session.endedAt) throw new RecordStateError('Finish the session first');
+        return save({
+          ...session,
+          outcome: outcome.trim().slice(0, 2000) || undefined,
+          updatedAt: toTimestamp(clock()),
+        });
+      });
+    },
+
     discard(id) {
       return db.transaction('rw', tables, async () => {
         await getSession(id);

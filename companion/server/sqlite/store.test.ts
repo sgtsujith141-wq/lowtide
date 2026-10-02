@@ -163,6 +163,43 @@ describe('companion migration 5 (schema V9)', () => {
   });
 });
 
+describe('a running work session across a companion restart (v2 PHASE 015)', () => {
+  it('comes back exactly as it was, paused state and all', async () => {
+    const { mkdtempSync, rmSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const dir = mkdtempSync(join(tmpdir(), 'lowtide-restart-'));
+    try {
+      const file = join(dir, 'data.sqlite');
+      const first = new SqliteStore(file);
+      const r1 = createRepositories(first);
+      const p = await r1.projects.create({ name: 'Engine' });
+      const started = await r1.work.start({ kind: 'project', projectId: p.id, intent: 'Wire it' });
+      await r1.work.pause(started.id);
+      first.close();
+      const again = new SqliteStore(file);
+      const r2 = createRepositories(again, { watch: again.watch });
+      const active = await new Promise<unknown>((resolve) => {
+        const stop = r2.work.watchActive((s) => {
+          stop();
+          resolve(s);
+        });
+      });
+      expect(active).toMatchObject({
+        id: started.id,
+        projectId: p.id,
+        intent: 'Wire it',
+        pauses: [expect.objectContaining({ at: expect.any(String) })],
+      });
+      expect((active as { endedAt?: string }).endedAt).toBeUndefined();
+      expect((await r2.work.resume(started.id)).pauses[0]!.resumedAt).toBeDefined();
+      again.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe('transactions on SQLite', () => {
   it('rolls back every write when the scope fails', async () => {
     const store = sqlite();

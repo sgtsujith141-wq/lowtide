@@ -518,6 +518,11 @@ export interface WorkRepository {
   pause(id: Id): Promise<WorkSession>;
   resume(id: Id): Promise<WorkSession>;
   finish(id: Id, outcome?: string): Promise<WorkSession>;
+  /**
+   * Notes what a finished session changed (v2 PHASE 015): the outcome only,
+   * never its times; no ledger event. Empty text clears it.
+   */
+  describe(id: Id, outcome: string): Promise<WorkSession>;
   /** Deletes a session started by mistake, with its events. */
   discard(id: Id): Promise<void>;
   /** The open session, if any. */
