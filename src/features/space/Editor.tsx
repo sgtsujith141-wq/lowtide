@@ -1,7 +1,10 @@
 import {
   ArrowDown,
   ArrowUp,
+  Bookmark,
   CheckSquare,
+  Folder,
+  Grid3x3,
   Code2,
   Copy,
   FileText,
@@ -13,6 +16,8 @@ import {
   List,
   ListOrdered,
   Minus,
+  Pencil,
+  Plus,
   Paperclip,
   Quote,
   Table2,
@@ -35,6 +40,7 @@ import {
 } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Button } from '../../components/ui/Button';
+import { ErrorNotice } from '../../components/ui/Notice';
 import { fieldClass, labelClass } from '../../components/ui/styles';
 import { useRepositories } from '../../hooks/useRepositories';
 import { blocksOf, parseBody } from '../../lib/space-blocks';
@@ -104,7 +110,13 @@ type Command =
   | { kind: 'type'; type: SpaceBlockType }
   | { kind: 'link'; type: LinkableType }
   | { kind: 'table' }
-  | { kind: 'file' };
+  | { kind: 'file' }
+  | { kind: 'subpage' }
+  | { kind: 'folder' }
+  | { kind: 'grid' }
+  | { kind: 'bookmark' }
+  /** `[[` typed in a block: link (or make) a page inline. */
+  | { kind: 'inline'; query: string };
 
 interface SlashItem {
   label: string;
@@ -166,7 +178,41 @@ const SLASH: SlashItem[] = [
     command: { kind: 'type', type: 'divider' },
     aliases: 'rule line',
   },
-  { label: 'Table', hint: 'A new table page', icon: Table2, command: { kind: 'table' } },
+  {
+    label: 'Page',
+    hint: 'A page inside this one',
+    icon: FileText,
+    command: { kind: 'subpage' },
+    aliases: 'subpage new page',
+  },
+  {
+    label: 'Folder',
+    hint: 'A folder inside this page',
+    icon: Folder,
+    command: { kind: 'folder' },
+    aliases: 'section',
+  },
+  {
+    label: 'Simple table',
+    hint: 'Rows and columns of text',
+    icon: Grid3x3,
+    command: { kind: 'grid' },
+    aliases: 'table grid',
+  },
+  {
+    label: 'Database',
+    hint: 'A table with properties and views',
+    icon: Table2,
+    command: { kind: 'table' },
+    aliases: 'table board',
+  },
+  {
+    label: 'Bookmark',
+    hint: 'A saved link with a note',
+    icon: Bookmark,
+    command: { kind: 'bookmark' },
+    aliases: 'url link web',
+  },
   {
     label: 'Link page',
     hint: 'A SPACE page',
@@ -263,12 +309,15 @@ export function PageEditor({
   lookup,
   onSaveState,
   compact = false,
+  belowTitle,
 }: {
   node: SpaceNode;
   lookup: EntityLookup;
   onSaveState?: (state: SaveState) => void;
   /** Less room below the last block (more content follows the page). */
   compact?: boolean;
+  /** Shown right under the title (the page's description). */
+  belowTitle?: React.ReactNode;
 }) {
   const lockedTitle = !!node.key;
   const { space } = useRepositories();
@@ -278,7 +327,15 @@ export function PageEditor({
     return b.length ? b : [{ id: newBlockId(), type: 'paragraph' as const, text: '' }];
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- once per page (keyed)
   const [blocks, setBlocks] = useState<SpaceBlock[]>(initial);
-  const [title, setTitle] = useState(node.title);
+  // A page just made: its title starts empty (showing “Untitled”) and focused.
+  const fresh =
+    node.kind === 'page' &&
+    !lockedTitle &&
+    !node.source &&
+    (node.revision ?? 0) === 0 &&
+    node.title === 'Untitled' &&
+    initial.every((b) => !b.text);
+  const [title, setTitle] = useState(fresh ? '' : node.title);
   const [epochs, setEpochs] = useState<Record<string, number>>({});
   const [focus, setFocus] = useState<{ id: string; at: number | 'end' } | null>(null);
   const [slash, setSlash] = useState<{ id: string; query: string; index: number } | null>(null);
@@ -299,6 +356,9 @@ export function PageEditor({
   });
   const titleRef = useRef<HTMLHeadingElement>(null);
   const editorId = useId();
+  useEffect(() => {
+    if (fresh) titleRef.current?.focus();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- once, on a new page
 
   const setSaveState = useCallback(
     (s: SaveState) => {
@@ -533,6 +593,20 @@ export function PageEditor({
     replaceBlock(id, block);
   };
 
+  /** Replaces a trailing `[[query` in a block with a link to a page. */
+  const linkInline = (id: string, label: string, pageId: string) => {
+    const cur = latest.current.blocks.find((b) => b.id === id);
+    if (!cur) return;
+    const text = (cur.text ?? '').replace(
+      /\[\[([^\]\n]{0,80})$/,
+      `[${label.replace(/[[\]]/g, '')}](space:${pageId}) `,
+    );
+    apply(
+      latest.current.blocks.map((b) => (b.id === id ? { ...withoutAuthor(b), text } : b)),
+      { remount: [id], focus: { id, at: 'end' } },
+    );
+  };
+
   /* ----------------------------- commands ----------------------------- */
 
   async function runCommand(id: string, command: Command) {
@@ -550,14 +624,43 @@ export function PageEditor({
       replaceBlock(id, block, 0);
       return;
     }
+    if (command.kind === 'grid') {
+      replaceBlock(id, {
+        id,
+        type: 'grid',
+        rows: [
+          ['', ''],
+          ['', ''],
+        ],
+      });
+      return;
+    }
+    if (command.kind === 'subpage' || command.kind === 'folder') {
+      const child = await space.create({
+        parentId: node.id,
+        title: command.kind === 'folder' ? 'New folder' : 'Untitled',
+        ...(command.kind === 'folder' ? { kind: 'section' as const } : { blocks: [] }),
+      });
+      replaceBlock(id, {
+        id,
+        type: 'link',
+        link: { type: 'spaceNode', id: child.id, label: child.title },
+      });
+      return;
+    }
     if (command.kind === 'table') {
       const table = await space.create({
         parentId: node.id,
-        title: 'Untitled table',
+        title: 'Untitled database',
         table: {
           columns: [
             { id: 'name', name: 'Name', type: 'text' },
-            { id: 'notes', name: 'Notes', type: 'text' },
+            {
+              id: 'status',
+              name: 'Status',
+              type: 'status',
+              options: [{ name: 'Not started' }, { name: 'In progress' }, { name: 'Done' }],
+            },
           ],
           rows: [],
         },
@@ -604,6 +707,9 @@ export function PageEditor({
       if (plain.startsWith('/')) setSlash({ id: block.id, query: plain.slice(1), index: 0 });
       else if (slash?.id === block.id) setSlash(null);
     }
+    const pageLink = /\[\[([^\]\n]{0,80})$/.exec(plain);
+    if (pageLink) setPicker({ id: block.id, command: { kind: 'inline', query: pageLink[1]! } });
+    else if (picker?.id === block.id && picker.command.kind === 'inline') setPicker(null);
     updateText(block.id, htmlToInline(el));
   }
 
@@ -612,6 +718,27 @@ export function PageEditor({
     const at = list.findIndex((b) => b.id === block.id);
     const mod = e.metaKey || e.ctrlKey;
 
+    if (picker?.id === block.id && picker.command.kind === 'inline') {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setPicker(null);
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const q = picker.command.query.trim().toLowerCase();
+        const pages = lookup.options('spaceNode').filter((o) => o.id !== node.id);
+        const exact = pages.find((o) => o.label.toLowerCase() === q);
+        setPicker(null);
+        if (exact) linkInline(block.id, exact.label, exact.id);
+        else if (q) {
+          void space
+            .create({ parentId: node.id, title: picker.command.query.trim(), blocks: [] })
+            .then((page) => linkInline(block.id, page.title, page.id));
+        } else if (pages[0]) linkInline(block.id, pages[0].label, pages[0].id);
+        return;
+      }
+    }
     if (slash && slash.id === block.id) {
       if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
         e.preventDefault();
@@ -935,8 +1062,9 @@ export function PageEditor({
         }}
         className="text-[32px] leading-tight font-semibold tracking-tight outline-none empty:before:text-fg-subtle empty:before:content-[attr(data-placeholder)]"
       >
-        {node.title}
+        {fresh ? '' : node.title}
       </h1>
+      {belowTitle}
       <p className="mt-2 text-xs text-fg-muted">
         {lastEdit?.by === 'ai-client' ? (
           <>
@@ -991,6 +1119,13 @@ export function PageEditor({
             onDragOver={(e) => onDragOver(block.id, e)}
             onDragEnd={() => setDrag(null)}
             onOpen={(href) => void navigate(href)}
+            onChange={(b) =>
+              apply(
+                latest.current.blocks.map((x) => (x.id === b.id ? withoutAuthor(b) : x)),
+                { structural: false },
+              )
+            }
+            hint={blocks.length === 1 && block.type === 'paragraph' && !block.text && !lockedTitle}
           >
             {slash?.id === block.id && slashItems.length > 0 && (
               <SlashMenu
@@ -1010,12 +1145,33 @@ export function PageEditor({
                 }}
                 onPick={(b) => {
                   setPicker(null);
-                  replaceBlock(block.id, { ...b, id: block.id });
+                  if (picker.command.kind === 'inline' && b.link) {
+                    linkInline(block.id, b.link.label ?? 'Page', b.link.id);
+                  } else replaceBlock(block.id, { ...b, id: block.id });
+                }}
+                onCreatePage={async (title) => {
+                  setPicker(null);
+                  const page = await space.create({ parentId: node.id, title, blocks: [] });
+                  linkInline(block.id, page.title, page.id);
                 }}
               />
             )}
           </BlockRow>
         ))}
+        {/* Clicking below the content puts the cursor at the end, ready to type. */}
+        <div
+          aria-hidden
+          data-testid="page-canvas-end"
+          onClick={() => {
+            const list = latest.current.blocks;
+            const last = list.at(-1);
+            if (last && isText(last) && !last.text) setFocus({ id: last.id, at: 'end' });
+            else if (last && isText(last) && last.type === 'paragraph')
+              setFocus({ id: last.id, at: 'end' });
+            else insertAfter(last?.id ?? '', { id: newBlockId(), type: 'paragraph', text: '' });
+          }}
+          className="min-h-24 cursor-text"
+        />
       </div>
     </article>
   );
@@ -1033,7 +1189,7 @@ const TEXT_CLASS: Partial<Record<SpaceBlockType, string>> = {
   check: 'text-[15px] leading-7',
   quote: 'border-l-2 border-line-strong pl-4 text-[15px] leading-7 text-fg-muted',
   callout: 'text-[15px] leading-7',
-  code: 'font-mono text-[13px] leading-6 whitespace-pre-wrap',
+  code: 'font-mono text-[13px] leading-6 whitespace-pre overflow-x-auto',
 };
 
 interface RowProps {
@@ -1054,6 +1210,10 @@ interface RowProps {
   onDragOver: (e: DragEvent) => void;
   onDragEnd: () => void;
   onOpen: (href: string) => void;
+  /** Replaces this block (simple tables, bookmarks). */
+  onChange: (block: SpaceBlock) => void;
+  /** The page is empty: show how to start, even before it's focused. */
+  hint?: boolean;
   children?: React.ReactNode;
 }
 
@@ -1144,7 +1304,13 @@ function TextBlock(p: RowProps) {
       role="textbox"
       aria-multiline
       aria-label={TYPE_LABEL[block.type]}
-      data-placeholder={block.type === 'paragraph' ? 'Type / for blocks' : TYPE_LABEL[block.type]}
+      data-placeholder={
+        block.type === 'paragraph'
+          ? p.hint
+            ? 'Start writing, or press / for blocks'
+            : 'Type / for blocks'
+          : TYPE_LABEL[block.type]
+      }
       spellCheck={block.type !== 'code'}
       onInput={(e) => p.onInput(block, e.currentTarget)}
       onKeyDown={(e) => p.onKeyDown(block, e.currentTarget, e)}
@@ -1158,7 +1324,7 @@ function TextBlock(p: RowProps) {
           else window.open(href, '_blank', 'noopener');
         }
       }}
-      className={`min-h-7 py-0.5 outline-none [&_a]:text-accent-ink [&_a]:underline [&_a]:underline-offset-2 [&_code]:rounded [&_code]:bg-surface [&_code]:px-1 [&_code]:font-mono [&_code]:text-[0.88em] empty:before:pointer-events-none empty:before:text-fg-subtle focus:empty:before:content-[attr(data-placeholder)] ${TEXT_CLASS[block.type] ?? ''} ${
+      className={`min-h-7 py-0.5 outline-none [&_a]:text-accent-ink [&_a]:underline [&_a]:underline-offset-2 [&_code]:rounded [&_code]:bg-surface [&_code]:px-1 [&_code]:font-mono [&_code]:text-[0.88em] empty:before:pointer-events-none empty:before:text-fg-subtle focus:empty:before:content-[attr(data-placeholder)] ${p.hint ? 'empty:before:content-[attr(data-placeholder)]' : ''} ${TEXT_CLASS[block.type] ?? ''} ${
         block.type === 'check' && block.checked
           ? 'text-fg-muted line-through decoration-fg-subtle'
           : ''
@@ -1329,42 +1495,18 @@ function StaticBlock(p: RowProps) {
           {block.link && <TableView tableId={block.link.id} compact />}
         </div>
       );
-    case 'grid': {
-      const [head = [], ...rows] = block.rows ?? [];
+    case 'grid':
       return (
-        <div {...common} role="group" aria-label="Imported table">
-          <div
-            tabIndex={0}
-            role="region"
-            aria-label="Imported table, scrolls sideways"
-            className="overflow-x-auto rounded-md border border-line"
-          >
-            <table className="w-full text-left text-sm">
-              <thead className="bg-surface">
-                <tr>
-                  {head.map((c, i) => (
-                    <th key={i} scope="col" className="px-3 py-2 font-medium whitespace-pre-line">
-                      {c}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r, i) => (
-                  <tr key={i} className="border-t border-line">
-                    {r.map((c, j) => (
-                      <td key={j} className="px-3 py-2 align-top whitespace-pre-line">
-                        {c}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div {...common} role="group" aria-label="Simple table">
+          <GridEditor block={block} onChange={p.onChange} />
         </div>
       );
-    }
+    case 'bookmark':
+      return (
+        <div {...common} role="group" aria-label={`Bookmark: ${block.title || block.url || ''}`}>
+          <BookmarkCard block={block} onChange={p.onChange} />
+        </div>
+      );
     default: {
       const toc = /^<table_of_contents\s*\/>$/.test((block.text ?? '').trim());
       return (
@@ -1520,14 +1662,18 @@ function Picker({
   selfId,
   onPick,
   onCancel,
+  onCreatePage,
 }: {
   command: Command;
   lookup: EntityLookup;
   selfId: string;
   onPick: (block: Omit<SpaceBlock, 'id'>) => void;
   onCancel: () => void;
+  /** `[[`: make a new page with this title and link it. */
+  onCreatePage?: (title: string) => void;
 }) {
-  const [query, setQuery] = useState('');
+  const [typed, setQuery] = useState('');
+  const query = command.kind === 'inline' ? command.query : typed;
   const [active, setActive] = useState(0);
   const ids = { q: useId(), name: useId(), url: useId(), file: useId() };
   const [file, setFile] = useState({
@@ -1536,6 +1682,9 @@ function Picker({
     mime: '',
     size: undefined as number | undefined,
   });
+
+  if (command.kind === 'bookmark')
+    return <BookmarkForm onSave={(b) => onPick({ type: 'bookmark', ...b })} onCancel={onCancel} />;
 
   if (command.kind === 'file')
     return (
@@ -1632,12 +1781,18 @@ function Picker({
       aria-label={`Link ${LINK_WORD[type].toLowerCase()}`}
       className="lt-pop absolute left-0 z-30 mt-1 w-80 rounded-lg border border-line bg-raised p-2 shadow-[var(--lt-shadow)]"
     >
+      {command.kind === 'inline' && (
+        <p className="px-2 pb-1 text-[11px] text-fg-muted">
+          Link a page: keep typing, then Enter (Escape to stop)
+        </p>
+      )}
       <label htmlFor={ids.q} className="sr-only">
         Find a {LINK_WORD[type].toLowerCase()}
       </label>
       <input
         id={ids.q}
-        autoFocus
+        hidden={command.kind === 'inline'}
+        autoFocus={command.kind !== 'inline'}
         role="combobox"
         aria-expanded
         aria-controls={`${ids.q}-list`}
@@ -1666,8 +1821,22 @@ function Picker({
         className={fieldClass}
       />
       <ul id={`${ids.q}-list`} role="listbox" className="mt-1 max-h-64 overflow-y-auto">
-        {options.length === 0 && (
+        {options.length === 0 && !(command.kind === 'inline' && q) && (
           <li className="px-2 py-1.5 text-sm text-fg-muted">Nothing found.</li>
+        )}
+        {command.kind === 'inline' && q && onCreatePage && (
+          <li
+            role="option"
+            aria-selected={false}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              onCreatePage(query.trim());
+            }}
+            className="cursor-pointer rounded-md px-2 py-1.5 text-sm hover:bg-hover"
+          >
+            <Plus aria-hidden className="mr-1 inline size-3.5" />
+            Create “{query.trim()}”
+          </li>
         )}
         {options.map((o, i) => (
           <li
@@ -1686,5 +1855,226 @@ function Picker({
         ))}
       </ul>
     </div>
+  );
+}
+
+/* --------------------------- simple tables ---------------------------- */
+
+/**
+ * A simple table (v2.1): rows and columns of text, edited in place. The
+ * first row is the header. For typed properties and views, use a database.
+ */
+function GridEditor({
+  block,
+  onChange,
+}: {
+  block: SpaceBlock;
+  onChange: (block: SpaceBlock) => void;
+}) {
+  const rows = block.rows?.length ? block.rows : [['']];
+  const width = Math.max(1, ...rows.map((r) => r.length));
+  const grid = rows.map((r) => [...r, ...Array<string>(width - r.length).fill('')]);
+  const set = (next: string[][]) => onChange({ ...block, rows: next });
+  const cell = (i: number, j: number, value: string) =>
+    set(grid.map((r, ri) => (ri === i ? r.map((c, cj) => (cj === j ? value : c)) : r)));
+  return (
+    <div>
+      <div
+        tabIndex={0}
+        role="region"
+        aria-label="Simple table, scrolls sideways"
+        className="overflow-x-auto rounded-md border border-line"
+      >
+        <table className="w-full border-collapse text-left text-sm">
+          <tbody>
+            {grid.map((r, i) => (
+              <tr key={i} className={i === 0 ? 'bg-surface' : 'border-t border-line'}>
+                {r.map((c, j) => (
+                  <td key={j} className="min-w-[8rem] border-l border-line p-0 first:border-l-0">
+                    <input
+                      value={c}
+                      aria-label={`${i === 0 ? 'Header' : `Row ${i}`}, column ${j + 1}`}
+                      onChange={(e) => cell(i, j, e.target.value)}
+                      className={`w-full bg-transparent px-3 py-1.5 outline-none focus:bg-raised ${i === 0 ? 'font-medium' : ''}`}
+                    />
+                  </td>
+                ))}
+                <td className="w-8 p-0">
+                  {grid.length > 1 && (
+                    <button
+                      type="button"
+                      aria-label={`Remove ${i === 0 ? 'header row' : `row ${i}`}`}
+                      onClick={() => set(grid.filter((_, ri) => ri !== i))}
+                      className="grid size-7 place-items-center text-fg-subtle hover:text-fg"
+                    >
+                      <Trash2 aria-hidden className="size-3" />
+                    </button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="mt-1 flex flex-wrap gap-1">
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => set([...grid, Array<string>(width).fill('')])}
+        >
+          <Plus aria-hidden className="size-3" /> Row
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => set(grid.map((r) => [...r, '']))}>
+          <Plus aria-hidden className="size-3" /> Column
+        </Button>
+        {width > 1 && (
+          <Button size="sm" variant="ghost" onClick={() => set(grid.map((r) => r.slice(0, -1)))}>
+            <Minus aria-hidden className="size-3" /> Last column
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------ bookmarks ----------------------------- */
+
+const hostOf = (url: string) => {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
+};
+
+function BookmarkCard({
+  block,
+  onChange,
+}: {
+  block: SpaceBlock;
+  onChange: (block: SpaceBlock) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  if (editing)
+    return (
+      <div className="relative">
+        <BookmarkForm
+          initial={block}
+          onSave={(b) => {
+            setEditing(false);
+            onChange({ ...block, ...b });
+          }}
+          onCancel={() => setEditing(false)}
+          inline
+        />
+      </div>
+    );
+  const safe = block.url && /^(https?:|mailto:)/i.test(block.url) ? block.url : undefined;
+  return (
+    <div className="flex items-start gap-3 rounded-md border border-line px-3 py-2.5 text-sm">
+      <Bookmark aria-hidden className="mt-0.5 size-4 shrink-0 text-fg-muted" />
+      <div className="min-w-0 flex-1">
+        {safe ? (
+          <a href={safe} target="_blank" rel="noreferrer" className="font-medium hover:underline">
+            {block.title || hostOf(safe)}
+          </a>
+        ) : (
+          <span className="font-medium">{block.title || block.url}</span>
+        )}
+        {block.url && <p className="truncate text-xs text-fg-muted">{block.url}</p>}
+        {block.text && <p className="mt-1 text-[13px] text-fg-muted">{block.text}</p>}
+      </div>
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        aria-label={`Edit bookmark ${block.title || block.url || ''}`}
+        className="grid size-7 shrink-0 place-items-center rounded text-fg-muted hover:bg-hover hover:text-fg"
+      >
+        <Pencil aria-hidden className="size-3.5" />
+      </button>
+    </div>
+  );
+}
+
+function BookmarkForm({
+  initial,
+  onSave,
+  onCancel,
+  inline = false,
+}: {
+  initial?: Partial<SpaceBlock>;
+  onSave: (b: { url: string; title?: string; text?: string }) => void;
+  onCancel: () => void;
+  inline?: boolean;
+}) {
+  const [url, setUrl] = useState(initial?.url ?? '');
+  const [title, setTitle] = useState(initial?.title ?? '');
+  const [note, setNote] = useState(initial?.text ?? '');
+  const [problem, setProblem] = useState<string | null>(null);
+  const ids = { url: useId(), title: useId(), note: useId() };
+  return (
+    <form
+      aria-label="Bookmark"
+      onKeyDown={(e) => e.key === 'Escape' && onCancel()}
+      onSubmit={(e) => {
+        e.preventDefault();
+        const clean = url.trim();
+        if (!clean) {
+          setProblem('Give the link.');
+          return;
+        }
+        onSave({
+          url: /^[a-z][a-z0-9+.-]*:/i.test(clean) ? clean : `https://${clean}`,
+          ...(title.trim() ? { title: title.trim() } : {}),
+          ...(note.trim() ? { text: note.trim() } : {}),
+        });
+      }}
+      className={`${inline ? '' : 'lt-pop absolute left-0 z-30 mt-1 w-80 shadow-[var(--lt-shadow)]'} space-y-3 rounded-lg border border-line bg-raised p-3`}
+    >
+      <div>
+        <label htmlFor={ids.url} className={labelClass}>
+          Link
+        </label>
+        <input
+          id={ids.url}
+          autoFocus
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          className={fieldClass}
+          placeholder="https://"
+        />
+      </div>
+      <div>
+        <label htmlFor={ids.title} className={labelClass}>
+          Title (optional)
+        </label>
+        <input
+          id={ids.title}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className={fieldClass}
+        />
+      </div>
+      <div>
+        <label htmlFor={ids.note} className={labelClass}>
+          Note (optional)
+        </label>
+        <input
+          id={ids.note}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          className={fieldClass}
+        />
+      </div>
+      {problem && <ErrorNotice>{problem}</ErrorNotice>}
+      <div className="flex gap-2">
+        <Button type="submit" variant="primary" size="sm">
+          Save bookmark
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onCancel}>
+          Cancel
+        </Button>
+      </div>
+    </form>
   );
 }

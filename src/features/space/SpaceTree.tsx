@@ -4,8 +4,10 @@ import {
   Folder,
   FolderKanban,
   MoreHorizontal,
+  Pin,
   Plus,
   Table2,
+  Trash2,
 } from 'lucide-react';
 import {
   useEffect,
@@ -20,6 +22,7 @@ import { ErrorNotice } from '../../components/ui/Notice';
 import { useRepositories } from '../../hooks/useRepositories';
 import { useWatch } from '../../hooks/useWatch';
 import type { Id, Project, SpaceNode } from '../../types/domain';
+import { useCreate, type CreateKind } from '../create/create-context';
 import { useSpaceData } from './context';
 import { documentsUnder, pathOf } from './model';
 
@@ -54,14 +57,22 @@ export function SpaceTree({
   onOpen,
   onOpenProject,
   onMoveRequest,
+  onTrash,
+  onExport,
 }: {
   activeId: Id | undefined;
   onOpen: (id: Id) => void;
   onOpenProject: (projectId: Id) => void;
   onMoveRequest: (id: Id) => void;
+  /** Opens the Trash (archived pages). */
+  onTrash?: () => void;
+  /** Downloads a page, folder or database. */
+  onExport?: (id: Id) => void;
 }) {
   const { index, nodes } = useSpaceData();
   const { space, projects } = useRepositories();
+  const { openCreate } = useCreate();
+  const [newOpen, setNewOpen] = useState(false);
   const live = useWatch(projects.watchAll);
   const [expanded, setExpanded] = useState<Set<string>>(loadExpanded);
   const [filter, setFilter] = useState('');
@@ -97,6 +108,17 @@ export function SpaceTree({
     if (ancestors.some((a) => !expanded.has(a))) setExpanded(new Set([...expanded, ...ancestors]));
   }
   const open = expanded;
+
+  const pinned = useMemo(
+    () =>
+      nodes
+        .filter((n) => n.pinnedAt && !n.archived)
+        .sort((a, b) => a.pinnedAt!.localeCompare(b.pinnedAt!)),
+    [nodes],
+  );
+  // Where “New” puts things: the open folder or page (or its parent, for a database).
+  const here = activeId ? index.byId.get(activeId) : undefined;
+  const newParent = here ? (here.kind === 'table' ? here.parentId : here.id) : undefined;
 
   const placeholders = useMemo(() => {
     if (live.status !== 'ready') return [];
@@ -166,10 +188,9 @@ export function SpaceTree({
       () => setError(failure),
     );
 
-  async function createInside(parent: SpaceNode) {
-    const page = await space.create({ parentId: parent.id, title: 'Untitled', blocks: [] });
+  function createInside(parent: SpaceNode, kind: CreateKind = 'page') {
     toggle(parent.id, true);
-    onOpen(page.id);
+    openCreate(kind, { parentId: parent.id });
   }
 
   function activate(row: Row) {
@@ -238,11 +259,15 @@ export function SpaceTree({
     const zone =
       row.node.key && !row.node.parentId
         ? 'inside'
-        : y < 0.25
-          ? 'before'
-          : y > 0.75
-            ? 'after'
-            : 'inside';
+        : row.node.kind === 'table'
+          ? y < 0.5
+            ? 'before'
+            : 'after'
+          : y < 0.25
+            ? 'before'
+            : y > 0.75
+              ? 'after'
+              : 'inside';
     if (drag.over !== row.id || drag.zone !== zone) setDrag({ ...drag, over: row.id, zone });
   }
 
@@ -268,7 +293,30 @@ export function SpaceTree({
 
   return (
     <nav aria-label="SPACE pages" className="flex h-full min-h-0 flex-col">
-      <div className="px-3 pt-3 pb-2">
+      <div className="relative flex items-center gap-2 px-3 pt-3">
+        <button
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={newOpen}
+          onClick={() => setNewOpen((o) => !o)}
+          className="inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-2.5 text-[13px] font-medium text-on-primary hover:bg-primary/85"
+        >
+          <Plus aria-hidden className="size-3.5" /> New
+        </button>
+        <span className="truncate text-xs text-fg-muted">
+          {here ? `in ${newParent ? (index.byId.get(newParent)?.title ?? 'SPACE') : 'SPACE'}` : ''}
+        </span>
+        {newOpen && (
+          <CreateMenu
+            onClose={() => setNewOpen(false)}
+            onPick={(kind) => {
+              setNewOpen(false);
+              openCreate(kind, newParent ? { parentId: newParent } : {});
+            }}
+          />
+        )}
+      </div>
+      <div className="px-3 pt-2 pb-2">
         <label htmlFor={filterId} className="sr-only">
           Filter pages
         </label>
@@ -284,6 +332,27 @@ export function SpaceTree({
       {error && (
         <div className="px-3">
           <ErrorNotice>{error}</ErrorNotice>
+        </div>
+      )}
+      {pinned.length > 0 && !filter && (
+        <div className="px-1.5 pb-1">
+          <p className="flex items-center gap-1 px-2 pt-1 pb-0.5 text-[11px] font-medium text-fg-muted">
+            <Pin aria-hidden className="size-3" /> Pinned
+          </p>
+          <ul aria-label="Pinned pages">
+            {pinned.map((n) => (
+              <li key={n.id}>
+                <button
+                  type="button"
+                  onClick={() => onOpen(n.id)}
+                  className={`flex h-7 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] hover:bg-hover ${n.id === activeId ? 'bg-hover text-fg' : 'text-fg-muted'}`}
+                >
+                  <KindGlyph node={n} />
+                  <span className="truncate">{n.title}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
       <ul role="tree" aria-label="SPACE" className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-3">
@@ -318,11 +387,18 @@ export function SpaceTree({
               }
             }}
             onMenu={(open) => setMenu(open ? row.id : null)}
-            onCreateInside={() => row.node && void run(createInside(row.node))}
+            onCreateInside={(kind) => row.node && createInside(row.node, kind)}
             onStartRename={() => setRenaming(row.id)}
             onDuplicate={() =>
-              row.node && void run(space.duplicate(row.node.id).then((c) => onOpen(c.id)))
+              row.node &&
+              void run(
+                space
+                  .duplicateTree(row.node.id, { deep: row.node.kind === 'section' })
+                  .then((c) => onOpen(c.id)),
+              )
             }
+            onPin={() => row.node && void run(space.setPinned(row.node.id, !row.node.pinnedAt))}
+            onExport={() => row.node && onExport?.(row.node.id)}
             onMove={() => row.node && onMoveRequest(row.node.id)}
             onArchive={() =>
               row.node &&
@@ -335,10 +411,25 @@ export function SpaceTree({
           />
         ))}
       </ul>
-      <label className="flex items-center gap-2 border-t border-line px-3 py-2 text-xs text-fg-muted">
-        <input type="checkbox" checked={archived} onChange={(e) => setArchived(e.target.checked)} />
-        Show archived
-      </label>
+      <div className="flex items-center justify-between gap-2 border-t border-line px-3 py-1.5 text-xs text-fg-muted">
+        <label className="flex items-center gap-2 py-1">
+          <input
+            type="checkbox"
+            checked={archived}
+            onChange={(e) => setArchived(e.target.checked)}
+          />
+          Show archived
+        </label>
+        {onTrash && (
+          <button
+            type="button"
+            onClick={onTrash}
+            className="inline-flex items-center gap-1 rounded px-1.5 py-1 hover:bg-hover hover:text-fg"
+          >
+            <Trash2 aria-hidden className="size-3.5" /> Trash
+          </button>
+        )}
+      </div>
     </nav>
   );
 }
@@ -362,6 +453,8 @@ function TreeRow({
   onCreateInside,
   onStartRename,
   onDuplicate,
+  onPin,
+  onExport,
   onMove,
   onArchive,
   onDragStart,
@@ -384,9 +477,11 @@ function TreeRow({
   onKeyDown: (e: KeyboardEvent) => void;
   onRename: (title: string) => void;
   onMenu: (open: boolean) => void;
-  onCreateInside: () => void;
+  onCreateInside: (kind?: CreateKind) => void;
   onStartRename: () => void;
   onDuplicate: () => void;
+  onPin: () => void;
+  onExport: () => void;
   onMove: () => void;
   onArchive: () => void;
   onDragStart: () => void;
@@ -395,6 +490,7 @@ function TreeRow({
   onDragEnd: () => void;
 }) {
   const node = row.node;
+  const [adding, setAdding] = useState(false);
   const title = node?.title ?? row.project?.name ?? '';
   const Icon = row.project
     ? FolderKanban
@@ -425,6 +521,12 @@ function TreeRow({
       onDragOver={onDragOver}
       onDrop={onDrop}
       onDragEnd={onDragEnd}
+      onContextMenu={(e) => {
+        if (!node) return;
+        e.preventDefault();
+        e.stopPropagation();
+        onMenu(true);
+      }}
       className="relative outline-none focus-visible:[&>div]:ring-2 focus-visible:[&>div]:ring-[var(--lt-focus)]"
     >
       <div
@@ -474,20 +576,24 @@ function TreeRow({
           </span>
         )}
         {node && !renaming && (
-          <span className="hidden items-center group-hover/row:flex">
-            <button
-              type="button"
-              tabIndex={-1}
-              aria-label={`New page inside ${title}`}
-              title="New page inside"
-              onClick={(e) => {
-                e.stopPropagation();
-                onCreateInside();
-              }}
-              className="grid size-6 place-items-center rounded hover:bg-hover"
-            >
-              <Plus aria-hidden className="size-3.5" />
-            </button>
+          <span
+            className={`items-center group-hover/row:flex ${active || menuOpen ? 'flex' : 'hidden'}`}
+          >
+            {node.kind !== 'table' && (
+              <button
+                type="button"
+                tabIndex={-1}
+                aria-label={`Add inside ${title}`}
+                title="Add a page, folder or database inside"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setAdding((a) => !a);
+                }}
+                className="grid size-6 place-items-center rounded hover:bg-hover"
+              >
+                <Plus aria-hidden className="size-3.5" />
+              </button>
+            )}
             <button
               type="button"
               tabIndex={-1}
@@ -504,11 +610,29 @@ function TreeRow({
           </span>
         )}
       </div>
+      {adding && node && (
+        <CreateMenu
+          inside={title}
+          onClose={() => setAdding(false)}
+          onPick={(kind) => {
+            setAdding(false);
+            onCreateInside(kind);
+          }}
+        />
+      )}
       {menuOpen && node && (
         <RowMenu
           node={node}
           onClose={() => onMenu(false)}
-          actions={{ onCreateInside, onStartRename, onDuplicate, onMove, onArchive }}
+          actions={{
+            onCreateInside,
+            onStartRename,
+            onDuplicate,
+            onPin,
+            onExport,
+            onMove,
+            onArchive,
+          }}
         />
       )}
     </li>
@@ -523,9 +647,11 @@ function RowMenu({
   node: SpaceNode;
   onClose: () => void;
   actions: {
-    onCreateInside: () => void;
+    onCreateInside: (kind?: CreateKind) => void;
     onStartRename: () => void;
     onDuplicate: () => void;
+    onPin: () => void;
+    onExport: () => void;
     onMove: () => void;
     onArchive: () => void;
   };
@@ -533,11 +659,20 @@ function RowMenu({
   const first = useRef<HTMLButtonElement>(null);
   useEffect(() => first.current?.focus(), []);
   const maintained = !!node.key;
+  const container = node.kind !== 'table';
   const items: [string, () => void, boolean][] = [
-    ['New page inside', actions.onCreateInside, true],
+    ['New page inside', () => actions.onCreateInside('page'), container],
+    ['New folder inside', () => actions.onCreateInside('folder'), container],
+    ['New database inside', () => actions.onCreateInside('database'), container],
     ['Rename', actions.onStartRename, !maintained],
-    ['Duplicate', actions.onDuplicate, !maintained && node.kind !== 'section'],
+    [node.pinnedAt ? 'Unpin' : 'Pin', actions.onPin, true],
+    [
+      node.kind === 'section' ? 'Duplicate with contents' : 'Duplicate',
+      actions.onDuplicate,
+      !maintained,
+    ],
     ['Move to…', actions.onMove, !maintained],
+    ['Export', actions.onExport, true],
     [node.archived ? 'Restore' : 'Archive', actions.onArchive, !maintained],
   ];
   return (
@@ -567,6 +702,61 @@ function RowMenu({
             {label}
           </button>
         ))}
+    </div>
+  );
+}
+
+function KindGlyph({ node }: { node: SpaceNode }) {
+  const Icon = node.kind === 'table' ? Table2 : node.kind === 'section' ? Folder : FileText;
+  return <Icon aria-hidden className="size-3.5 shrink-0" strokeWidth={1.75} />;
+}
+
+/** New page, folder or database: a small menu, keyboard-friendly. */
+function CreateMenu({
+  inside,
+  onPick,
+  onClose,
+}: {
+  inside?: string;
+  onPick: (kind: CreateKind) => void;
+  onClose: () => void;
+}) {
+  const first = useRef<HTMLButtonElement>(null);
+  useEffect(() => first.current?.focus(), []);
+  const items: [CreateKind, string, typeof FileText][] = [
+    ['page', 'Page', FileText],
+    ['folder', 'Folder', Folder],
+    ['database', 'Database', Table2],
+  ];
+  return (
+    <div
+      role="menu"
+      aria-label={inside ? `Add inside ${inside}` : 'New in SPACE'}
+      onKeyDown={(e) => {
+        e.stopPropagation();
+        const list = [...e.currentTarget.querySelectorAll<HTMLButtonElement>('[role=menuitem]')];
+        const at = list.indexOf(document.activeElement as HTMLButtonElement);
+        if (e.key === 'Escape') onClose();
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          list[(at + (e.key === 'ArrowDown' ? 1 : list.length - 1)) % list.length]?.focus();
+        }
+      }}
+      className="lt-pop absolute top-full left-3 z-30 mt-1 w-44 rounded-lg border border-line bg-raised p-1 text-sm shadow-[var(--lt-shadow)]"
+    >
+      {items.map(([kind, label, Icon], i) => (
+        <button
+          key={kind}
+          ref={i === 0 ? first : undefined}
+          type="button"
+          role="menuitem"
+          onClick={() => onPick(kind)}
+          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left hover:bg-hover focus-visible:bg-hover"
+        >
+          <Icon aria-hidden className="size-3.5" />
+          {label}
+        </button>
+      ))}
     </div>
   );
 }

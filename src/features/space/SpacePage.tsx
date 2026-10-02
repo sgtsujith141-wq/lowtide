@@ -31,6 +31,9 @@ import {
   searchDocs,
   type SearchHit,
 } from './model';
+import { exportNode } from './export';
+import { CLAUDE_GUIDE } from './guide';
+import { DescriptionField, FolderView, HelpButton, PageMenu, TrashDrawer } from './SpaceExtras';
 import { SpaceTree } from './SpaceTree';
 import { TableView } from './TableView';
 
@@ -133,6 +136,13 @@ function Workspace() {
   const [searching, setSearching] = useState(false);
   const [moving, setMoving] = useState<Id | null>(null);
   const [saveState, setSaveState] = useState<SaveState>('idle');
+  const [trash, setTrash] = useState(false);
+  const { space } = useRepositories();
+  // LOWTIDE's own pages (Templates, the AI guide), once SPACE is in use.
+  const hasPages = index.byId.size > 0;
+  useEffect(() => {
+    if (hasPages) void space.ensureSystemPages(CLAUDE_GUIDE).catch(() => undefined);
+  }, [space, hasPages]);
 
   useEffect(() => {
     try {
@@ -174,6 +184,14 @@ function Workspace() {
         void navigate(`/space/project/${id}`);
       }}
       onMoveRequest={setMoving}
+      onTrash={() => {
+        setSheet(null);
+        setTrash(true);
+      }}
+      onExport={(id) => {
+        const n = index.byId.get(id);
+        if (n) exportNode(index, n);
+      }}
     />
   );
 
@@ -232,6 +250,8 @@ function Workspace() {
               <Search aria-hidden className="size-4" />
               <kbd className="font-sans max-sm:hidden">{shortcutLabel().replace('K', 'P')}</kbd>
             </button>
+            <HelpButton />
+            {node && <PageMenu node={node} onMove={() => setMoving(node.id)} onOpen={open} />}
             {node && (
               <button
                 type="button"
@@ -304,6 +324,7 @@ function Workspace() {
       </Drawer>
       <SearchDialog open={searching} onClose={() => setSearching(false)} onOpen={open} />
       <MoveDialog id={moving} onClose={() => setMoving(null)} />
+      <TrashDrawer open={trash} onClose={() => setTrash(false)} onOpen={open} />
     </div>
   );
 }
@@ -412,6 +433,22 @@ function NodeView({
   const { index, lookup } = useSpaceData();
   const children = (index.children.get(node.id) ?? []).filter((c) => !c.archived);
   const projectFolder = /^project:([^:]+)$/.exec(node.key ?? '')?.[1];
+  if (node.kind === 'section') {
+    return (
+      <div className="lt-fade px-5 py-8 pb-24 sm:px-10 sm:py-10">
+        {node.archived && <ArchivedBanner node={node} />}
+        <FolderView
+          node={node}
+          onOpen={onOpen}
+          extra={
+            projectFolder && (
+              <MissingSlots projectId={projectFolder} existing={children} onOpen={onOpen} />
+            )
+          }
+        />
+      </div>
+    );
+  }
   return (
     <div className="lt-fade px-5 py-8 sm:px-10 sm:py-10">
       {node.archived && <ArchivedBanner node={node} />}
@@ -421,6 +458,7 @@ function NodeView({
           lookup={lookup}
           onSaveState={onSaveState}
           compact={node.kind === 'table' || children.length > 0 || !!projectFolder}
+          belowTitle={<DescriptionField node={node} />}
         />
       </div>
       {node.kind === 'table' && (
@@ -558,6 +596,9 @@ function SpaceHome({ onOpen }: { onOpen: (id: Id) => void }) {
     .filter(live)
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .slice(0, 8);
+  const pinned = nodes
+    .filter((n) => n.pinnedAt && !n.archived)
+    .sort((a, b) => a.pinnedAt!.localeCompare(b.pinnedAt!));
   const projectsRoot = nodes.find((n) => n.key === 'projects');
   const projectFolders = (projectsRoot ? (index.children.get(projectsRoot.id) ?? []) : [])
     .filter((n) => !n.archived)
@@ -612,6 +653,12 @@ function SpaceHome({ onOpen }: { onOpen: (id: Id) => void }) {
       </nav>
       <div className="mt-8 grid gap-x-12 gap-y-10 md:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-10">
+          {pinned.length > 0 && (
+            <section aria-label="Pinned">
+              <h2 className={heading}>Pinned</h2>
+              <ul className={list}>{pinned.map((n) => pageRow(n))}</ul>
+            </section>
+          )}
           {opened.length > 0 && (
             <section aria-label="Recently opened">
               <h2 className={heading}>Recently opened</h2>

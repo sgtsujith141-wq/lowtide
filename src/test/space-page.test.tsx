@@ -118,9 +118,13 @@ describe('SPACE (v2 PHASE 014)', () => {
     expect(within(page).getByRole('textbox', { name: 'Callout' })).toHaveTextContent('Read first.');
     expect(within(page).getByRole('textbox', { name: 'Heading 1' })).toHaveTextContent('Goals');
     expect(within(page).getByRole('textbox', { name: 'Bullet list' })).toHaveTextContent('Ship v1');
-    expect(within(page).getByRole('group', { name: 'Imported table' })).toHaveTextContent(
-      'ZeroYes',
-    );
+    // An imported table becomes a simple table you can edit; its cells are kept.
+    const grid = within(page).getByRole('group', { name: 'Simple table' });
+    expect(
+      within(grid)
+        .getAllByRole('textbox')
+        .map((c) => (c as HTMLInputElement).value),
+    ).toEqual(['Phase', 'Done', 'Zero', 'Yes']);
     expect(
       within(page).getByRole('group', { name: 'Imported content kept as it was' }),
     ).toHaveTextContent('Kept as is');
@@ -304,8 +308,15 @@ describe('SPACE (v2 PHASE 014)', () => {
     const { user } = await open(s, `/space/${s.notes.id}`);
     await user.click(await screen.findByRole('button', { name: 'Pages' }, { timeout: 10_000 }));
     const sheet = await screen.findByRole('dialog', { name: 'Pages' });
-    await user.click(within(sheet).getByRole('button', { name: 'New page inside Engine' }));
-    expect(await screen.findByRole('article', { name: 'Untitled' })).toBeInTheDocument();
+    // The + beside a folder offers a page, a folder or a database.
+    await user.click(within(sheet).getByRole('button', { name: 'Add inside Engine' }));
+    await user.click(within(sheet).getByRole('menuitem', { name: 'Page' }));
+    const form = await screen.findByRole('form', { name: 'New page' });
+    expect(within(form).getByLabelText('In')).toHaveValue(s.engine.id);
+    await user.click(within(form).getByRole('button', { name: 'Create page' }));
+    expect(
+      await screen.findByRole('article', { name: 'Untitled' }, { timeout: 5000 }),
+    ).toBeInTheDocument();
     await user.click(await screen.findByRole('button', { name: 'Pages' }));
     const tree = within(await screen.findByRole('dialog', { name: 'Pages' })).getByRole('tree');
     const item = within(tree).getByRole('treeitem', { name: 'Untitled' });
