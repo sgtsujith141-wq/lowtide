@@ -139,7 +139,12 @@ export function SpaceTree({
     return out;
   }, [index, nodes, filter, archived, open, placeholders]);
   const focusId =
-    focused && rows.some((r) => r.id === focused) ? focused : (activeId ?? rows[0]?.id);
+    focused && rows.some((r) => r.id === focused)
+      ? focused
+      : // The open page may be hidden (archived, or filtered out): then the first row.
+        activeId && rows.some((r) => r.id === activeId)
+        ? activeId
+        : rows[0]?.id;
 
   const focusRow = (id: string | undefined) => {
     if (!id) return;

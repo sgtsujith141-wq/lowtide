@@ -405,4 +405,16 @@ describe('SPACE (v2 PHASE 014)', () => {
     const opened = await screen.findByRole('region', { name: 'Recently opened' });
     expect(within(opened).getByRole('button', { name: 'Scratch notes' })).toBeInTheDocument();
   });
+
+  it('keeps the tree reachable by Tab while an archived page is open', async () => {
+    const s = await seed();
+    await s.r.space.archive(s.notes.id);
+    const { user } = await open(s, `/space/${s.notes.id}`);
+    await user.click(screen.getByRole('button', { name: 'Pages' }));
+    const tree = within(await screen.findByRole('dialog', { name: 'Pages' })).getByRole('tree');
+    const tabbable = within(tree)
+      .getAllByRole('treeitem')
+      .filter((t) => t.tabIndex === 0);
+    expect(tabbable).toHaveLength(1);
+  });
 });
