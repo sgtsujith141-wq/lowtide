@@ -412,6 +412,9 @@ function rollup(table: SpaceTable, row: SpaceRow, column: SpaceColumn, ctx: Data
 
 /* --------------------------------- views --------------------------------- */
 
+/** One element of a multi-value cell as text (a choice, or a link's label). */
+const itemText = (x: string | EntityLink) => (typeof x === 'string' ? x : (x.label ?? x.id));
+
 function textOf(v: ComputedValue | SpaceCellValue): string {
   if (v === null || v === undefined) return '';
   if (Array.isArray(v)) return cellText(v);
@@ -429,11 +432,11 @@ function matches(table: SpaceTable, row: SpaceRow, f: SpaceFilter, ctx: Database
       return t.includes(want);
     case 'is':
       return Array.isArray(v)
-        ? v.some((x) => textOf(x as never).toLowerCase() === want)
+        ? (v as (string | EntityLink)[]).some((x) => itemText(x).toLowerCase() === want)
         : t === want;
     case 'isNot':
       return Array.isArray(v)
-        ? !v.some((x) => textOf(x as never).toLowerCase() === want)
+        ? !(v as (string | EntityLink)[]).some((x) => itemText(x).toLowerCase() === want)
         : t !== want;
     case 'isEmpty':
       return t === '';
@@ -455,6 +458,9 @@ function matches(table: SpaceTable, row: SpaceRow, f: SpaceFilter, ctx: Database
       return true;
   }
 }
+
+const isEmptyValue = (x: unknown) =>
+  x === null || x === undefined || x === '' || (Array.isArray(x) && x.length === 0);
 
 function compare(a: ComputedValue | SpaceCellValue, b: ComputedValue | SpaceCellValue): number {
   const empty = (x: unknown) => x === null || x === undefined || x === '';
@@ -490,7 +496,13 @@ export function applyView(
       for (const s of sorts) {
         const c = byId.get(s.column);
         if (!c) continue;
-        const d = compare(valueOf(table, a, c, ctx), valueOf(table, b, c, ctx));
+        const va = valueOf(table, a, c, ctx);
+        const vb = valueOf(table, b, c, ctx);
+        // Empty values stay last whichever way the sort goes.
+        const ea = isEmptyValue(va);
+        const eb = isEmptyValue(vb);
+        if (ea !== eb) return ea ? 1 : -1;
+        const d = compare(va, vb);
         if (d) return s.dir === 'desc' ? -d : d;
       }
       return 0;
@@ -513,7 +525,7 @@ export function applyView(
   const none: SpaceRow[] = [];
   for (const r of rows) {
     const v = valueOf(table, r, group, ctx);
-    const values = Array.isArray(v) ? v.map((x) => textOf(x as never)) : [textOf(v)];
+    const values = Array.isArray(v) ? (v as (string | EntityLink)[]).map(itemText) : [textOf(v)];
     const placed = values.filter((k) => k !== '');
     if (!placed.length) none.push(r);
     for (const k of placed) {
@@ -567,4 +579,95 @@ export function parseCsv(text: string): string[][] {
     rows.push(row);
   }
   return rows.filter((r) => r.some((c) => c.trim() !== ''));
+}
+
+/** The records a relation can point at, as a snapshot gives them. */
+export interface RelatedRecords {
+  tasks: readonly {
+    id: string;
+    title: string;
+    status: string;
+    completedAt?: string;
+    dueAt?: string;
+  }[];
+  milestones: readonly { id: string; title: string; completedAt?: string; dueOn?: string }[];
+  projectItems: readonly { id: string; title: string; lane: string; resolvedAt?: string }[];
+  decisions: readonly { id: string; title: string; decidedAt: string }[];
+  projects: readonly { id: string; name: string; state: string }[];
+  hackathons: readonly { id: string; name: string; status: string; eventStart?: string }[];
+  spaceNodes: readonly { id: string; title: string; table?: SpaceTable }[];
+}
+
+const DONE_STATUS = /^(done|complete|completed|published|shipped)$/i;
+
+/** What relations point at, for rollups: done, a date, or a related row's values. */
+export function relatedFromRecords(
+  data: RelatedRecords,
+): (link: EntityLink) => Related | undefined {
+  const index = <T extends { id: string }>(list: readonly T[]) =>
+    new Map(list.map((x) => [x.id, x]));
+  const tasks = index(data.tasks);
+  const milestones = index(data.milestones);
+  const items = index(data.projectItems);
+  const decisions = index(data.decisions);
+  const projects = index(data.projects);
+  const hackathons = index(data.hackathons);
+  const nodes = index(data.spaceNodes);
+  const withDate = (date: string | undefined) => (date ? { date } : {});
+  return (link) => {
+    switch (link.type) {
+      case 'task': {
+        const t = tasks.get(link.id);
+        return (
+          t && { title: t.title, done: t.status === 'done', ...withDate(t.completedAt ?? t.dueAt) }
+        );
+      }
+      case 'milestone': {
+        const m = milestones.get(link.id);
+        return (
+          m && {
+            title: m.title,
+            done: m.completedAt !== undefined,
+            ...withDate(m.completedAt ?? m.dueOn),
+          }
+        );
+      }
+      case 'projectItem': {
+        const i = items.get(link.id);
+        return i && { title: i.title, done: i.lane === 'done', ...withDate(i.resolvedAt) };
+      }
+      case 'decision': {
+        const x = decisions.get(link.id);
+        return x && { title: x.title, date: x.decidedAt };
+      }
+      case 'project': {
+        const p = projects.get(link.id);
+        return p && { title: p.name, done: p.state === 'done' };
+      }
+      case 'hackathon': {
+        const h = hackathons.get(link.id);
+        return h && { title: h.name, done: h.status === 'finished', ...withDate(h.eventStart) };
+      }
+      case 'spaceNode': {
+        const n = nodes.get(link.id);
+        if (!n) return undefined;
+        const row = link.rowId ? n.table?.rows.find((r) => r.id === link.rowId) : undefined;
+        if (!row || !n.table) return { title: n.title };
+        const values: Record<string, SpaceCellValue> = {};
+        for (const c of n.table.columns) {
+          const v = row.cells[c.id];
+          if (v === undefined) continue;
+          values[c.id] = v;
+          values[c.name] = v;
+        }
+        const status = n.table.columns.find((c) => c.type === 'status');
+        return {
+          values,
+          done: DONE_STATUS.test(status ? String(row.cells[status.id] ?? '') : ''),
+        };
+      }
+      default:
+        return undefined;
+    }
+  };
 }

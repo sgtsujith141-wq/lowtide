@@ -5,11 +5,17 @@ import { Announcer, ErrorNotice } from '../../components/ui/Notice';
 import { fieldClass, labelClass } from '../../components/ui/styles';
 import type { CompanionClient } from '../../db/companion/client';
 import {
+  CAPABILITY_GROUPS,
+  CAPABILITY_LABEL,
   CLIENT_KINDS,
   CLIENT_LABEL,
+  GRANT_PRESETS,
+  PRESET,
   SENSITIVE,
   SENSITIVE_LABEL,
   type AuditEntry,
+  type Capability,
+  type GrantPreset,
   type ClientKind,
   type ClientStatus,
   type CompanionStatus,
@@ -20,6 +26,7 @@ import {
 } from '../../db/companion/wire';
 import { useNow } from '../../hooks/useNow';
 import { formatFull, formatWhen } from '../../lib/when';
+import { AiChanges } from './AiChanges';
 import type { Project } from '../../types/domain';
 
 /*
@@ -88,6 +95,8 @@ export function AiAccess({ client, projects }: { client: CompanionClient; projec
   const admin = useCompanionAdmin(client);
   const [created, setCreated] = useState<{ grant: Grant; token: string } | null>(null);
   const [granting, setGranting] = useState(false);
+  const [editing, setEditing] = useState<Grant | null>(null);
+  const [onlyGrant, setOnlyGrant] = useState<string | undefined>(undefined);
   const [announcement, setAnnouncement] = useState('');
 
   return (
@@ -99,29 +108,64 @@ export function AiAccess({ client, projects }: { client: CompanionClient; projec
       )}
       <Grants
         granting={granting}
-        onGrant={() => setGranting(true)}
+        onGrant={() => {
+          setEditing(null);
+          setGranting(true);
+        }}
         grants={admin.grants}
+        clients={admin.clients}
         projects={projects}
+        onEdit={(grant) => {
+          setGranting(false);
+          setEditing(grant);
+        }}
+        onActivity={(grant) => {
+          setOnlyGrant(grant.id);
+          requestAnimationFrame(() =>
+            document.getElementById('changes-heading')?.scrollIntoView({ block: 'start' }),
+          );
+        }}
         onRevoke={async (grant) => {
           await client.revokeGrant(grant.id);
           setAnnouncement(`${grant.label} can no longer use LOWTIDE.`);
           void admin.reload();
         }}
       />
-      {granting && (
-        <NewGrant
+      {(granting || editing) && (
+        <GrantForm
+          key={editing?.id ?? 'new'}
           client={client}
           projects={projects}
-          onCancel={() => setGranting(false)}
-          onCreated={(result) => {
-            setCreated(result);
+          grant={editing ?? undefined}
+          onCancel={() => {
             setGranting(false);
-            setAnnouncement(`Access created for ${result.grant.label}. Copy its token now.`);
+            setEditing(null);
+          }}
+          onDone={(result) => {
+            if (result.token) {
+              setCreated({ grant: result.grant, token: result.token });
+              setAnnouncement(`Access created for ${result.grant.label}. Copy its token now.`);
+            } else {
+              setAnnouncement(`Access changed for ${result.grant.label}.`);
+            }
+            setGranting(false);
+            setEditing(null);
             void admin.reload();
           }}
         />
       )}
-      <AuditLog entries={admin.audit} projects={projects} />
+      <AiChanges
+        client={client}
+        grants={admin.grants}
+        onlyGrant={onlyGrant}
+        onShowAll={() => setOnlyGrant(undefined)}
+      />
+      <details className={box}>
+        <summary className="cursor-pointer text-section font-semibold select-none">
+          Technical log
+        </summary>
+        <AuditLog entries={admin.audit} projects={projects} />
+      </details>
       <Workspace
         info={admin.workspace}
         onInit={async () => {
@@ -187,84 +231,158 @@ function Clients({ clients }: { clients: ClientStatus[] }) {
 
 /* ---------------------------------- grants ---------------------------------- */
 
-function NewGrant({
+const PRESET_ORDER = [...GRANT_PRESETS, 'custom'] as const;
+
+const PRESET_TEXT: Record<GrantPreset, { label: string; description: string }> = {
+  read: PRESET.read,
+  project: PRESET.project,
+  workspace: PRESET.workspace,
+  full: PRESET.full,
+  custom: { label: 'Custom', description: 'Choose exactly what it can see and do.' },
+};
+
+/** What a preset (or custom choice) adds up to, before it's saved. */
+function accessFor(
+  preset: GrantPreset,
+  custom: { scope: GrantScope; capabilities: Capability[]; sensitive: SensitiveCategory[] },
+) {
+  if (preset === 'custom') return custom;
+  const p = PRESET[preset];
+  return { scope: p.scope, capabilities: p.capabilities, sensitive: p.sensitive };
+}
+
+function AccessSummary({
+  capabilities,
+  sensitive,
+}: {
+  capabilities: Capability[];
+  sensitive: SensitiveCategory[];
+}) {
+  return (
+    <div className="rounded-md border border-line bg-surface p-3 text-xs">
+      <p className="font-medium text-fg">It can</p>
+      {capabilities.length ? (
+        <ul className="mt-1 list-disc space-y-0.5 pl-4 text-fg-muted">
+          {capabilities.map((c) => (
+            <li key={c}>{CAPABILITY_LABEL[c]}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-1 text-fg-muted">Nothing yet: choose at least one permission.</p>
+      )}
+      {sensitive.length > 0 && (
+        <>
+          <p className="mt-2 font-medium text-fg">Private areas included</p>
+          <p className="mt-0.5 text-fg-muted">
+            {sensitive.map((s) => SENSITIVE_LABEL[s].split(' (')[0]).join(', ')}
+          </p>
+        </>
+      )}
+      <p className="mt-2 font-medium text-fg">Never</p>
+      <p className="mt-0.5 text-fg-muted">
+        Protected Time, tokens and access settings, or deleting anything for good.
+      </p>
+    </div>
+  );
+}
+
+/** Give access (or, with `grant`, change what an existing grant may do). */
+function GrantForm({
   client,
   projects,
-  onCreated,
+  grant,
+  onDone,
   onCancel,
 }: {
-  onCancel: () => void;
   client: CompanionClient;
   projects: Project[];
-  onCreated: (result: { grant: Grant; token: string }) => void;
+  grant?: Grant | undefined;
+  onDone: (result: { grant: Grant; token?: string }) => void;
+  onCancel: () => void;
 }) {
   const ids = { kind: useId(), label: useId(), project: useId() };
-  const [kind, setKind] = useState<ClientKind>('claude-code');
-  const [label, setLabel] = useState('');
-  const [scope, setScope] = useState<GrantScope>('project');
-  const [projectId, setProjectId] = useState('');
-  const [access, setAccess] = useState<'read' | 'write'>('read');
-  const [resolve, setResolve] = useState(false);
-  const [sensitive, setSensitive] = useState<SensitiveCategory[]>([]);
+  const editing = grant !== undefined;
+  const [kind, setKind] = useState<ClientKind>(grant?.clientKind ?? 'claude-code');
+  const [label, setLabel] = useState(grant?.label ?? '');
+  const [preset, setPreset] = useState<GrantPreset>(grant?.preset ?? 'project');
+  const [scope, setScope] = useState<GrantScope>(grant?.scope ?? 'workspace');
+  const [projectId, setProjectId] = useState(grant?.projectId ?? '');
+  const [capabilities, setCapabilities] = useState<Capability[]>(
+    grant?.capabilities ?? PRESET.read.capabilities,
+  );
+  const [sensitive, setSensitive] = useState<SensitiveCategory[]>(grant?.sensitive ?? []);
   const [error, setError] = useState<string | null>(null);
   const live = projects.filter((p) => p.state !== 'archived');
   const chosen = projectId || live[0]?.id || '';
+  const access = accessFor(preset, { scope, capabilities, sensitive });
+  const needsProject = access.scope === 'project';
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError(null);
-    if (scope === 'project' && !chosen) {
-      setError('Create a project first, or choose the workspace scope.');
+    if (needsProject && !chosen) {
+      setError('Create a project first, or choose another kind of access.');
       return;
     }
+    if (access.capabilities.length === 0) {
+      setError('Choose at least one permission.');
+      return;
+    }
+    const body = {
+      label: label.trim() || CLIENT_LABEL[kind],
+      scope: access.scope,
+      ...(needsProject ? { projectId: chosen } : {}),
+      capabilities: access.capabilities,
+      preset,
+      sensitive: access.scope === 'global' ? access.sensitive : [],
+    };
     try {
-      const result = await client.createGrant({
-        label: label.trim() || CLIENT_LABEL[kind],
-        clientKind: kind,
-        scope,
-        ...(scope === 'project' ? { projectId: chosen } : {}),
-        access,
-        allowResolveApprovals: access === 'write' && resolve,
-        sensitive: scope === 'global' ? sensitive : [],
-      });
-      onCreated(result);
-      setLabel('');
-      setResolve(false);
-      setSensitive([]);
+      if (grant) {
+        onDone({ grant: await client.updateGrant(grant.id, body) });
+      } else {
+        onDone(await client.createGrant({ ...body, clientKind: kind }));
+      }
     } catch {
-      setError('Couldn’t create that access. Nothing changed.');
+      setError(
+        editing
+          ? 'Couldn’t change that access. Nothing changed.'
+          : 'Couldn’t create that access. Nothing changed.',
+      );
     }
   }
 
   const radio = 'inline-flex items-center gap-1.5';
+  const formName = editing ? `Change access for ${grant.label}` : 'Give an AI client access';
   return (
-    <section aria-labelledby="grant-heading" className={box}>
-      <h2 id="grant-heading" className="flex items-center gap-2 text-section font-semibold">
-        <KeyRound aria-hidden className="size-5 text-fg-muted" /> Give an AI client access
+    <section aria-label={formName} className={box}>
+      <h2 className="flex items-center gap-2 text-section font-semibold">
+        <KeyRound aria-hidden className="size-5 text-fg-muted" /> {formName}
       </h2>
       <form
-        aria-label="Give an AI client access"
+        aria-label={formName}
         onSubmit={(e) => void submit(e)}
         className="mt-2 space-y-3 text-sm"
       >
         <div className="grid gap-3 sm:grid-cols-2">
-          <div>
-            <label htmlFor={ids.kind} className={labelClass}>
-              Client
-            </label>
-            <select
-              id={ids.kind}
-              value={kind}
-              onChange={(e) => setKind(e.target.value as ClientKind)}
-              className={fieldClass}
-            >
-              {CLIENT_KINDS.map((k) => (
-                <option key={k} value={k}>
-                  {CLIENT_LABEL[k]}
-                </option>
-              ))}
-            </select>
-          </div>
+          {!editing && (
+            <div>
+              <label htmlFor={ids.kind} className={labelClass}>
+                Client
+              </label>
+              <select
+                id={ids.kind}
+                value={kind}
+                onChange={(e) => setKind(e.target.value as ClientKind)}
+                className={fieldClass}
+              >
+                {CLIENT_KINDS.map((k) => (
+                  <option key={k} value={k}>
+                    {CLIENT_LABEL[k]}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <label htmlFor={ids.label} className={labelClass}>
               Name (shown on everything it does)
@@ -280,28 +398,107 @@ function NewGrant({
           </div>
         </div>
         <fieldset>
-          <legend className={labelClass}>What it can see</legend>
-          <div className="flex flex-wrap gap-3">
-            {(
-              [
-                ['project', 'One project'],
-                ['workspace', 'Every project (technical)'],
-                ['global', 'Global (broader)'],
-              ] as const
-            ).map(([value, text]) => (
-              <label key={value} className={radio}>
+          <legend className={labelClass}>Access</legend>
+          <div className="grid gap-2">
+            {PRESET_ORDER.map((value) => (
+              <label key={value} className="flex items-start gap-2">
                 <input
                   type="radio"
-                  name="grant-scope"
-                  checked={scope === value}
-                  onChange={() => setScope(value)}
+                  name={`${ids.kind}-preset`}
+                  className="mt-1"
+                  checked={preset === value}
+                  onChange={() => setPreset(value)}
                 />
-                {text}
+                <span>
+                  {PRESET_TEXT[value].label}
+                  <span className="block text-xs text-fg-muted">
+                    {PRESET_TEXT[value].description}
+                  </span>
+                </span>
               </label>
             ))}
           </div>
         </fieldset>
-        {scope === 'project' && live.length > 0 && (
+        {preset === 'custom' && (
+          <>
+            <fieldset>
+              <legend className={labelClass}>What it can see</legend>
+              <div className="flex flex-wrap gap-3">
+                {(
+                  [
+                    ['project', 'One project'],
+                    ['workspace', 'Every project (technical)'],
+                    ['global', 'Global (broader)'],
+                  ] as const
+                ).map(([value, text]) => (
+                  <label key={value} className={radio}>
+                    <input
+                      type="radio"
+                      name={`${ids.kind}-scope`}
+                      checked={scope === value}
+                      onChange={() => setScope(value)}
+                    />
+                    {text}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            <fieldset className="rounded-md border border-line p-3">
+              <legend className="px-1 text-xs font-medium text-fg-muted">What it can do</legend>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {CAPABILITY_GROUPS.map((g) => (
+                  <fieldset key={g.title}>
+                    <legend className="text-xs font-medium">{g.title}</legend>
+                    {g.capabilities.map((c) => (
+                      <label key={c} className="flex items-start gap-2">
+                        <input
+                          type="checkbox"
+                          className="mt-1"
+                          checked={capabilities.includes(c)}
+                          onChange={(e) =>
+                            setCapabilities(
+                              e.target.checked
+                                ? [...capabilities, c]
+                                : capabilities.filter((x) => x !== c),
+                            )
+                          }
+                        />
+                        {CAPABILITY_LABEL[c]}
+                      </label>
+                    ))}
+                  </fieldset>
+                ))}
+              </div>
+            </fieldset>
+            {scope === 'global' && (
+              <fieldset className="rounded-md border border-line p-3">
+                <legend className="px-1 text-xs font-medium text-fg-muted">
+                  Private areas it may also see (off unless you tick them)
+                </legend>
+                <div className="grid gap-1 sm:grid-cols-2">
+                  {SENSITIVE.map((s) => (
+                    <label key={s} className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={sensitive.includes(s)}
+                        onChange={(e) =>
+                          setSensitive(
+                            e.target.checked ? [...sensitive, s] : sensitive.filter((x) => x !== s),
+                          )
+                        }
+                      />
+                      {SENSITIVE_LABEL[s]}
+                    </label>
+                  ))}
+                </div>
+                <p className="mt-2 text-xs text-fg-muted">
+                  Protected time can’t be shared with any AI client.
+                </p>
+              </fieldset>
+            )}
+          </>
+        )}
+        {needsProject && live.length > 0 && (
           <div>
             <label htmlFor={ids.project} className={labelClass}>
               Project
@@ -320,75 +517,14 @@ function NewGrant({
             </select>
           </div>
         )}
-        {scope === 'global' && (
-          <fieldset className="rounded-md border border-line p-3">
-            <legend className="px-1 text-xs font-medium text-fg-muted">
-              Private areas it may also see (off unless you tick them)
-            </legend>
-            <div className="grid gap-1 sm:grid-cols-2">
-              {SENSITIVE.map((s) => (
-                <label key={s} className="inline-flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    checked={sensitive.includes(s)}
-                    onChange={(e) =>
-                      setSensitive(
-                        e.target.checked ? [...sensitive, s] : sensitive.filter((x) => x !== s),
-                      )
-                    }
-                  />
-                  {SENSITIVE_LABEL[s]}
-                </label>
-              ))}
-            </div>
-            <p className="mt-2 text-xs text-fg-muted">
-              Protected time can’t be shared with any AI client.
-            </p>
-          </fieldset>
-        )}
-        <fieldset>
-          <legend className={labelClass}>What it can do</legend>
-          <div className="flex flex-wrap gap-3">
-            <label className={radio}>
-              <input
-                type="radio"
-                name="grant-access"
-                checked={access === 'read'}
-                onChange={() => setAccess('read')}
-              />
-              Read only
-            </label>
-            <label className={radio}>
-              <input
-                type="radio"
-                name="grant-access"
-                checked={access === 'write'}
-                onChange={() => setAccess('write')}
-              />
-              Read and make changes
-            </label>
-          </div>
-        </fieldset>
-        {access === 'write' && (
-          <label className="flex items-start gap-2">
-            <input
-              type="checkbox"
-              className="mt-1"
-              checked={resolve}
-              onChange={(e) => setResolve(e.target.checked)}
-            />
-            <span>
-              May also resolve approval requests
-              <span className="block text-xs text-fg-muted">
-                Approvals are yours to give. Tick this only for a client you trust to act for you.
-              </span>
-            </span>
-          </label>
-        )}
+        <AccessSummary
+          capabilities={access.capabilities}
+          sensitive={access.scope === 'global' ? access.sensitive : []}
+        />
         {error && <ErrorNotice>{error}</ErrorNotice>}
         <div className="flex gap-2">
           <Button type="submit" variant="primary">
-            Create access
+            {editing ? 'Save access' : 'Create access'}
           </Button>
           <Button variant="ghost" onClick={onCancel}>
             Cancel
@@ -499,20 +635,34 @@ function scopeText(grant: Pick<Grant, 'scope' | 'projectId'>, projects: Project[
   return grant.scope === 'workspace' ? 'every project' : 'global';
 }
 
+function permissionsText(g: Grant) {
+  if (g.preset !== 'custom') return PRESET[g.preset].label;
+  const writes = g.capabilities.filter((c) => !c.endsWith('.read')).length;
+  return writes ? `Custom: ${writes} kinds of change` : 'Custom: read only';
+}
+
 function Grants({
   grants,
+  clients,
   projects,
   onRevoke,
   granting,
   onGrant,
+  onEdit,
+  onActivity,
 }: {
   granting: boolean;
   onGrant: () => void;
   grants: Grant[];
+  clients: ClientStatus[];
   projects: Project[];
   onRevoke: (grant: Grant) => Promise<void>;
+  onEdit: (grant: Grant) => void;
+  onActivity: (grant: Grant) => void;
 }) {
+  const now = useNow(true, 30_000);
   const [error, setError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<string | null>(null);
   const active = grants.filter((g) => !g.revokedAt);
   const revoked = grants.filter((g) => g.revokedAt);
   return (
@@ -530,31 +680,84 @@ function Grants({
       {active.length === 0 ? (
         <p className="mt-1 text-sm text-fg-muted">No AI client can use LOWTIDE right now.</p>
       ) : (
-        <ul className="mt-2 divide-y divide-line text-sm">
-          {active.map((g) => (
-            <li key={g.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
-              <span>
-                <span className="font-medium">{g.label}</span>{' '}
-                <span className="text-fg-muted">
-                  ({CLIENT_LABEL[g.clientKind]}) · {scopeText(g, projects)} ·{' '}
-                  {g.access === 'write' ? 'read and change' : 'read only'}
-                  {g.allowResolveApprovals ? ' · may resolve approvals' : ''}
+        <ul className="mt-2 divide-y divide-line text-sm" aria-label="Access you’ve given">
+          {active.map((g) => {
+            const status = clients.find((c) => c.kind === g.clientKind);
+            const seen = status?.lastSeenAt;
+            const connected =
+              seen !== undefined &&
+              status?.grants.some((x) => x.id === g.id) === true &&
+              now.getTime() - Date.parse(seen) <= CONNECTED_MS;
+            return (
+              <li key={g.id} className="py-2">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <p className="min-w-0">
+                    <span className="font-medium">{g.label}</span>{' '}
+                    <span className="text-fg-muted">({CLIENT_LABEL[g.clientKind]})</span>{' '}
+                    <span
+                      className={`ml-1 rounded-full px-2 py-0.5 text-xs ${connected ? 'bg-accent-soft text-accent-ink' : 'bg-surface text-fg-muted'}`}
+                    >
+                      {connected ? 'Connected' : 'Not connected'}
+                    </span>
+                  </p>
+                  <span className="flex flex-wrap gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      aria-label={`Edit access for ${g.label}`}
+                      onClick={() => onEdit(g)}
+                    >
+                      Edit access
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      aria-label={`View activity of ${g.label}`}
+                      onClick={() => onActivity(g)}
+                    >
+                      View activity
+                    </Button>
+                    {confirming === g.id ? (
+                      <>
+                        <Button
+                          size="sm"
+                          variant="danger"
+                          onClick={() => {
+                            setError(null);
+                            setConfirming(null);
+                            onRevoke(g).catch(() => setError('Couldn’t revoke that access.'));
+                          }}
+                        >
+                          Yes, revoke {g.label}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setConfirming(null)}>
+                          Keep it
+                        </Button>
+                      </>
+                    ) : (
+                      <Button size="sm" variant="ghost" onClick={() => setConfirming(g.id)}>
+                        <Trash2 aria-hidden className="size-3.5" /> Revoke {g.label}
+                      </Button>
+                    )}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-xs text-fg-muted">
+                  {scopeText(g, projects)} · {permissionsText(g)}
                   {g.sensitive.length
                     ? ` · also ${g.sensitive.map((s) => SENSITIVE_LABEL[s].split(' (')[0]!.toLowerCase()).join(', ')}`
                     : ''}
-                </span>
-              </span>
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  setError(null);
-                  onRevoke(g).catch(() => setError('Couldn’t revoke that access.'));
-                }}
-              >
-                <Trash2 aria-hidden className="size-4" /> Revoke {g.label}
-              </Button>
-            </li>
-          ))}
+                  {seen && (
+                    <>
+                      {' · last activity '}
+                      <time dateTime={seen} title={formatFull(seen)}>
+                        {formatWhen(seen, now)}
+                      </time>
+                    </>
+                  )}
+                </p>
+              </li>
+            );
+          })}
         </ul>
       )}
       {error && <ErrorNotice>{error}</ErrorNotice>}
@@ -627,10 +830,10 @@ function AuditLog({ entries, projects }: { entries: AuditEntry[]; projects: Proj
       ? (projects.find((p) => p.id === scope.slice(8))?.name ?? 'a project')
       : scope;
   return (
-    <section aria-labelledby="audit-heading" className={box}>
-      <h2 id="audit-heading" className="text-section font-semibold">
-        What AI clients did
-      </h2>
+    <section aria-labelledby="audit-heading" className="mt-2">
+      <h3 id="audit-heading" className="sr-only">
+        Every call AI clients made
+      </h3>
       <label className="mt-1 inline-flex items-center gap-2 text-sm">
         <input
           type="checkbox"

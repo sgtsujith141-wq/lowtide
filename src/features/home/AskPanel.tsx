@@ -1,7 +1,7 @@
 import { Search } from 'lucide-react';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router';
-import { CREATE } from '../../hooks/useCreateRequest';
+import { Link } from 'react-router';
+import { CREATE_KINDS, CREATE_LABEL, useCreate } from '../create/create-context';
 import { useRepositories } from '../../hooks/useRepositories';
 import { useWatch } from '../../hooks/useWatch';
 import { blocksOf, blockText } from '../../lib/space-blocks';
@@ -16,6 +16,7 @@ const DESTINATIONS: [string, string][] = [
   ['Tasks', '/tasks'],
   ['Hackathons', '/hackathons'],
   ['Rhythm', '/rhythm'],
+  ['Life', '/life'],
   ['Inbox', '/inbox'],
   ['Calendar', '/calendar'],
   ['AI', '/ai'],
@@ -71,7 +72,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
 export function AskPanel({ onClose }: { onClose: () => void }) {
   const { projects, tasks, hackathons, space } = useRepositories();
   const modes = useModeApi();
-  const navigate = useNavigate();
+  const { openCreate } = useCreate();
   const [query, setQuery] = useState('');
   const inputId = useId();
   const all = useWatch(projects.watchAll);
@@ -167,23 +168,13 @@ export function AskPanel({ onClose }: { onClose: () => void }) {
           { label: 'Start work', run: () => modes.openStartWork() },
           { label: 'Sleep mode', run: modes.requestSleep },
         ];
-  // Creating opens the same form the page itself offers; nothing is saved here
-  // except a new SPACE page, which is how SPACE creates one anywhere.
-  const create: { label: string; kind?: string; run: () => void }[] = [
-    { label: 'New task', run: () => void navigate('/tasks', { state: CREATE }) },
-    {
-      label: 'New SPACE page',
-      run: () => {
-        const ideas =
-          nodes.status === 'ready' ? nodes.data.find((n) => n.key === 'ideas') : undefined;
-        void space
-          .create({ ...(ideas ? { parentId: ideas.id } : {}), title: 'Untitled', blocks: [] })
-          .then((page) => navigate(`/space/${page.id}`));
-      },
-    },
-    { label: 'New project', run: () => void navigate('/projects', { state: CREATE }) },
-    { label: 'New hackathon', run: () => void navigate('/hackathons', { state: CREATE }) },
-  ].map((c) => ({ ...c, kind: 'Create' }));
+  // Creating opens the same short form as the New menu (v2.1), with the
+  // current project or SPACE folder as the starting place.
+  const create = CREATE_KINDS.map((kind) => ({
+    label: `New ${CREATE_LABEL[kind].replace(/^SPACE /, '').toLowerCase()}`,
+    kind: 'Create',
+    run: () => openCreate(kind),
+  }));
   const actions = [...(modes.ready ? possible : []), ...(modes.offTime ? [] : create)].filter(
     (a) => !q || a.label.toLowerCase().includes(q),
   );

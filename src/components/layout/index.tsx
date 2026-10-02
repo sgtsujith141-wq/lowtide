@@ -262,3 +262,69 @@ export function Drawer({
     </dialog>
   );
 }
+
+/**
+ * A centred dialog (v2.1) for short tasks like creating something: focus
+ * moves in and stays (the browser's modal dialog), Escape, the close button
+ * or a click outside dismiss it, and focus returns to what opened it.
+ */
+export function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  wide = false,
+}: {
+  open: boolean;
+  onClose: () => void;
+  title: ReactNode;
+  children: ReactNode;
+  wide?: boolean;
+}) {
+  const ref = useRef<HTMLDialogElement>(null);
+  const titleId = useId();
+  useEffect(() => {
+    const dialog = ref.current;
+    if (!dialog) return;
+    if (open && !dialog.open) {
+      if (typeof dialog.showModal === 'function') dialog.showModal();
+      else dialog.setAttribute('open', '');
+    } else if (!open && dialog.open) {
+      if (typeof dialog.close === 'function') dialog.close();
+      else dialog.removeAttribute('open');
+    }
+  }, [open]);
+  return (
+    <dialog
+      ref={ref}
+      aria-labelledby={titleId}
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+      className={`lt-pop m-auto mt-[10vh] max-h-[80dvh] rounded-lg bg-raised p-0 text-fg shadow-[var(--lt-shadow)] backdrop:bg-scrim ${wide ? 'w-[min(40rem,calc(100vw-2rem))]' : 'w-[min(30rem,calc(100vw-2rem))]'}`}
+    >
+      {open && (
+        <div className="flex max-h-[80dvh] flex-col">
+          <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-3">
+            <h2 id={titleId} className="text-section font-semibold">
+              {title}
+            </h2>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="grid size-8 place-items-center rounded-md text-fg-muted hover:bg-hover hover:text-fg"
+            >
+              <X aria-hidden className="size-4" />
+            </button>
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        </div>
+      )}
+    </dialog>
+  );
+}

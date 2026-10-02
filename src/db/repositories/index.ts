@@ -72,6 +72,12 @@ export type {
   Unsubscribe,
   Watch,
   NewSpaceBlock,
+  NewSpaceColumn,
+  NewSpaceView,
+  SpaceColumnChanges,
+  Expect,
+  ProjectSetup,
+  ProjectCreated,
   ProjectSpaceSlot,
 } from './types';
 export { PROJECT_SPACE_SLOTS } from './types';

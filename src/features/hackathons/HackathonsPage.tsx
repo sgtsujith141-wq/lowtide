@@ -1,14 +1,15 @@
-import { ArrowRight, Plus } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { Archive, ArchiveRestore, ArrowRight, Pin, PinOff, Plus } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { useLocation } from 'react-router';
 import { Drawer } from '../../components/layout';
 import { Button } from '../../components/ui/Button';
 import { Announcer, ErrorNotice } from '../../components/ui/Notice';
-import { useCreateRequest } from '../../hooks/useCreateRequest';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useRepositories } from '../../hooks/useRepositories';
 import { useToday } from '../../hooks/useToday';
 import { useWatch } from '../../hooks/useWatch';
 import type { Hackathon, LocalDate } from '../../types/domain';
+import { useCreate } from '../create/create-context';
 import { HackathonForm } from './HackathonForm';
 import { HackathonSheet } from './HackathonSheet';
 import { STATUS_LABEL } from './labels';
@@ -36,17 +37,31 @@ export function HackathonsPage() {
     [allProjects],
   );
   const all = useWatch(hackathons.watchAll);
-  const [adding, setAdding] = useState(false);
-  useCreateRequest(() => setAdding(true));
-  const [openId, setOpenId] = useState<string | null>(null);
+  const { openCreate } = useCreate();
+  const location = useLocation();
+  // A hackathon just made from the New menu opens in its sheet.
+  const wanted = (location.state as { open?: unknown } | null)?.open;
+  const [openId, setOpenId] = useState<string | null>(
+    typeof wanted === 'string' ? wanted : null,
+  );
+  const [seen, setSeen] = useState(location.key);
+  if (seen !== location.key) {
+    setSeen(location.key);
+    if (typeof wanted === 'string') setOpenId(wanted);
+  }
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState('');
-  const addButton = useRef<HTMLButtonElement>(null);
 
-  const list = useMemo(() => (all.status === 'ready' ? all.data : []), [all]);
-  const open = useMemo(() => orderHackathons(list.filter(isOpen), today), [list, today]);
+  const everything = useMemo(() => (all.status === 'ready' ? all.data : []), [all]);
+  const list = useMemo(() => everything.filter((h) => !h.archivedAt), [everything]);
+  const archived = useMemo(() => everything.filter((h) => h.archivedAt), [everything]);
+  // Pinned first; otherwise by what's coming.
+  const open = useMemo(() => {
+    const ordered = orderHackathons(list.filter(isOpen), today);
+    return [...ordered.filter((h) => h.pinnedAt), ...ordered.filter((h) => !h.pinnedAt)];
+  }, [list, today]);
   const past = useMemo(
     () =>
       list
@@ -54,7 +69,7 @@ export function HackathonsPage() {
         .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id)),
     [list],
   );
-  const current = openId ? list.find((h) => h.id === openId) : undefined;
+  const current = openId ? everything.find((h) => h.id === openId) : undefined;
 
   async function run(action: () => Promise<unknown>, message: string) {
     if (busy) return false;
@@ -83,11 +98,9 @@ export function HackathonsPage() {
     <>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <h1 className="text-page font-semibold">Hackathons</h1>
-        {!adding && (
-          <Button ref={addButton} variant="primary" onClick={() => setAdding(true)}>
-            <Plus aria-hidden className="size-4" /> Add hackathon
-          </Button>
-        )}
+        <Button variant="primary" onClick={() => openCreate('hackathon')}>
+          <Plus aria-hidden className="size-4" /> New hackathon
+        </Button>
       </div>
 
       {all.status === 'error' && (
@@ -95,34 +108,21 @@ export function HackathonsPage() {
       )}
       {error && !current && <ErrorNotice>{error}</ErrorNotice>}
 
-      {adding && (
-        <HackathonForm
-          initial={{}}
-          quick
-          formLabel="Add hackathon"
-          submitLabel="Add"
-          onSave={async (draft) => {
-            const created = await hackathons.create({
-              name: draft.name,
-              ...(draft.eventStart ? { eventStart: draft.eventStart } : {}),
-              ...(draft.eventEnd ? { eventEnd: draft.eventEnd } : {}),
-            });
-            setAdding(false);
-            setAnnouncement(`Added ${created.name}.`);
-          }}
-          onCancel={() => {
-            setAdding(false);
-            requestAnimationFrame(() => addButton.current?.focus());
-          }}
-        />
-      )}
-
       <section aria-labelledby="coming-up-heading" className="mt-6">
         <h2 id="coming-up-heading" className="text-section font-semibold">
           Coming up{open.length > 0 ? ` · ${open.length}` : ''}
         </h2>
-        {open.length === 0 && !adding ? (
-          <p className="mt-2 text-sm text-fg-muted">No hackathons yet.</p>
+        {open.length === 0 ? (
+          <p className="mt-2 text-sm text-fg-muted">
+            No hackathons yet.{' '}
+            <button
+              type="button"
+              onClick={() => openCreate('hackathon')}
+              className="text-accent-ink underline underline-offset-2"
+            >
+              Add one
+            </button>
+          </p>
         ) : (
           <ul className="mt-2 border-t border-line">
             {open.map((h) => (
@@ -139,6 +139,19 @@ export function HackathonsPage() {
           </summary>
           <ul className="mt-2 border-t border-line">
             {past.map((h) => (
+              <HackathonRow key={h.id} hackathon={h} today={today} onOpen={() => setOpenId(h.id)} />
+            ))}
+          </ul>
+        </details>
+      )}
+
+      {archived.length > 0 && (
+        <details className="mt-6">
+          <summary className="cursor-pointer text-sm font-medium text-fg-muted select-none hover:text-fg">
+            Archived · {archived.length}
+          </summary>
+          <ul className="mt-2 border-t border-line">
+            {archived.map((h) => (
               <HackathonRow key={h.id} hackathon={h} today={today} onOpen={() => setOpenId(h.id)} />
             ))}
           </ul>
@@ -197,6 +210,49 @@ export function HackathonsPage() {
                   )
                 }
               />
+              <div className="mt-6 flex flex-wrap gap-2 border-t border-line pt-4">
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={busy}
+                  onClick={() =>
+                    void run(
+                      () => hackathons.setPinned(current.id, !current.pinnedAt),
+                      current.pinnedAt ? `Unpinned ${current.name}.` : `Pinned ${current.name}.`,
+                    )
+                  }
+                >
+                  {current.pinnedAt ? (
+                    <PinOff aria-hidden className="size-3.5" />
+                  ) : (
+                    <Pin aria-hidden className="size-3.5" />
+                  )}
+                  {current.pinnedAt ? 'Unpin' : 'Pin'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={busy}
+                  onClick={() =>
+                    void run(
+                      () =>
+                        current.archivedAt
+                          ? hackathons.restore(current.id)
+                          : hackathons.archive(current.id),
+                      current.archivedAt
+                        ? `Restored ${current.name}.`
+                        : `Archived ${current.name}; it’s under Archived.`,
+                    )
+                  }
+                >
+                  {current.archivedAt ? (
+                    <ArchiveRestore aria-hidden className="size-3.5" />
+                  ) : (
+                    <Archive aria-hidden className="size-3.5" />
+                  )}
+                  {current.archivedAt ? 'Restore' : 'Archive'}
+                </Button>
+              </div>
             </>
           ))}
       </Drawer>

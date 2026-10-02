@@ -1,4 +1,4 @@
-import { ArrowLeft, Pencil } from 'lucide-react';
+import { ArrowLeft, Pencil, Pin, PinOff, Plus } from 'lucide-react';
 import {
   useId,
   useLayoutEffect,
@@ -39,7 +39,15 @@ import { Lanes } from './room/Lanes';
 import { ProjectActivity } from './room/ProjectActivity';
 import { MilestoneDrawer, MilestoneLine, Roadmap } from './room/Roadmap';
 import { StartWork } from './room/StartWork';
-import { AiSessionsList, DocsTab, HistoryTab, MilestonesTab, TasksTab } from './room/tabs';
+import {
+  ADD_MILESTONE_FIELD,
+  AiSessionsList,
+  DocsTab,
+  HistoryTab,
+  MilestonesTab,
+  TasksTab,
+} from './room/tabs';
+import { useCreate } from '../create/create-context';
 import { ProgressHistory, TimeInvested } from './room/visuals';
 import { WorkPlane } from './room/WorkPlane';
 import { FOCUS_LABEL, STATE_LABEL, summariseProject, type ProjectSummary } from './summary';
@@ -102,6 +110,7 @@ function Room({ project }: { project: Project }) {
   const sessions = useWatch(w.sessions);
   const ledger = useWatch(w.events);
   const [tab, setTab] = useState<Tab>('Overview');
+  const { openCreate } = useCreate();
   const [openMilestone, setOpenMilestone] = useState<Milestone | null>(null);
 
   if (
@@ -141,6 +150,30 @@ function Room({ project }: { project: Project }) {
             <Roadmap milestones={summary.milestones} onOpen={setOpenMilestone} />
           </div>
         )}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant="quiet"
+            onClick={() => {
+              setTab('Milestones');
+              requestAnimationFrame(() => document.getElementById(ADD_MILESTONE_FIELD)?.focus());
+            }}
+          >
+            <Plus aria-hidden className="size-3.5" /> Milestone
+          </Button>
+          <Button
+            size="sm"
+            variant="quiet"
+            onClick={() => openCreate('task', { projectId: project.id })}
+          >
+            <Plus aria-hidden className="size-3.5" /> Task
+          </Button>
+          {summary.milestones.length > 0 && (
+            <Button size="sm" variant="ghost" onClick={() => setTab('Milestones')}>
+              Edit roadmap
+            </Button>
+          )}
+        </div>
       </section>
 
       <SummaryStrip summary={summary} ledger={ledger.data} />
@@ -266,7 +299,7 @@ function Hero({
   tasks: Parameters<typeof StartWork>[0]['tasks'];
 }) {
   const project = summary.project;
-  const identity = project.objective ?? project.phase;
+  const identity = project.description ?? project.objective ?? project.phase;
   return (
     <header className="mt-3 flex flex-wrap items-start justify-between gap-x-10 gap-y-5">
       <div className="min-w-0 max-w-4xl">
@@ -284,6 +317,7 @@ function Hero({
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <StateControl project={project} />
           <FocusControl project={project} />
+          <PinControl project={project} />
         </div>
       </div>
       <StartWork summary={summary} tasks={tasks} />
@@ -552,6 +586,23 @@ function StateControl({ project }: { project: Project }) {
   );
 }
 
+/** Pinned projects come first in Projects (v2.1); never project movement. */
+function PinControl({ project }: { project: Project }) {
+  const { projects } = useRepositories();
+  const pinned = Boolean(project.pinnedAt);
+  return (
+    <button
+      type="button"
+      aria-pressed={pinned}
+      onClick={() => void projects.setPinned(project.id, !pinned).catch(() => undefined)}
+      className={`inline-flex h-7 items-center gap-1 rounded-full border border-line-strong bg-raised px-3 text-xs font-medium hover:bg-hover ${pinned ? 'text-fg' : 'text-fg-muted'}`}
+    >
+      {pinned ? <PinOff aria-hidden className="size-3" /> : <Pin aria-hidden className="size-3" />}
+      {pinned ? 'Pinned' : 'Pin'}
+    </button>
+  );
+}
+
 /** Portfolio focus (ADR-064): a viewing priority, not project movement. */
 function FocusControl({ project }: { project: Project }) {
   const { projects } = useRepositories();
@@ -590,17 +641,30 @@ function FocusControl({ project }: { project: Project }) {
 function DetailsForm({ project, onDone }: { project: Project; onDone: () => void }) {
   const { projects } = useRepositories();
   const [draft, setDraft] = useState({
+    name: project.name,
+    description: project.description ?? '',
     objective: project.objective ?? '',
     phase: project.phase ?? '',
     nextAction: project.nextAction ?? '',
     repoUrl: project.repoUrl ?? '',
   });
   const [error, setError] = useState<string | null>(null);
-  const ids = { objective: useId(), phase: useId(), next: useId(), repo: useId() };
+  const ids = {
+    name: useId(),
+    description: useId(),
+    objective: useId(),
+    phase: useId(),
+    next: useId(),
+    repo: useId(),
+  };
 
   async function save(event: FormEvent) {
     event.preventDefault();
     try {
+      if (!draft.name.trim()) {
+        setError('Name the project.');
+        return;
+      }
       await projects.update(project.id, draft);
       onDone();
     } catch {
@@ -634,6 +698,8 @@ function DetailsForm({ project, onDone }: { project: Project; onDone: () => void
 
   return (
     <form aria-label="Project details" onSubmit={(e) => void save(e)} className="grid gap-4">
+      {field('name', ids.name, 'Name')}
+      {field('description', ids.description, 'Purpose', true)}
       {field('objective', ids.objective, 'Objective', true)}
       {field('phase', ids.phase, 'Current phase', true)}
       {field('nextAction', ids.next, 'Next meaningful action', true)}

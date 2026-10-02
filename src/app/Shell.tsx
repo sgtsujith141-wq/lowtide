@@ -21,6 +21,9 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router';
 import { useCompanion, useCompanionConnection } from '../hooks/useCompanion';
 import { CommandPalette } from '../features/home/AskPanel';
+import { CreateProvider } from '../features/create/CreateProvider';
+import { NewMenu } from '../features/create/NewMenu';
+import { AiChangesBadge } from '../features/context/AiChanges';
 import { PALETTE_EVENT } from '../features/home/shortcut';
 import { ModeBar } from '../features/modes/ModeBar';
 import { ModeController } from '../features/modes/ModeController';
@@ -70,7 +73,9 @@ const SECONDARY: Destination[] = [
 export function Shell() {
   return (
     <ModeController>
-      <Frame />
+      <CreateProvider>
+        <Frame />
+      </CreateProvider>
     </ModeController>
   );
 }
@@ -122,10 +127,11 @@ function Frame() {
           <Link
             to="/"
             aria-label="LOWTIDE"
-            className="grid size-9 shrink-0 place-items-center rounded-md text-fg"
+            className="grid size-9 shrink-0 place-items-center rounded-md text-fg max-md:hidden"
           >
             <Waves aria-hidden className="size-5" strokeWidth={1.75} />
           </Link>
+          <NewMenu />
           <nav aria-label="Main" className="ml-auto md:ml-0 md:w-full">
             <ul className="flex gap-px md:flex-col md:items-center md:gap-1">
               {PRIMARY.map((d) => (
@@ -218,6 +224,7 @@ function RailLink({ to, label, icon: Icon, end }: Destination) {
  * closes it too.
  */
 function Launcher() {
+  const { client } = useCompanion();
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -291,6 +298,11 @@ function Launcher() {
                 >
                   <Icon aria-hidden className="size-4" strokeWidth={1.75} />
                   {label}
+                  {to === '/ai' && (
+                    <span className="ml-auto">
+                      <AiChangesBadge client={client} />
+                    </span>
+                  )}
                 </NavLink>
               </li>
             ))}

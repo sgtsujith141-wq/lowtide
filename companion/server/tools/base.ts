@@ -36,6 +36,7 @@ import {
   pageArg,
   ensurePath,
   type Tool,
+  op,
 } from './kit';
 
 /* -------------------------------- reads -------------------------------- */
@@ -530,6 +531,13 @@ export const writeTools: Tool[] = [
         entityType: 'note',
         entityId: note.id,
         after: `${note.kind} ${quote(note.title)} in ${project.slug}`,
+        changes: [
+          {
+            summary: `Wrote a ${note.kind} for ${project.name}: “${note.title}”`,
+            entityType: 'note',
+            entityId: note.id,
+          },
+        ],
       };
     },
   },
@@ -585,6 +593,13 @@ export const writeTools: Tool[] = [
         entityType: 'aiSession',
         entityId: session.id,
         after: `session ${quote(session.summary)}`,
+        changes: [
+          {
+            summary: `Logged a session: ${quote(session.summary, 120)}`,
+            entityType: 'aiSession',
+            entityId: session.id,
+          },
+        ],
       };
     },
   },
@@ -734,6 +749,15 @@ export const spaceWriteTools: Tool[] = [
           entityId: existing.id,
           value: { id: existing.id, created: created, appended: blocks.length > 0 },
           after: `added to ${quote(pathText(view, existing.id))}`,
+          changes: blocks.length
+            ? [
+                {
+                  summary: `Added to “${existing.title}”`,
+                  entityType: 'spaceNode',
+                  entityId: existing.id,
+                },
+              ]
+            : [],
         };
       }
       const page = await repos.space.create({ parentId: parent.id, title: leafTitle, blocks });
@@ -742,6 +766,14 @@ export const spaceWriteTools: Tool[] = [
         entityId: page.id,
         value: { id: page.id, created: [...created, parts.join(' / ')] },
         after: `page ${quote(parts.join(' / '))}`,
+        changes: [
+          {
+            summary: `Created page ${parts.join(' / ')}`,
+            entityType: 'spaceNode',
+            entityId: page.id,
+            undo: [op('space', 'archive', page.id)],
+          },
+        ],
       };
     },
   },
@@ -771,6 +803,14 @@ export const spaceWriteTools: Tool[] = [
         entityId: page.id,
         value: { id: page.id },
         after: `page ${quote(`${pathText(view, parent.id)} / ${page.title}`)}`,
+        changes: [
+          {
+            summary: `Created page ${pathText(view, parent.id)} / ${page.title}`,
+            entityType: 'spaceNode',
+            entityId: page.id,
+            undo: [op('space', 'archive', page.id)],
+          },
+        ],
       };
     },
   },
@@ -794,6 +834,9 @@ export const spaceWriteTools: Tool[] = [
         entityId: node.id,
         value: { id: node.id, revision: saved.revision },
         after: `added to ${quote(node.title)}`,
+        changes: [
+          { summary: `Added to “${node.title}”`, entityType: 'spaceNode', entityId: node.id },
+        ],
       };
     },
   },
@@ -841,6 +884,13 @@ export const spaceWriteTools: Tool[] = [
         entityId: node.id,
         value: { id: node.id, revision: saved.revision },
         after: `changed a block of ${quote(node.title)}`,
+        changes: [
+          {
+            summary: `Changed a block of “${node.title}”`,
+            entityType: 'spaceNode',
+            entityId: node.id,
+          },
+        ],
       };
     },
   },
@@ -873,6 +923,9 @@ export const spaceWriteTools: Tool[] = [
         entityId: node.id,
         value: { id: node.id, rows: node.table.rows.length + 1 },
         after: `row in ${quote(node.title)}`,
+        changes: [
+          { summary: `Added a row to “${node.title}”`, entityType: 'spaceNode', entityId: node.id },
+        ],
       };
     },
   },
@@ -966,6 +1019,20 @@ export const spaceWriteTools: Tool[] = [
         entityId: node.id,
         value: { id: node.id, linked: { type, id: targetId } },
         after: `linked ${quote(node.title)} to ${quote(label ?? targetId)}`,
+        changes: [
+          {
+            summary: `Linked “${node.title}” to ${label ?? targetId}`,
+            entityType: 'spaceNode',
+            entityId: node.id,
+            undo: [
+              op('space', 'removeLink', node.id, {
+                type,
+                id: targetId,
+                ...(label ? { label } : {}),
+              }),
+            ],
+          },
+        ],
       };
     },
   },
@@ -988,6 +1055,14 @@ export const spaceWriteTools: Tool[] = [
         entityId: node.id,
         value: { id: node.id, archived: true },
         after: `archived ${quote(node.title)}`,
+        changes: [
+          {
+            summary: `Archived “${node.title}”`,
+            entityType: 'spaceNode',
+            entityId: node.id,
+            undo: [op('space', 'restore', node.id)],
+          },
+        ],
       };
     },
   },

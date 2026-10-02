@@ -1,4 +1,15 @@
-import { ArrowDown, ArrowUp, Check, Play, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import {
+  Archive,
+  ArchiveRestore,
+  ArrowDown,
+  ArrowUp,
+  Check,
+  Pencil,
+  Play,
+  Plus,
+  RotateCcw,
+  Trash2,
+} from 'lucide-react';
 import { useId, useMemo, useState, type FormEvent } from 'react';
 import { Button, IconButton } from '../../../components/ui/Button';
 import { ErrorNotice } from '../../../components/ui/Notice';
@@ -173,6 +184,9 @@ function TaskList({
 
 /* Milestones -------------------------------------------------------------- */
 
+/** The add-milestone field, so “+ Milestone” elsewhere can bring you here. */
+export const ADD_MILESTONE_FIELD = 'add-milestone-title';
+
 export function MilestonesTab({
   project,
   milestones,
@@ -184,8 +198,14 @@ export function MilestonesTab({
   const [title, setTitle] = useState('');
   const [weight, setWeight] = useState('1');
   const [dueOn, setDueOn] = useState('');
+  const [renaming, setRenaming] = useState<{ id: string; title: string } | null>(null);
   const { error, run } = useRun();
-  const ids = { title: useId(), weight: useId(), due: useId() };
+  const ids = { title: ADD_MILESTONE_FIELD, weight: useId(), due: useId(), rename: useId() };
+  const watchArchived = useMemo(
+    () => projects.watchArchivedMilestones(project.id),
+    [projects, project.id],
+  );
+  const archived = useWatch(watchArchived);
 
   async function add(event: FormEvent) {
     event.preventDefault();
@@ -225,11 +245,40 @@ export function MilestonesTab({
               }
             />
             <span className="min-w-0 flex-1">
-              <span
-                className={`text-sm ${m.completedAt ? 'text-fg-muted line-through' : 'font-medium'}`}
-              >
-                {m.title}
-              </span>
+              {renaming?.id === m.id ? (
+                <form
+                  className="inline-flex max-w-full items-center gap-1"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const next = renaming.title.trim();
+                    if (!next) return;
+                    void run(() => projects.updateMilestone(m.id, { title: next })).then(
+                      (ok) => ok && setRenaming(null),
+                    );
+                  }}
+                >
+                  <label htmlFor={ids.rename} className="sr-only">
+                    New name for {m.title}
+                  </label>
+                  <input
+                    id={ids.rename}
+                    autoFocus
+                    value={renaming.title}
+                    onChange={(e) => setRenaming({ id: m.id, title: e.target.value })}
+                    onKeyDown={(e) => e.key === 'Escape' && setRenaming(null)}
+                    className="h-7 min-w-0 rounded-md border border-line-strong bg-surface px-2 text-sm"
+                  />
+                  <Button size="sm" type="submit">
+                    Save
+                  </Button>
+                </form>
+              ) : (
+                <span
+                  className={`text-sm ${m.completedAt ? 'text-fg-muted line-through' : 'font-medium'}`}
+                >
+                  {m.title}
+                </span>
+              )}
               <span className="ml-2 text-xs text-fg-muted">
                 weight {m.weight}
                 {m.dueOn ? ` · due ${m.dueOn}` : ''}
@@ -249,18 +298,50 @@ export function MilestonesTab({
               onClick={() => void run(() => projects.moveMilestone(m.id, 1))}
             />
             <IconButton
+              label={`Rename: ${m.title}`}
+              icon={<Pencil aria-hidden className="size-4" />}
+              onClick={() => setRenaming({ id: m.id, title: m.title })}
+            />
+            <IconButton
+              label={`Archive: ${m.title}`}
+              icon={<Archive aria-hidden className="size-4" />}
+              onClick={() => void run(() => projects.archiveMilestone(m.id))}
+            />
+            <IconButton
               label={`Remove: ${m.title}`}
               icon={<Trash2 aria-hidden className="size-4" />}
               onClick={() =>
                 void run(
                   () => projects.removeMilestone(m.id),
-                  'Tasks or items still refer to that milestone.',
+                  'Tasks or items still refer to that milestone. Archive it instead.',
                 )
               }
             />
           </li>
         ))}
       </ol>
+      {archived.status === 'ready' && archived.data.length > 0 && (
+        <details>
+          <summary className="cursor-pointer text-sm text-fg-muted select-none hover:text-fg">
+            Archived milestones · {archived.data.length}
+          </summary>
+          <ul className="mt-2 divide-y divide-line border-y border-line text-sm">
+            {archived.data.map((m) => (
+              <li key={m.id} className="flex items-center gap-2 px-3 py-2">
+                <span className="min-w-0 flex-1 text-fg-muted">{m.title}</span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => void run(() => projects.restoreMilestone(m.id))}
+                >
+                  <ArchiveRestore aria-hidden className="size-3.5" />
+                  Restore {m.title}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
       {error && <ErrorNotice>{error}</ErrorNotice>}
       <form
         onSubmit={(e) => void add(e)}

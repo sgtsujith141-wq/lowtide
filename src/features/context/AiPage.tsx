@@ -1,5 +1,5 @@
 import { FolderDown, ShieldCheck } from 'lucide-react';
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { Link } from 'react-router';
 import { Button } from '../../components/ui/Button';
 import { Announcer, ErrorNotice } from '../../components/ui/Notice';
@@ -10,6 +10,7 @@ import { useRepositories } from '../../hooks/useRepositories';
 import { zipFiles } from '../../lib/zip';
 import { downloadBytes } from '../backup/download';
 import { AiAccess } from './AiAccess';
+import { markAiVisited, readLastVisit, useAiChangesSince } from './ai-visits';
 import { ContextPreview } from './ContextPreview';
 import { useSnapshot } from './useSnapshot';
 import type { ContextScope, GlobalGrants } from './pack';
@@ -40,6 +41,12 @@ export function AiPage() {
   const [exportError, setExportError] = useState<string | null>(null);
   const [announcement, setAnnouncement] = useState('');
   const ids = { project: useId(), scope: useId() };
+  // What changed since the owner last looked, then this visit counts as seen.
+  const [lastVisit] = useState(readLastVisit);
+  const sinceVisit = useAiChangesSince(client, lastVisit);
+  useEffect(() => {
+    if (client) markAiVisited();
+  }, [client]);
 
   const projects = data?.projects.filter((p) => p.state !== 'archived') ?? [];
   const chosen = projectId || projects[0]?.id || '';
@@ -75,6 +82,13 @@ export function AiPage() {
             AI clients you allow reach LOWTIDE through the companion, within their scope. Every
             change is attributed and listed below.
           </p>
+          {sinceVisit > 0 && (
+            <p role="status" className="mt-2 text-sm">
+              <a href="#changes-heading" className="text-accent-ink underline underline-offset-2">
+                {sinceVisit} {sinceVisit === 1 ? 'change' : 'changes'} since your last visit
+              </a>
+            </p>
+          )}
           <AiAccess client={client} projects={data?.projects ?? []} />
         </>
       ) : (

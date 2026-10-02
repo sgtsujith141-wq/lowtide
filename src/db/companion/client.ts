@@ -9,8 +9,11 @@ import {
 } from '../repositories';
 import { REPOSITORY_CONTRACT, type RepoName, type RpcResponse, type WireError } from './contract';
 import type {
+  AiChange,
   AuditEntry,
+  Checkpoint,
   ClientStatus,
+  GrantChanges,
   CompanionStatus,
   GitStatus,
   Grant,
@@ -44,6 +47,24 @@ export type CompanionEvent =
   | { type: 'change'; stores: string[] }
   | { type: 'ai'; what: 'audit' | 'grants' | 'sightings' }
   | { type: 'workspace'; at: string; written: number; removed: number; conflicts: string[] };
+
+export interface AutostartStatus {
+  supported: boolean;
+  enabled: boolean;
+  restartOnFailure: boolean;
+  managed: boolean;
+  agentPath: string;
+}
+
+/** What /api/health/details reports. */
+export interface CompanionHealth {
+  companion: { running: boolean; version: string; startedAt: string; pid: number };
+  database: { healthy: boolean; detail: string; path: string; schemaVersion: number };
+  mcp: { available: boolean; url: string; bridge: string };
+  workspace: { healthy: boolean; dir: string; lastSync: string | null; conflicts: string[] };
+  autostart: AutostartStatus;
+  restart: boolean;
+}
 
 export class CompanionUnavailableError extends Error {
   constructor(url: string) {
@@ -207,6 +228,83 @@ export class CompanionClient {
 
   clients() {
     return this.request<ClientStatus[]>('/api/ai/clients');
+  }
+
+  /** Changes what a grant may do; its token stays the same. */
+  updateGrant(id: string, changes: GrantChanges) {
+    return this.request<Grant>(`/api/ai/grants/${encodeURIComponent(id)}`, {
+      method: 'POST',
+      body: JSON.stringify(changes),
+    });
+  }
+
+  /** AI changes, newest first (optionally only those after `since`). */
+  changes(limit = 100, since?: string) {
+    return this.request<AiChange[]>(
+      `/api/ai/changes?limit=${limit}${since ? `&since=${encodeURIComponent(since)}` : ''}`,
+    );
+  }
+
+  /** Undoes one change; rejects with the companion's reason when it can't. */
+  revertChange(id: string) {
+    return this.request<AiChange[]>(`/api/ai/changes/${encodeURIComponent(id)}/revert`, {
+      method: 'POST',
+      body: '{}',
+    });
+  }
+
+  revertBatch(batchId: string) {
+    return this.request<AiChange[]>(`/api/ai/changes/batch/${encodeURIComponent(batchId)}/revert`, {
+      method: 'POST',
+      body: '{}',
+    });
+  }
+
+  checkpoints() {
+    return this.request<Checkpoint[]>('/api/checkpoints');
+  }
+
+  createCheckpoint(name: string) {
+    return this.request<Checkpoint>('/api/checkpoints', {
+      method: 'POST',
+      body: JSON.stringify({ name }),
+    });
+  }
+
+  restoreCheckpoint(id: string) {
+    return this.request<{ restored: Checkpoint }>(
+      `/api/checkpoints/${encodeURIComponent(id)}/restore`,
+      { method: 'POST', body: '{}' },
+    );
+  }
+
+  removeCheckpoint(id: string) {
+    return this.request<{ removed: boolean }>(`/api/checkpoints/${encodeURIComponent(id)}/remove`, {
+      method: 'POST',
+      body: '{}',
+    });
+  }
+
+  health() {
+    return this.request<CompanionHealth>('/api/health/details');
+  }
+
+  logs(lines = 200) {
+    return this.request<{ file: string; lines: string[] }>(`/api/system/logs?lines=${lines}`);
+  }
+
+  setAutostart(enabled: boolean, restartOnFailure: boolean) {
+    return this.request<AutostartStatus>('/api/system/autostart', {
+      method: 'POST',
+      body: JSON.stringify({ enabled, restartOnFailure }),
+    });
+  }
+
+  restart() {
+    return this.request<{ restarting: boolean }>('/api/system/restart', {
+      method: 'POST',
+      body: '{}',
+    });
   }
 
   workspace() {

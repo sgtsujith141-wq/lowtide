@@ -19,6 +19,7 @@ import { useRepositories } from '../../hooks/useRepositories';
 import { readTheme, saveTheme, type Theme } from '../../lib/theme';
 import { COUNT_ROWS } from '../backup/counts';
 import { backupFileName, downloadText } from '../backup/download';
+import { CompanionAdmin } from './CompanionAdmin';
 
 const THEME_OPTIONS: { value: Theme; label: string; hint: string; icon: typeof Sun }[] = [
   { value: 'auto', label: 'Auto', hint: 'Follows your system', icon: Monitor },
@@ -35,12 +36,13 @@ const sectionClass = 'mt-8 border-t border-line pt-6';
  */
 export function SettingsPage() {
   useDocumentTitle('Settings');
-  const { backend } = useCompanion();
+  const { backend, client } = useCompanion();
   return (
     <>
       <h1 className="text-page font-semibold">Settings</h1>
       <Appearance />
       <Storage />
+      {backend.kind === 'companion' && client && <CompanionAdmin client={client} />}
       <section aria-labelledby="backup-heading" className={sectionClass}>
         <h2 id="backup-heading" className="text-section font-semibold">
           Backup

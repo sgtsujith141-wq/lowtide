@@ -173,8 +173,17 @@ try {
   await page.goto(`${APP}/ai`);
   await page.getByRole('button', { name: 'Give access' }).click();
   const grant = page.getByRole('form', { name: 'Give an AI client access' });
-  await grant.getByRole('radio', { name: 'Read and make changes' }).check();
-  await grant.getByRole('checkbox', { name: /May also resolve approval requests/ }).check();
+  // Custom access: one project, reading plus the changes this run makes.
+  await grant.getByRole('radio', { name: /^Custom/ }).check();
+  await grant.getByRole('radio', { name: 'One project' }).check();
+  for (const permission of [
+    'Edit projects (details, state, focus, pins)',
+    'Blockers, waiting, parked ideas and approval requests',
+    'Resolve approval requests',
+    'Log AI sessions, notes and checkpoints',
+  ]) {
+    await grant.getByRole('checkbox', { name: permission }).check();
+  }
   await grant.getByRole('button', { name: 'Create access' }).click();
   const token = await page.getByRole('textbox', { name: 'Token' }).inputValue();
   await page.getByRole('button', { name: 'Done, I’ve saved it' }).click();

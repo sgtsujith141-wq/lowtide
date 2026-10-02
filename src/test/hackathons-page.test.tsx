@@ -61,8 +61,8 @@ describe('Hackathons page (v2 PHASE 016)', () => {
 
   it('adds a hackathon with just a name and a date', async () => {
     const { user, db, trap } = await setup();
-    await user.click(screen.getByRole('button', { name: 'Add hackathon' }));
-    const form = screen.getByRole('form', { name: 'Add hackathon' });
+    await user.click(screen.getByRole('button', { name: 'New hackathon' }));
+    const form = await screen.findByRole('form', { name: 'Add hackathon' });
     expect(within(form).queryByLabelText('Problem statement')).not.toBeInTheDocument();
     await user.type(within(form).getByLabelText('Name'), 'Hackurity');
     await user.type(within(form).getByLabelText('Event starts'), addDays(today(), 4));
@@ -78,8 +78,8 @@ describe('Hackathons page (v2 PHASE 016)', () => {
 
   it('validates the name and the date range with associated errors', async () => {
     const { user } = await setup();
-    await user.click(screen.getByRole('button', { name: 'Add hackathon' }));
-    const form = screen.getByRole('form', { name: 'Add hackathon' });
+    await user.click(screen.getByRole('button', { name: 'New hackathon' }));
+    const form = await screen.findByRole('form', { name: 'Add hackathon' });
     await user.click(within(form).getByRole('button', { name: 'Add' }));
     expect(await within(form).findByRole('alert')).toHaveTextContent('Give it a name.');
     expect(within(form).getByLabelText('Name')).toHaveAccessibleDescription('Give it a name.');

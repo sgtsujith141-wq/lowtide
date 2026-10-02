@@ -12,7 +12,9 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { Link } from 'react-router';
+import { useCompanion } from '../../hooks/useCompanion';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
+import { AiChangesBadge } from '../context/AiChanges';
 import { ModeActions } from '../modes/ModeActions';
 
 const MORE_LINKS: { to: string; label: string; hint: string; icon: LucideIcon }[] = [
@@ -30,6 +32,7 @@ const MORE_LINKS: { to: string; label: string; hint: string; icon: LucideIcon }[
 /** Phones: the secondary destinations behind the fifth tab (ADR-043). */
 export function MorePage() {
   useDocumentTitle('More');
+  const { client } = useCompanion();
   return (
     <>
       <h1 className="text-page font-semibold">More</h1>
@@ -49,6 +52,7 @@ export function MorePage() {
                   <span className="block font-medium">{label}</span>
                   <span className="block text-xs text-fg-muted">{hint}</span>
                 </span>
+                {to === '/ai' && <AiChangesBadge client={client} />}
                 <ChevronRight aria-hidden className="size-4 text-fg-subtle" />
               </Link>
             </li>

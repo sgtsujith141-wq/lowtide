@@ -1,11 +1,9 @@
-import { AlertOctagon, ArrowRight, Hand, Hourglass, Plus } from 'lucide-react';
-import { useId, useState, type FormEvent } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { AlertOctagon, ArrowRight, Hand, Hourglass, Pin, Plus } from 'lucide-react';
+import { useId } from 'react';
+import { Link } from 'react-router';
 import { PageHeader } from '../../components/layout';
 import { Button } from '../../components/ui/Button';
-import { ErrorNotice } from '../../components/ui/Notice';
-import { fieldClass, labelClass } from '../../components/ui/styles';
-import { useCreateRequest } from '../../hooks/useCreateRequest';
+import { useCreate } from '../create/create-context';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle';
 import { useNow } from '../../hooks/useNow';
 import { useRepositories } from '../../hooks/useRepositories';
@@ -33,8 +31,13 @@ export function ProjectsPage() {
   const data = useProjectSummaries(today);
   const { projects } = useRepositories();
   const all = useWatch(projects.watchAll);
-  const [adding, setAdding] = useState(false);
-  useCreateRequest(() => setAdding(true));
+  const { openCreate } = useCreate();
+  const pinned =
+    all.status === 'ready'
+      ? all.data
+          .filter((p) => p.pinnedAt && p.state !== 'archived')
+          .sort((a, b) => a.pinnedAt!.localeCompare(b.pinnedAt!))
+      : [];
   const finished =
     all.status === 'ready'
       ? all.data.filter((p) => p.state === 'done' || p.state === 'archived')
@@ -60,16 +63,39 @@ export function ProjectsPage() {
       <PageHeader
         title="Projects"
         actions={
-          <Button variant="primary" aria-expanded={adding} onClick={() => setAdding((v) => !v)}>
+          <Button variant="primary" onClick={() => openCreate('project')}>
             <Plus aria-hidden className="size-4" /> New project
           </Button>
         }
       />
-      {adding && <NewProjectForm onCancel={() => setAdding(false)} />}
+      {pinned.length > 0 && (
+        <nav
+          aria-label="Pinned projects"
+          className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm"
+        >
+          <span className="inline-flex items-center gap-1 text-xs text-fg-muted">
+            <Pin aria-hidden className="size-3" /> Pinned
+          </span>
+          {pinned.map((p) => (
+            <Link key={p.id} to={`/projects/${p.slug}`} className="hover:underline">
+              {p.name}
+            </Link>
+          ))}
+        </nav>
+      )}
 
       {data &&
         (data.summaries.length === 0 ? (
-          <p className="mt-6 text-sm text-fg-muted">No active projects yet.</p>
+          <p className="mt-6 text-sm text-fg-muted">
+            No active projects yet.{' '}
+            <button
+              type="button"
+              onClick={() => openCreate('project')}
+              className="text-accent-ink underline underline-offset-2"
+            >
+              Create one
+            </button>
+          </p>
         ) : (
           <div className="mt-8 space-y-12">
             {TIERS.filter((t) => groups.has(t)).map((tier) => (
@@ -317,68 +343,5 @@ function QuietRow({ summary: s, now }: { summary: ProjectSummary; now: Date }) {
         Last moved {formatWhen(s.lastUpdate, now)}
       </span>
     </li>
-  );
-}
-
-function NewProjectForm({ onCancel }: { onCancel: () => void }) {
-  const { projects } = useRepositories();
-  const navigate = useNavigate();
-  const [name, setName] = useState('');
-  const [objective, setObjective] = useState('');
-  const [error, setError] = useState<string | null>(null);
-  const ids = { name: useId(), objective: useId(), error: useId() };
-
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    if (!name.trim()) return setError('Give the project a name.');
-    try {
-      const project = await projects.create({ name, objective, state: 'active' });
-      await navigate(`/projects/${project.slug}`);
-    } catch {
-      setError('Couldn’t create the project. Nothing changed.');
-    }
-  }
-
-  return (
-    <form
-      aria-label="New project"
-      onSubmit={(e) => void submit(e)}
-      className="mt-4 max-w-lg space-y-3 rounded-lg border border-line bg-raised p-4"
-    >
-      <div>
-        <label htmlFor={ids.name} className={labelClass}>
-          Name
-        </label>
-        <input
-          id={ids.name}
-          autoFocus
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          aria-invalid={error ? true : undefined}
-          aria-describedby={error ? ids.error : undefined}
-          className={fieldClass}
-        />
-      </div>
-      <div>
-        <label htmlFor={ids.objective} className={labelClass}>
-          Objective (optional): what does done mean?
-        </label>
-        <input
-          id={ids.objective}
-          value={objective}
-          onChange={(e) => setObjective(e.target.value)}
-          className={fieldClass}
-        />
-      </div>
-      {error && <ErrorNotice id={ids.error}>{error}</ErrorNotice>}
-      <div className="flex gap-2">
-        <Button type="submit" variant="primary">
-          Create project
-        </Button>
-        <Button variant="ghost" onClick={onCancel}>
-          Cancel
-        </Button>
-      </div>
-    </form>
   );
 }
