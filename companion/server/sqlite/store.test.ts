@@ -46,7 +46,7 @@ describe('SQLite schema (companion migrations)', () => {
     const meta = store.sql
       .prepare("SELECT value FROM companion_meta WHERE key = 'lowtide_schema_version'")
       .get() as { value: string };
-    expect(meta.value).toBe('9');
+    expect(meta.value).toBe('10');
   });
 
   it('enforces enumerations, types and deferred references in the database itself', async () => {
@@ -160,6 +160,95 @@ describe('companion migration 5 (schema V9)', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe('domain schema V10 (v2.1, companion migration 6)', () => {
+  it('adds the v2.1 columns to an older database, keeping every record, and runs once', async () => {
+    const { mkdtempSync, rmSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const { DatabaseSync } = await import('node:sqlite');
+    const dir = mkdtempSync(join(tmpdir(), 'lowtide-v10-'));
+    try {
+      const file = join(dir, 'old.sqlite');
+      const first = new SqliteStore(file);
+      const r0 = createRepositories(first);
+      const project = await r0.projects.create({ name: 'Engine' });
+      const milestone = await r0.projects.addMilestone(project.id, { title: 'Foundation' });
+      const task = await r0.tasks.create({ title: 'Ship', projectId: project.id });
+      first.close();
+      // A V9 database: none of the new columns, migration 6 not run.
+      const raw = new DatabaseSync(file);
+      const drops: [string, string][] = [
+        ['tasks', 'parent_id'],
+        ['hackathons', 'archived_at'],
+        ['hackathons', 'pinned_at'],
+        ['projects', 'description'],
+        ['projects', 'pinned_at'],
+        ['milestones', 'archived_at'],
+        ['space_nodes', 'description'],
+        ['space_nodes', 'pinned_at'],
+      ];
+      raw.exec('DROP INDEX tasks_parent_id');
+      for (const [table, column] of drops) raw.exec(`ALTER TABLE ${table} DROP COLUMN ${column}`);
+      raw.exec('DELETE FROM companion_migrations WHERE id = 6');
+      raw.close();
+
+      const reopened = new SqliteStore(file);
+      for (const [table, column] of drops) {
+        const columns = (
+          reopened.sql.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]
+        ).map((c) => c.name);
+        expect(columns, table).toContain(column);
+      }
+      const r = createRepositories(reopened);
+      expect(await r.projects.get(project.id)).toMatchObject({ name: 'Engine' });
+      const sub = await r.tasks.create({ title: 'Docs', parentId: task.id });
+      expect(sub).toMatchObject({ parentId: task.id, projectId: project.id });
+      expect((await r.projects.archiveMilestone(milestone.id)).archivedAt).toBeDefined();
+      expect((await r.projects.setPinned(project.id, true)).pinnedAt).toBeDefined();
+      reopened.close();
+      // Applying migrations again changes nothing.
+      const again = new SqliteStore(file);
+      const ids = (
+        again.sql.prepare('SELECT id FROM companion_migrations ORDER BY id').all() as {
+          id: number;
+        }[]
+      ).map((m) => m.id);
+      expect(ids).toEqual(MIGRATIONS.map((m) => m.id));
+      again.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('runs the v2.1 SPACE operations on SQLite as on Dexie', async () => {
+    const r = createRepositories(sqlite());
+    const roots = await r.space.ensureRoots();
+    const ideas = roots.find((n) => n.key === 'ideas')!;
+    const folder = await r.space.create({ parentId: ideas.id, kind: 'section', title: 'Research' });
+    const table = await r.space.create({
+      parentId: folder.id,
+      title: 'Tracker',
+      table: { columns: [{ id: 'n', name: 'Name', type: 'text' }], rows: [] },
+    });
+    await r.space.addColumn(table.id, { name: 'Done', type: 'boolean' });
+    let n = await r.space.addRow(table.id, { n: 'Alpha' });
+    const row = n.table!.rows[0]!;
+    n = await r.space.updateRow(table.id, row.id, { [n.table!.columns[1]!.id]: true });
+    expect(n.table!.rows[0]!.cells).toMatchObject({ n: 'Alpha' });
+    await r.space.saveView(table.id, { name: 'Open', type: 'list' });
+    const copy = await r.space.duplicateTree(folder.id, { deep: true });
+    const all = await new Promise<{ parentId?: string; title: string }[]>((resolve) => {
+      const stop = r.space.watchAll((v) => {
+        queueMicrotask(() => stop());
+        resolve(v);
+      });
+    });
+    expect(all.filter((x) => x.parentId === copy.id).map((x) => x.title)).toEqual(['Tracker']);
+    await r.space.ensureSystemPages({ title: 'Guide', markdown: '# Guide' });
+    expect(await r.space.getByKey('lowtide:guide')).toMatchObject({ title: 'Guide' });
   });
 });
 

@@ -101,11 +101,12 @@ export const TABLES: TableSpec[] = [
       opt('projectId', 'text', { references: 'projects' }),
       opt('milestoneId', 'text', { references: 'milestones' }),
       opt('plannedFor'),
+      opt('parentId', 'text', { references: 'tasks' }),
       created,
       opt('completedAt'),
       updated,
     ],
-    indexes: ['status', 'dueAt', 'createdAt', 'plannedFor', 'projectId'],
+    indexes: ['status', 'dueAt', 'createdAt', 'plannedFor', 'projectId', 'parentId'],
   },
   {
     store: 'inbox',
@@ -167,6 +168,8 @@ export const TABLES: TableSpec[] = [
       req('status', 'text', { values: HACKATHON_STATUSES }),
       opt('notes'),
       opt('projectId', 'text', { references: 'projects' }),
+      opt('archivedAt'),
+      opt('pinnedAt'),
       created,
       updated,
     ],
@@ -198,6 +201,8 @@ export const TABLES: TableSpec[] = [
       opt('nextAction'),
       opt('repoUrl'),
       opt('focus', 'text', { values: PROJECT_FOCUS }),
+      opt('description'),
+      opt('pinnedAt'),
       created,
       updated,
       req('stateChangedAt'),
@@ -216,6 +221,7 @@ export const TABLES: TableSpec[] = [
       req('weight', 'real'),
       opt('dueOn'),
       opt('completedAt'),
+      opt('archivedAt'),
       created,
       updated,
     ],
@@ -391,6 +397,8 @@ export const TABLES: TableSpec[] = [
       req('kind', 'text', { values: SPACE_NODE_KINDS }),
       req('title'),
       opt('icon'),
+      opt('description'),
+      opt('pinnedAt'),
       opt('key', 'text', { unique: true }),
       opt('body'),
       opt('bodyFormat', 'text', { values: SPACE_BODY_FORMATS }),
@@ -452,23 +460,26 @@ const SQL_TYPE: Record<ColumnType, string> = {
 
 const quote = (value: string) => `'${value.replace(/'/g, "''")}'`;
 
+/** One column's definition, as in CREATE TABLE or ALTER TABLE … ADD COLUMN. */
+export function columnDdl(c: Column): string {
+  const parts = [c.column, SQL_TYPE[c.type]];
+  if (c.field === 'id') parts.push('PRIMARY KEY');
+  else if (c.required) parts.push('NOT NULL');
+  if (c.unique) parts.push('UNIQUE');
+  if (c.values) parts.push(`CHECK (${c.column} IN (${c.values.map(quote).join(', ')}))`);
+  if (c.type === 'bool') parts.push(`CHECK (${c.column} IN (0, 1))`);
+  if (c.type === 'json') parts.push(`CHECK (${c.column} IS NULL OR json_valid(${c.column}))`);
+  if (c.references) {
+    parts.push(`REFERENCES ${c.references}(id) DEFERRABLE INITIALLY DEFERRED`);
+  }
+  return parts.join(' ');
+}
+
 /** CREATE TABLE and CREATE INDEX statements for the given domain tables. */
 export function domainDdl(specs: readonly TableSpec[] = TABLES): string[] {
   const statements: string[] = [];
   for (const spec of specs) {
-    const lines = spec.columns.map((c) => {
-      const parts = [c.column, SQL_TYPE[c.type]];
-      if (c.field === 'id') parts.push('PRIMARY KEY');
-      else if (c.required) parts.push('NOT NULL');
-      if (c.unique) parts.push('UNIQUE');
-      if (c.values) parts.push(`CHECK (${c.column} IN (${c.values.map(quote).join(', ')}))`);
-      if (c.type === 'bool') parts.push(`CHECK (${c.column} IN (0, 1))`);
-      if (c.type === 'json') parts.push(`CHECK (${c.column} IS NULL OR json_valid(${c.column}))`);
-      if (c.references) {
-        parts.push(`REFERENCES ${c.references}(id) DEFERRABLE INITIALLY DEFERRED`);
-      }
-      return parts.join(' ');
-    });
+    const lines = spec.columns.map(columnDdl);
     for (const fields of spec.unique ?? []) {
       lines.push(`UNIQUE (${fields.map((f) => columnOf(spec, f)).join(', ')})`);
     }

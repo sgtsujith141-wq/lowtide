@@ -1,7 +1,8 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { SCHEMA_VERSION } from '../../../src/db/schema';
 import { PROJECT_FOCUS } from '../../../src/types/domain';
-import { domainDdl, V6_TABLES, V7_TABLES } from './tables';
+import { columnDdl, domainDdl, TABLE_BY_STORE, V6_TABLES, V7_TABLES } from './tables';
+import type { StoreName } from '../../../src/db/migrations';
 
 /*
  * Companion database migrations (ADR-057). Each runs once, in order, inside
@@ -114,7 +115,40 @@ export const MIGRATIONS: Migration[] = [
       }
     },
   },
+  {
+    id: 6,
+    name: 'domain schema V10 (v2.1): subtasks, archive, pins, descriptions',
+    statements: () => [],
+    // Additive and idempotent: nullable columns only, so a companion that
+    // doesn't know them keeps working (its upserts name only its own columns).
+    apply: (sql) => {
+      addMissingColumns(sql, 'tasks', ['parentId']);
+      addMissingColumns(sql, 'hackathons', ['archivedAt', 'pinnedAt']);
+      addMissingColumns(sql, 'projects', ['description', 'pinnedAt']);
+      addMissingColumns(sql, 'milestones', ['archivedAt']);
+      addMissingColumns(sql, 'spaceNodes', ['description', 'pinnedAt']);
+      sql.exec('CREATE INDEX IF NOT EXISTS tasks_parent_id ON tasks (parent_id)');
+    },
+  },
 ];
+
+/** ALTER TABLE … ADD COLUMN for each field the table doesn't have yet (from its current spec). */
+export function addMissingColumns(sql: DatabaseSync, store: StoreName, fields: string[]) {
+  const spec = TABLE_BY_STORE.get(store);
+  if (!spec) throw new Error(`No table for ${store}`);
+  const existing = new Set(
+    (sql.prepare(`PRAGMA table_info(${spec.table})`).all() as { name: string }[]).map(
+      (c) => c.name,
+    ),
+  );
+  for (const field of fields) {
+    const column = spec.columns.find((c) => c.field === field);
+    if (!column) throw new Error(`${store} has no field ${field}`);
+    if (column.required) throw new Error(`Only optional columns can be added (${field})`);
+    if (existing.has(column.column)) continue;
+    sql.exec(`ALTER TABLE ${spec.table} ADD COLUMN ${columnDdl(column)}`);
+  }
+}
 
 export function applyMigrations(sql: DatabaseSync) {
   sql.exec(`CREATE TABLE IF NOT EXISTS companion_migrations (

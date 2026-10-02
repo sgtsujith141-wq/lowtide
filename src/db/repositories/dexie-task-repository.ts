@@ -28,6 +28,8 @@ export function buildTask(input: NewTask, id: string, now: Date): Task {
       project: optionalText(input.project),
       projectId: input.projectId,
       milestoneId: input.milestoneId,
+      parentId: input.parentId,
+      plannedFor: input.plannedFor,
       createdAt: at,
       updatedAt: at,
     }),
@@ -48,6 +50,7 @@ function applyChanges(task: Task, changes: TaskChanges): Record<string, unknown>
     if (changes.projectId !== task.projectId) next.milestoneId = undefined;
   }
   if (changes.milestoneId !== undefined) next.milestoneId = changes.milestoneId ?? undefined;
+  if (changes.parentId !== undefined) next.parentId = changes.parentId ?? undefined;
   return omitUndefined(next);
 }
 
@@ -57,10 +60,27 @@ export function createDexieTaskRepository(deps: RepositoryDeps): TaskRepository 
   const emit = eventWriter(resolved);
   const tables = [db.tasks, db.projects, db.milestones, db.events];
 
-  /** A task's project must exist, and its milestone must be in that project. */
+  /**
+   * A task's project must exist, and its milestone must be in that project.
+   * A subtask's parent exists, is in the same project and is no subtask
+   * itself; a task with subtasks can't become one.
+   */
   async function checkLinks(task: Task) {
     if (task.projectId !== undefined && !(await db.projects.get(task.projectId))) {
       throw new RecordNotFoundError('Project', task.projectId);
+    }
+    if (task.parentId !== undefined) {
+      if (task.parentId === task.id) throw new InvalidInputError('A task can’t be its own subtask');
+      const parent = await db.tasks.get(task.parentId);
+      if (!parent) throw new RecordNotFoundError('Task', task.parentId);
+      if (parent.parentId !== undefined) {
+        throw new InvalidInputError('Subtasks can’t have subtasks of their own');
+      }
+      if ((parent.projectId ?? null) !== (task.projectId ?? null)) {
+        throw new InvalidInputError('A subtask belongs to the same project as its parent');
+      }
+      const children = await db.tasks.where('parentId').equals(task.id).count();
+      if (children > 0) throw new InvalidInputError('A task with subtasks can’t become a subtask');
     }
     if (task.milestoneId !== undefined) {
       const milestone = await db.milestones.get(task.milestoneId);
@@ -108,7 +128,13 @@ export function createDexieTaskRepository(deps: RepositoryDeps): TaskRepository 
   return {
     create(input) {
       return db.transaction('rw', tables, async () => {
-        const task = buildTask(input, newId(), clock());
+        let draft = input;
+        // A subtask takes its parent's project when none is given.
+        if (input.parentId !== undefined && input.projectId === undefined) {
+          const parent = await db.tasks.get(input.parentId);
+          if (parent?.projectId) draft = { ...input, projectId: parent.projectId };
+        }
+        const task = buildTask(draft, newId(), clock());
         await checkLinks(task);
         await db.tasks.add(task);
         return task;
@@ -150,6 +176,12 @@ export function createDexieTaskRepository(deps: RepositoryDeps): TaskRepository 
     drop(id) {
       return modify(id, OPEN, (task) => ({ ...task, status: 'dropped' }));
     },
+
+    setDoing(id, doing) {
+      return modify(id, OPEN, (task) => ({ ...task, status: doing ? 'doing' : 'todo' }));
+    },
+
+    watchAll: watch(() => db.tasks.orderBy('createdAt').toArray()),
 
     planFor(id, date) {
       return modify(id, OPEN, (task) => ({ ...task, plannedFor: date }));

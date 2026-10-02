@@ -80,12 +80,19 @@ describe('schema V1 → V2 migration', () => {
     db.close();
   });
 
-  it('keeps the tasks store V1 indexes and adds only plannedFor (V2) and projectId (V4)', async () => {
+  it('keeps the tasks store V1 indexes and adds only plannedFor (V2), projectId (V4) and parentId (V10)', async () => {
     const name = await createV1Database(async () => {});
     const db = openDatabase(name);
     await db.open();
     const indexes = db.tasks.schema.indexes.map((i) => i.name).sort();
-    expect(indexes).toEqual(['createdAt', 'dueAt', 'plannedFor', 'projectId', 'status']);
+    expect(indexes).toEqual([
+      'createdAt',
+      'dueAt',
+      'parentId',
+      'plannedFor',
+      'projectId',
+      'status',
+    ]);
     db.close();
   });
 });

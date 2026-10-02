@@ -8,6 +8,9 @@ import {
   SPACE_ATTACHMENT_STATUSES,
   SPACE_BODY_FORMATS,
   SPACE_COLUMN_TYPES,
+  SPACE_FILTER_OPS,
+  SPACE_VIEW_TYPES,
+  ROLLUP_FUNCTIONS,
   SPACE_NODE_KINDS,
   SPACE_BLOCK_TYPES,
   SPACE_EDIT_KINDS,
@@ -21,6 +24,7 @@ import {
   type SpaceColumn,
   type SpaceNode,
   type SpaceRow,
+  type SpaceView,
   NOTE_AUTHORS,
   NOTE_KINDS,
   RESEARCH_STATUSES,
@@ -89,6 +93,7 @@ export const taskSchema = z.object({
   plannedFor: z.exactOptional(localDate),
   projectId: z.exactOptional(id),
   milestoneId: z.exactOptional(id),
+  parentId: z.exactOptional(id),
   createdAt: timestamp,
   completedAt: z.exactOptional(timestamp),
   updatedAt: timestamp,
@@ -138,6 +143,8 @@ export const hackathonSchema = z.object({
   status: z.enum(HACKATHON_STATUSES),
   notes: z.exactOptional(z.string()),
   projectId: z.exactOptional(id),
+  archivedAt: z.exactOptional(timestamp),
+  pinnedAt: z.exactOptional(timestamp),
   createdAt: timestamp,
   updatedAt: timestamp,
 }) satisfies z.ZodMiniType<Hackathon>;
@@ -167,6 +174,8 @@ export const projectSchema = z.object({
   nextAction: z.exactOptional(text),
   repoUrl: z.exactOptional(text),
   focus: z.exactOptional(z.enum(PROJECT_FOCUS)),
+  description: z.exactOptional(text.check(z.maxLength(2000))),
+  pinnedAt: z.exactOptional(timestamp),
   createdAt: timestamp,
   updatedAt: timestamp,
   stateChangedAt: timestamp,
@@ -181,6 +190,7 @@ export const milestoneSchema = z.object({
   weight,
   dueOn: z.exactOptional(localDate),
   completedAt: z.exactOptional(timestamp),
+  archivedAt: z.exactOptional(timestamp),
   createdAt: timestamp,
   updatedAt: timestamp,
 }) satisfies z.ZodMiniType<Milestone>;
@@ -354,6 +364,15 @@ const spaceColumn = z.object({
     z.array(z.object({ name: z.string(), color: z.exactOptional(z.string()) })),
   ),
   description: z.exactOptional(z.string()),
+  targets: z.exactOptional(z.array(linkableType)),
+  rollup: z.exactOptional(
+    z.object({
+      relation: shortKey,
+      fn: z.enum(ROLLUP_FUNCTIONS),
+      property: z.exactOptional(shortKey),
+    }),
+  ),
+  formula: z.exactOptional(z.string().check(z.maxLength(2000))),
 }) satisfies z.ZodMiniType<SpaceColumn>;
 
 const spaceCell = z.union([
@@ -369,7 +388,31 @@ const spaceRow = z.object({
   cells: z.record(z.string(), spaceCell),
   pageId: z.exactOptional(id),
   links: z.exactOptional(z.array(entityLink)),
+  createdAt: z.exactOptional(timestamp),
+  updatedAt: z.exactOptional(timestamp),
+  createdBy: z.exactOptional(z.string().check(z.minLength(1), z.maxLength(200))),
+  updatedBy: z.exactOptional(z.string().check(z.minLength(1), z.maxLength(200))),
 }) satisfies z.ZodMiniType<SpaceRow>;
+
+const spaceView = z.object({
+  id: shortKey,
+  name: z.string().check(z.minLength(1), z.maxLength(200)),
+  type: z.enum(SPACE_VIEW_TYPES),
+  filters: z.exactOptional(
+    z.array(
+      z.object({
+        column: shortKey,
+        op: z.enum(SPACE_FILTER_OPS),
+        value: z.exactOptional(z.string().check(z.maxLength(2000))),
+      }),
+    ),
+  ),
+  sorts: z.exactOptional(z.array(z.object({ column: shortKey, dir: z.enum(['asc', 'desc']) }))),
+  groupBy: z.exactOptional(shortKey),
+  dateColumn: z.exactOptional(shortKey),
+  hidden: z.exactOptional(z.array(shortKey)),
+  order: z.exactOptional(z.array(shortKey)),
+}) satisfies z.ZodMiniType<SpaceView>;
 
 const spaceBlock = z.object({
   id: shortKey,
@@ -391,6 +434,8 @@ const spaceBlock = z.object({
     }),
   ),
   rows: z.exactOptional(z.array(z.array(z.string()))),
+  url: z.exactOptional(z.string().check(z.minLength(1), z.maxLength(4000))),
+  title: z.exactOptional(z.string().check(z.maxLength(2000))),
   by: z.exactOptional(z.object({ client: text.check(z.maxLength(200)), at: timestamp })),
 }) satisfies z.ZodMiniType<SpaceBlock>;
 
@@ -409,6 +454,8 @@ export const spaceNodeSchema = z.object({
   kind: z.enum(SPACE_NODE_KINDS),
   title: text.check(z.maxLength(2000)),
   icon: z.exactOptional(z.string().check(z.maxLength(64))),
+  description: z.exactOptional(text.check(z.maxLength(2000))),
+  pinnedAt: z.exactOptional(timestamp),
   key: z.exactOptional(shortKey),
   body: z.exactOptional(z.string().check(z.maxLength(1_000_000))),
   bodyFormat: z.exactOptional(z.enum(SPACE_BODY_FORMATS)),
@@ -417,7 +464,13 @@ export const spaceNodeSchema = z.object({
   links: z.array(entityLink),
   externalLinks: z.array(z.object({ url: text, label: z.exactOptional(z.string()) })),
   attachments: z.array(spaceAttachment),
-  table: z.exactOptional(z.object({ columns: z.array(spaceColumn), rows: z.array(spaceRow) })),
+  table: z.exactOptional(
+    z.object({
+      columns: z.array(spaceColumn),
+      rows: z.array(spaceRow),
+      views: z.exactOptional(z.array(spaceView)),
+    }),
+  ),
   source: z.exactOptional(sourceRef),
   blocks: z.exactOptional(z.array(spaceBlock).check(z.maxLength(10_000))),
   revision: z.exactOptional(count),
@@ -452,7 +505,7 @@ export const DATABASE_NAME = 'lowtide';
  * Current schema version. Bump it (never edit a shipped version) when the
  * store layout or record shape changes; see docs/DATA-MODEL.md#migrations.
  */
-export const SCHEMA_VERSION = 9;
+export const SCHEMA_VERSION = 10;
 
 /**
  * Dexie store definitions for version 1. First entry is the primary key;
@@ -548,3 +601,13 @@ export const STORES_V8 = {} as const;
  * never converted.
  */
 export const STORES_V9 = {} as const;
+
+/**
+ * Version 10 (LOWTIDE v2.1): subtasks (`Task.parentId`, indexed), archived
+ * milestones and hackathons, pins, project and SPACE descriptions, and SPACE
+ * databases (views, row authorship, relation targets, rollups, formulas,
+ * bookmark blocks). Additive: no existing record is rewritten.
+ */
+export const STORES_V10 = {
+  tasks: 'id, status, dueAt, createdAt, plannedFor, projectId, parentId',
+} as const;

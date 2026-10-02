@@ -1,5 +1,7 @@
 import {
   EVENT_ENTITY,
+  DERIVED_COLUMN_TYPES,
+  type SpaceColumnType,
   type CollegeItem,
   type AiSession,
   type Hackathon,
@@ -193,6 +195,19 @@ export function checkSpaceNode(node: Pick<SpaceNode, 'kind' | 'table' | 'id' | '
     if (types.has(column.id)) throw new InvalidInputError(`Column ${column.id} appears twice`);
     types.set(column.id, column.type);
   }
+  for (const column of node.table.columns) {
+    if (column.type === 'rollup') {
+      const relation = node.table.columns.find((c) => c.id === column.rollup?.relation);
+      if (!relation || relation.type !== 'link') {
+        throw new InvalidInputError(`Rollup “${column.name}” needs a relation property`);
+      }
+    }
+  }
+  const views = new Set<string>();
+  for (const view of node.table.views ?? []) {
+    if (views.has(view.id)) throw new InvalidInputError(`View ${view.id} appears twice`);
+    views.add(view.id);
+  }
   const rows = new Set<string>();
   for (const row of node.table.rows) {
     if (rows.has(row.id)) throw new InvalidInputError(`Row ${row.id} appears twice`);
@@ -200,6 +215,9 @@ export function checkSpaceNode(node: Pick<SpaceNode, 'kind' | 'table' | 'id' | '
     for (const [columnId, value] of Object.entries(row.cells)) {
       const type = types.get(columnId);
       if (!type) throw new InvalidInputError(`Row ${row.id} has a cell for no column`);
+      if (DERIVED_COLUMN_TYPES.includes(type as SpaceColumnType)) {
+        throw new InvalidInputError(`Row ${row.id}: ${type} is computed, never typed in`);
+      }
       const ok =
         type === 'number'
           ? typeof value === 'number' && Number.isFinite(value)

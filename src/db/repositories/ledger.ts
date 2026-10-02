@@ -86,7 +86,11 @@ export async function refreshSnapshot(
   const project = await db.projects.get(projectId);
   if (!project) return;
   const [milestones, items] = await Promise.all([
-    db.milestones.where('projectId').equals(projectId).toArray(),
+    db.milestones
+      .where('projectId')
+      .equals(projectId)
+      .filter((m) => m.archivedAt === undefined)
+      .toArray(),
     db.projectItems.where('projectId').equals(projectId).toArray(),
   ]);
   const laneCounts = Object.fromEntries(PROJECT_LANES.map((lane) => [lane, 0])) as Record<

@@ -1,4 +1,4 @@
-import { blocksOf } from '../../lib/space-blocks';
+import { blocksOf, blocksToMarkdown, parseBody } from '../../lib/space-blocks';
 import { toTimestamp } from '../../lib/time';
 import {
   SPACE_EDIT_LIMIT,
@@ -10,7 +10,13 @@ import {
   type SpaceEdit,
   type SpaceEditKind,
   type SpaceNode,
+  type SpaceColumn,
+  type SpaceRow,
+  type SpaceTable,
+  type SpaceView,
 } from '../../types/domain';
+import { STARTING_TEMPLATES } from '../space-templates';
+import { convertCell, isDerived, optionsFor } from '../space-table';
 import { SLOT_TITLES } from '../import/notion/types';
 import { checkSpaceNode } from '../rules';
 import { spaceNodeSchema } from '../schema';
@@ -22,7 +28,12 @@ import {
   SpaceConflictError,
 } from './errors';
 import { omitUndefined, resolveDeps, type RepositoryDeps } from './shared';
-import { PROJECT_SPACE_SLOTS, type NewSpaceBlock, type SpaceRepository } from './types';
+import {
+  PROJECT_SPACE_SLOTS,
+  type Expect,
+  type NewSpaceBlock,
+  type SpaceRepository,
+} from './types';
 
 const byOrder = (a: SpaceNode, b: SpaceNode) =>
   a.order - b.order || a.title.localeCompare(b.title) || a.id.localeCompare(b.id);
@@ -141,6 +152,145 @@ export function createDexieSpaceRepository(deps: RepositoryDeps): SpaceRepositor
     return node;
   }
 
+  /** Refuses a write made against an older revision, when the caller says which it saw. */
+  function checkRevision(node: SpaceNode, expect: Expect | undefined) {
+    if (expect?.baseRevision === undefined) return;
+    const revision = node.revision ?? 0;
+    if (revision !== expect.baseRevision) {
+      throw new SpaceConflictError(
+        `“${node.title}” changed since you read it (revision ${revision}, yours ${expect.baseRevision})`,
+        revision,
+      );
+    }
+  }
+
+  function tableOf(node: SpaceNode): SpaceTable {
+    if (!node.table) throw new RecordStateError('That page isn’t a database');
+    return node.table;
+  }
+
+  /** Who wrote a row, as a row records it. */
+  const who = client ?? 'owner';
+
+  /** A change to a table page: one transaction, one revision. */
+  function changeTable(
+    id: Id,
+    expect: Expect | undefined,
+    change: (table: SpaceTable, at: string, node: SpaceNode) => SpaceTable,
+  ): Promise<SpaceNode> {
+    return db.transaction('rw', tables, async () => {
+      const node = await getNode(id);
+      checkRevision(node, expect);
+      const at = toTimestamp(clock());
+      const next = changed(node, 'table', at);
+      next.table = change(tableOf(node), at, node);
+      return put(next);
+    });
+  }
+
+  /** A change to a page's blocks: one transaction, one revision. */
+  function changeBlocks(
+    id: Id,
+    expect: Expect | undefined,
+    change: (blocks: SpaceBlock[], at: string) => SpaceBlock[],
+  ): Promise<SpaceNode> {
+    return db.transaction('rw', tables, async () => {
+      const node = await getNode(id);
+      checkRevision(node, expect);
+      if (node.kind !== 'page') throw new RecordStateError('Only a page holds blocks');
+      const at = toTimestamp(clock());
+      const next = changed(node, 'edited', at);
+      // An imported page becomes blocks first; its original body stays as it was.
+      next.blocks = change(blocksOf(node), at);
+      checkBlocks(next.blocks as SpaceBlock[]);
+      return put(next);
+    });
+  }
+
+  function indexOfBlock(blocks: readonly SpaceBlock[], blockId: string): number {
+    const index = blocks.findIndex((b) => b.id === blockId);
+    if (index < 0) throw new RecordNotFoundError('Block', blockId);
+    return index;
+  }
+
+  /** Every node under `id` (not `id` itself), parents before children. */
+  async function descendants(id: Id): Promise<SpaceNode[]> {
+    const out: SpaceNode[] = [];
+    for (let level = await spaceChildren(db, id); level.length;) {
+      out.push(...level);
+      const next: SpaceNode[] = [];
+      for (const n of level) next.push(...(await spaceChildren(db, n.id)));
+      level = next;
+    }
+    return out;
+  }
+
+  /** A fresh copy of a node's content, without history, keys or pins. */
+  function copyOf(
+    node: SpaceNode,
+    parentId: Id | undefined,
+    order: number,
+    at: string,
+    title?: string,
+  ) {
+    const table = node.table
+      ? {
+          ...node.table,
+          views: node.table.views?.map((v) => ({ ...v })),
+        }
+      : undefined;
+    return parseSpaceNode({
+      id: newId(),
+      parentId,
+      kind: node.kind,
+      title: (title ?? node.title).slice(0, 2000),
+      icon: node.icon,
+      description: node.description,
+      blocks:
+        node.kind === 'page'
+          ? blocksOf(node).map((b) => {
+              const copy = { ...b, id: newId() };
+              delete copy.by;
+              return copy;
+            })
+          : undefined,
+      order,
+      archived: false,
+      links: node.links,
+      externalLinks: node.externalLinks,
+      attachments: node.attachments,
+      table,
+      revision: 0,
+      edits: withEdit(undefined, 'created', at, source, client),
+      createdAt: at,
+      updatedAt: at,
+    });
+  }
+
+  /** Finds or makes a maintained section under `parentId`. */
+  async function maintained(key: string, title: string, parentId: Id | undefined, at: string) {
+    const existing = await db.spaceNodes.where('key').equals(key).first();
+    if (existing) return { node: existing, made: false };
+    const node = parseSpaceNode({
+      id: newId(),
+      parentId,
+      kind: 'section',
+      title,
+      key,
+      order: await nextSpaceOrder(db, parentId),
+      archived: false,
+      links: [],
+      externalLinks: [],
+      attachments: [],
+      revision: 0,
+      edits: withEdit(undefined, 'created', at, source, client),
+      createdAt: at,
+      updatedAt: at,
+    });
+    await db.spaceNodes.add(node);
+    return { node, made: true };
+  }
+
   return {
     get: (id) => db.spaceNodes.get(id),
 
@@ -157,6 +307,7 @@ export function createDexieSpaceRepository(deps: RepositoryDeps): SpaceRepositor
           kind,
           title: input.title.trim(),
           icon: input.icon,
+          description: input.description?.trim() || undefined,
           body: input.body,
           bodyFormat: input.body !== undefined ? (input.bodyFormat ?? 'markdown') : undefined,
           order: await nextSpaceOrder(db, input.parentId),
@@ -189,7 +340,7 @@ export function createDexieSpaceRepository(deps: RepositoryDeps): SpaceRepositor
         if (changes.title !== undefined) next.title = changes.title.trim();
         if (changes.links !== undefined) next.links = changes.links;
         if (changes.table !== undefined) next.table = changes.table;
-        for (const key of ['icon', 'body'] as const) {
+        for (const key of ['icon', 'body', 'description'] as const) {
           const value = changes[key];
           if (value === undefined) continue;
           next[key] = value === null ? undefined : value;
@@ -205,6 +356,19 @@ export function createDexieSpaceRepository(deps: RepositoryDeps): SpaceRepositor
         const node = await getNode(id);
         const parent = parentId ?? undefined;
         await checkParent(id, parent);
+        if (parent !== undefined && (await getNode(parent)).kind === 'table') {
+          throw new InvalidInputError('A database can’t hold pages');
+        }
+        if (node.key !== undefined && parent !== node.parentId) {
+          throw new RecordStateError(
+            'LOWTIDE keeps this section in its place; it can only be reordered',
+          );
+        }
+        if (node.key === undefined && parent === undefined) {
+          throw new InvalidInputError(
+            'Only LOWTIDE’s own sections live at the top; choose a folder',
+          );
+        }
         const at = toTimestamp(clock());
         let position = order ?? (await nextSpaceOrder(db, parent));
         if (order !== undefined) {
@@ -351,20 +515,36 @@ export function createDexieSpaceRepository(deps: RepositoryDeps): SpaceRepositor
         const next = changed(node, 'table', at);
         next.table = {
           ...node.table,
-          rows: node.table.rows.map((r) => (r.id === rowId ? { ...r, cells } : r)),
+          rows: node.table.rows.map((r) =>
+            r.id === rowId ? { ...r, cells, updatedAt: at, updatedBy: who } : r,
+          ),
         };
         return put(next);
       });
     },
 
-    addRow(id, cells) {
-      return db.transaction('rw', tables, async () => {
-        const node = await getNode(id);
-        if (!node.table) throw new RecordStateError('That page isn’t a table');
-        const at = toTimestamp(clock());
-        const next = changed(node, 'table', at);
-        next.table = { ...node.table, rows: [...node.table.rows, { id: newId(), cells }] };
-        return put(next);
+    addRow(id, cells, options) {
+      return changeTable(id, undefined, (table, at) => {
+        const rowId = options?.rowId ?? newId();
+        if (table.rows.some((r) => r.id === rowId)) {
+          throw new InvalidInputError(`Row ${rowId} already exists`);
+        }
+        const row: SpaceRow = {
+          id: rowId,
+          cells,
+          createdAt: at,
+          updatedAt: at,
+          createdBy: who,
+          updatedBy: who,
+        };
+        const rows = [...table.rows];
+        const index = options?.index;
+        rows.splice(
+          index === undefined ? rows.length : Math.max(0, Math.min(index, rows.length)),
+          0,
+          row,
+        );
+        return { ...table, rows };
       });
     },
 
@@ -422,6 +602,370 @@ export function createDexieSpaceRepository(deps: RepositoryDeps): SpaceRepositor
         });
         await db.spaceNodes.add(copy);
         return copy;
+      });
+    },
+
+    updateRow(id, rowId, cells, expect) {
+      return changeTable(id, expect, (table, at) => {
+        const row = table.rows.find((r) => r.id === rowId);
+        if (!row) throw new RecordNotFoundError('Row', rowId);
+        const next = { ...row.cells };
+        for (const [columnId, value] of Object.entries(cells)) {
+          if (!table.columns.some((c) => c.id === columnId)) {
+            throw new RecordNotFoundError('Column', columnId);
+          }
+          if (value === null || value === '') delete next[columnId];
+          else next[columnId] = value;
+        }
+        return {
+          ...table,
+          rows: table.rows.map((r) =>
+            r.id === rowId ? { ...r, cells: next, updatedAt: at, updatedBy: who } : r,
+          ),
+        };
+      });
+    },
+
+    deleteRow(id, rowId, expect) {
+      return changeTable(id, expect, (table) => {
+        if (!table.rows.some((r) => r.id === rowId)) throw new RecordNotFoundError('Row', rowId);
+        return { ...table, rows: table.rows.filter((r) => r.id !== rowId) };
+      });
+    },
+
+    addColumn(id, input, position, expect) {
+      return changeTable(id, expect, (table) => {
+        const columnId = input.id ?? newId();
+        if (table.columns.some((c) => c.id === columnId)) {
+          throw new InvalidInputError(`Property ${columnId} already exists`);
+        }
+        const name = input.name.trim();
+        if (!name) throw new InvalidInputError('Name the property');
+        if (table.columns.some((c) => c.name.trim().toLowerCase() === name.toLowerCase())) {
+          throw new InvalidInputError(`There’s already a property called “${name}”`);
+        }
+        const column = omitUndefined({ ...input, id: columnId, name });
+        const columns = [...table.columns];
+        columns.splice(
+          position === undefined ? columns.length : Math.max(0, Math.min(position, columns.length)),
+          0,
+          column,
+        );
+        return { ...table, columns };
+      });
+    },
+
+    updateColumn(id, columnId, changes, expect) {
+      return changeTable(id, expect, (table) => {
+        const column = table.columns.find((c) => c.id === columnId);
+        if (!column) throw new RecordNotFoundError('Column', columnId);
+        const name = changes.name !== undefined ? changes.name.trim() : column.name;
+        if (!name) throw new InvalidInputError('Name the property');
+        if (
+          changes.name !== undefined &&
+          table.columns.some(
+            (c) => c.id !== columnId && c.name.trim().toLowerCase() === name.toLowerCase(),
+          )
+        ) {
+          throw new InvalidInputError(`There’s already a property called “${name}”`);
+        }
+        let next = omitUndefined({ ...column, ...changes, id: columnId, name });
+        let rows = table.rows;
+        if (changes.type !== undefined && changes.type !== column.type) {
+          const to = changes.type;
+          const lost: string[] = [];
+          rows = table.rows.map((r) => {
+            const value = r.cells[columnId];
+            if (value === undefined) return r;
+            const converted = isDerived(to) ? undefined : convertCell(value, to);
+            if (converted === undefined) {
+              lost.push(r.id);
+              return r;
+            }
+            return { ...r, cells: { ...r.cells, [columnId]: converted } };
+          });
+          if (lost.length) {
+            throw new RecordStateError(
+              `${lost.length} ${lost.length === 1 ? 'value' : 'values'} in “${column.name}” can’t become ${to}; change or clear ${lost.length === 1 ? 'it' : 'them'} first`,
+            );
+          }
+          const options = optionsFor(
+            next,
+            rows.map((r) => r.cells[columnId]).filter((v) => v !== undefined),
+          );
+          next = omitUndefined({ ...next, options }) as SpaceColumn;
+          if (to !== 'link') delete next.targets;
+          if (to !== 'rollup') delete next.rollup;
+          if (to !== 'formula') delete next.formula;
+        }
+        return {
+          ...table,
+          columns: table.columns.map((c) => (c.id === columnId ? next : c)),
+          rows,
+        };
+      });
+    },
+
+    removeColumn(id, columnId, expect) {
+      return changeTable(id, expect, (table) => {
+        if (!table.columns.some((c) => c.id === columnId)) {
+          throw new RecordNotFoundError('Column', columnId);
+        }
+        const used = table.columns.find((c) => c.rollup?.relation === columnId);
+        if (used) {
+          throw new RecordStateError(
+            `The rollup “${used.name}” reads this relation; remove it first`,
+          );
+        }
+        if (table.columns.length === 1) throw new RecordStateError('A database needs a property');
+        return {
+          columns: table.columns.filter((c) => c.id !== columnId),
+          rows: table.rows.map((r) => {
+            if (!(columnId in r.cells)) return r;
+            const cells = { ...r.cells };
+            delete cells[columnId];
+            return { ...r, cells };
+          }),
+          ...(table.views
+            ? {
+                views: table.views.map(
+                  (v) =>
+                    omitUndefined({
+                      ...v,
+                      filters: v.filters?.filter((f) => f.column !== columnId),
+                      sorts: v.sorts?.filter((x) => x.column !== columnId),
+                      groupBy: v.groupBy === columnId ? undefined : v.groupBy,
+                      dateColumn: v.dateColumn === columnId ? undefined : v.dateColumn,
+                      hidden: v.hidden?.filter((h) => h !== columnId),
+                      order: v.order?.filter((o) => o !== columnId),
+                    }) as SpaceView,
+                ),
+              }
+            : {}),
+        };
+      });
+    },
+
+    saveView(id, input) {
+      return changeTable(id, undefined, (table) => {
+        const known = new Set(table.columns.map((c) => c.id));
+        const refs = [
+          ...(input.filters ?? []).map((f) => f.column),
+          ...(input.sorts ?? []).map((x) => x.column),
+          ...(input.groupBy ? [input.groupBy] : []),
+          ...(input.dateColumn ? [input.dateColumn] : []),
+        ];
+        const unknown = refs.find((r) => !known.has(r));
+        if (unknown) throw new RecordNotFoundError('Column', unknown);
+        const view = omitUndefined({ ...input, id: input.id ?? newId(), name: input.name.trim() });
+        const views = table.views ?? [];
+        return {
+          ...table,
+          views: views.some((v) => v.id === view.id)
+            ? views.map((v) => (v.id === view.id ? view : v))
+            : [...views, view],
+        };
+      });
+    },
+
+    removeView(id, viewId) {
+      return changeTable(id, undefined, (table) => {
+        if (!(table.views ?? []).some((v) => v.id === viewId)) {
+          throw new RecordNotFoundError('View', viewId);
+        }
+        return { ...table, views: table.views!.filter((v) => v.id !== viewId) };
+      });
+    },
+
+    insertBlocks(id, afterBlockId, blocks, expect) {
+      if (blocks.length === 0) return Promise.reject(new InvalidInputError('Nothing to add'));
+      return changeBlocks(id, expect, (current, at) => {
+        const index = afterBlockId === null ? 0 : indexOfBlock(current, afterBlockId) + 1;
+        return [...current.slice(0, index), ...stamp(blocks, at), ...current.slice(index)];
+      });
+    },
+
+    deleteBlocks(id, blockIds, expect) {
+      return changeBlocks(id, expect, (current) => {
+        const ids = new Set(blockIds);
+        for (const blockId of ids) {
+          const block = current[indexOfBlock(current, blockId)]!;
+          if (block.type === 'fallback') {
+            throw new RecordStateError('Imported content kept as it was can’t be removed here');
+          }
+        }
+        return current.filter((b) => !ids.has(b.id));
+      });
+    },
+
+    moveBlock(id, blockId, afterBlockId, expect) {
+      return changeBlocks(id, expect, (current) => {
+        const block = current[indexOfBlock(current, blockId)]!;
+        if (afterBlockId === blockId) return current;
+        const rest = current.filter((b) => b.id !== blockId);
+        const index = afterBlockId === null ? 0 : indexOfBlock(rest, afterBlockId) + 1;
+        return [...rest.slice(0, index), block, ...rest.slice(index)];
+      });
+    },
+
+    replaceBlocks(id, fromBlockId, toBlockId, blocks, expect) {
+      return changeBlocks(id, expect, (current, at) => {
+        const from = indexOfBlock(current, fromBlockId);
+        const to = indexOfBlock(current, toBlockId);
+        if (to < from) throw new InvalidInputError('The range ends before it starts');
+        if (current.slice(from, to + 1).some((b) => b.type === 'fallback')) {
+          throw new RecordStateError('Imported content kept as it was can’t be replaced');
+        }
+        return [...current.slice(0, from), ...stamp(blocks, at), ...current.slice(to + 1)];
+      });
+    },
+
+    setPinned(id, pinned) {
+      return db.transaction('rw', tables, async () => {
+        const node = await getNode(id);
+        if (Boolean(node.pinnedAt) === pinned) return node;
+        // A viewing choice: no revision, no history, updatedAt stays.
+        return put({ ...node, pinnedAt: pinned ? toTimestamp(clock()) : undefined });
+      });
+    },
+
+    duplicateTree(id, options) {
+      return db.transaction('rw', tables, async () => {
+        const node = await getNode(id);
+        if (node.key !== undefined) {
+          throw new RecordStateError('A section LOWTIDE maintains can’t be duplicated');
+        }
+        const parentId = options?.parentId ?? node.parentId;
+        await checkParent(undefined, parentId);
+        const at = toTimestamp(clock());
+        let order: number;
+        if (parentId === node.parentId) {
+          const siblings = await spaceChildren(db, node.parentId);
+          for (const s of siblings.filter((s) => s.order > node.order)) {
+            await db.spaceNodes.put({ ...s, order: s.order + 1 });
+          }
+          order = node.order + 1;
+        } else {
+          order = await nextSpaceOrder(db, parentId);
+        }
+        const top = copyOf(node, parentId, order, at, `${node.title} (copy)`);
+        await db.spaceNodes.add(top);
+        if (options?.deep) {
+          const copies = new Map<Id, Id>([[node.id, top.id]]);
+          for (const d of await descendants(node.id)) {
+            if (d.archived) continue;
+            const parent = copies.get(d.parentId!);
+            if (!parent) continue;
+            const copy = copyOf(d, parent, d.order, at);
+            await db.spaceNodes.add(copy);
+            copies.set(d.id, copy.id);
+          }
+        }
+        return top;
+      });
+    },
+
+    applyTemplate(templateId, parentId, title) {
+      return db.transaction('rw', tables, async () => {
+        const template = await getNode(templateId);
+        if (template.kind === 'section') throw new InvalidInputError('A folder isn’t a template');
+        const parent = await getNode(parentId);
+        if (parent.kind === 'table') throw new InvalidInputError('A database can’t hold pages');
+        const at = toTimestamp(clock());
+        const copy = copyOf(
+          template.kind === 'table'
+            ? { ...template, table: { ...template.table!, rows: [] } }
+            : template,
+          parentId,
+          await nextSpaceOrder(db, parentId),
+          at,
+          title?.trim() || template.title,
+        );
+        await db.spaceNodes.add(copy);
+        return copy;
+      });
+    },
+
+    ensureSystemPages(guide) {
+      return db.transaction('rw', tables, async () => {
+        const at = toTimestamp(clock());
+        const root = await maintained('lowtide', 'LOWTIDE', undefined, at);
+        if (root.made) {
+          const order = SPACE_ROOTS.findIndex((r) => r.key === 'lowtide');
+          await db.spaceNodes.put({ ...root.node, order });
+        }
+        const templates = await maintained('lowtide:templates', 'Templates', root.node.id, at);
+        if (templates.made) {
+          for (const [order, t] of STARTING_TEMPLATES.entries()) {
+            await db.spaceNodes.add(
+              parseSpaceNode({
+                id: newId(),
+                parentId: templates.node.id,
+                kind: 'page',
+                title: t.title,
+                blocks: stamp(parseBody(t.markdown), at),
+                order,
+                archived: false,
+                links: [],
+                externalLinks: [],
+                attachments: [],
+                revision: 0,
+                edits: withEdit(undefined, 'created', at, source, client),
+                createdAt: at,
+                updatedAt: at,
+              }),
+            );
+          }
+        }
+        const ai = await maintained('lowtide:ai', 'AI', root.node.id, at);
+        const blocks = parseBody(guide.markdown);
+        const existing = await db.spaceNodes.where('key').equals('lowtide:guide').first();
+        if (!existing) {
+          await db.spaceNodes.add(
+            parseSpaceNode({
+              id: newId(),
+              parentId: ai.node.id,
+              kind: 'page',
+              title: guide.title,
+              key: 'lowtide:guide',
+              blocks: stamp(blocks, at),
+              order: 0,
+              archived: false,
+              links: [],
+              externalLinks: [],
+              attachments: [],
+              revision: 0,
+              edits: withEdit(undefined, 'created', at, source, client),
+              createdAt: at,
+              updatedAt: at,
+            }),
+          );
+        } else if (
+          blocksToMarkdown(blocksOf(existing)) !== blocksToMarkdown(blocks) ||
+          existing.title !== guide.title
+        ) {
+          const next = changed(existing, 'edited', at);
+          next.title = guide.title;
+          next.blocks = stamp(blocks, at);
+          await put(next);
+        }
+      });
+    },
+
+    deletePermanently(id) {
+      return db.transaction('rw', tables, async () => {
+        const node = await getNode(id);
+        if (node.key !== undefined) {
+          throw new RecordStateError('A section LOWTIDE maintains can’t be deleted');
+        }
+        if (!node.archived)
+          throw new RecordStateError('Archive it first; only archived pages can be deleted');
+        const all = [node, ...(await descendants(id))];
+        if (all.some((n) => n.key !== undefined)) {
+          throw new RecordStateError('It holds a section LOWTIDE maintains');
+        }
+        for (const n of all.reverse()) await db.spaceNodes.delete(n.id);
+        return all.length;
       });
     },
 

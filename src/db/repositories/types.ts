@@ -1,5 +1,7 @@
 import type {
   ProjectFocus,
+  SpaceColumn,
+  SpaceView,
   EntityLink,
   LinkableType,
   SourceRecord,
@@ -93,6 +95,13 @@ export interface NewTask {
   projectId?: Id;
   /** A milestone of `projectId`. */
   milestoneId?: Id;
+  /**
+   * The parent task (schema V10): the new task is its subtask, in the same
+   * project. A subtask can't have subtasks.
+   */
+  parentId?: Id;
+  /** The local day it's planned for. */
+  plannedFor?: LocalDate;
 }
 
 /**
@@ -109,6 +118,8 @@ export interface TaskChanges {
   /** Links or (null) unlinks a project; unlinking also clears the milestone. */
   projectId?: Id | null;
   milestoneId?: Id | null;
+  /** Makes it a subtask of another task, or (null) a task of its own. */
+  parentId?: Id | null;
 }
 
 export interface TaskRepository {
@@ -128,6 +139,13 @@ export interface TaskRepository {
   reopen(id: Id): Promise<Task>;
   /** Open task → `dropped`. Kept, not deleted, so it can be reopened. */
   drop(id: Id): Promise<Task>;
+  /**
+   * `todo` → `doing` (true) or back (false). Closed tasks reject with
+   * `RecordStateError`. No event: starting isn't finishing anything.
+   */
+  setDoing(id: Id, doing: boolean): Promise<Task>;
+  /** Every task, any status, oldest first (search and subtasks). */
+  watchAll: Watch<Task[]>;
   /**
    * Puts an open task in the plan for local day `date` (sets `plannedFor`).
    * Never touches `dueAt`. Closed tasks reject with `RecordStateError`.
@@ -297,6 +315,11 @@ export type HackathonChanges = {
 export interface HackathonRepository {
   create(input: NewHackathon): Promise<Hackathon>;
   update(id: Id, changes: HackathonChanges): Promise<Hackathon>;
+  /** Out of the lists, kept, restorable (schema V10). */
+  archive(id: Id): Promise<Hackathon>;
+  restore(id: Id): Promise<Hackathon>;
+  /** Pins (true) or unpins it. A viewing choice: `updatedAt` is left alone. */
+  setPinned(id: Id, pinned: boolean): Promise<Hackathon>;
   /** Every hackathon, oldest first. Composition (sorting, Today) is pure and done by callers. */
   watchAll: Watch<Hackathon[]>;
 }
@@ -389,11 +412,14 @@ export interface NewProject {
   phase?: string;
   nextAction?: string;
   repoUrl?: string;
+  /** What it is, in a sentence or two (schema V10). */
+  description?: string;
+  focus?: ProjectFocus;
 }
 
 /** Omitted keys are left alone; `null` or blank removes an optional field. State has its own method. */
 export type ProjectChanges = { name?: string; kind?: ProjectKind } & {
-  [K in 'objective' | 'phase' | 'nextAction' | 'repoUrl']?: string | null;
+  [K in 'objective' | 'phase' | 'nextAction' | 'repoUrl' | 'description']?: string | null;
 };
 
 export interface NewMilestone {
@@ -402,6 +428,8 @@ export interface NewMilestone {
   weight?: number;
   dueOn?: LocalDate;
   notes?: string;
+  /** Where in the roadmap (0 = first); omitted: last. */
+  position?: number;
 }
 
 export type MilestoneChanges = { title?: string; weight?: number } & {
@@ -457,6 +485,8 @@ export interface ProjectRepository {
    * project movement.
    */
   setFocus(id: Id, focus: ProjectFocus | null): Promise<Project>;
+  /** Pins (true) or unpins (schema V10). Like focus, never project movement. */
+  setPinned(id: Id, pinned: boolean): Promise<Project>;
   get(id: Id): Promise<Project | undefined>;
   /** Every project, most recently updated first. */
   watchAll: Watch<Project[]>;
@@ -468,11 +498,24 @@ export interface ProjectRepository {
   reopenMilestone(id: Id): Promise<Milestone>;
   /** Swaps order with the neighbour before (-1) or after (+1). */
   moveMilestone(id: Id, direction: -1 | 1): Promise<void>;
+  /**
+   * Puts the project's live milestones in exactly this order (every one,
+   * each once). Archived milestones keep their place after them.
+   */
+  reorderMilestones(projectId: Id, ids: readonly Id[]): Promise<Milestone[]>;
   /** Rejects with `RecordStateError` while a task or item still refers to it. */
   removeMilestone(id: Id): Promise<void>;
-  /** In pipeline order. */
+  /**
+   * Takes a milestone off the roadmap and out of progress (schema V10), kept
+   * with its history; `restoreMilestone` brings it back at the end.
+   */
+  archiveMilestone(id: Id): Promise<Milestone>;
+  restoreMilestone(id: Id): Promise<Milestone>;
+  /** Live (not archived) milestones, in pipeline order. */
   watchMilestones(projectId: Id): Watch<Milestone[]>;
-  /** Every project's milestones (for summaries). */
+  /** A project's archived milestones, most recently archived first. */
+  watchArchivedMilestones(projectId: Id): Watch<Milestone[]>;
+  /** Every project's live milestones (for summaries). */
   watchAllMilestones: Watch<Milestone[]>;
 
   addItem(projectId: Id, input: NewProjectItem): Promise<ProjectItem>;
@@ -652,9 +695,11 @@ export interface NotesRepository {
 export interface NewSpaceNode {
   /** Omitted: a top-level section. */
   parentId?: Id;
+  /** `section` makes a folder. */
   kind?: SpaceNodeKind;
   title: string;
   icon?: string;
+  description?: string;
   body?: string;
   bodyFormat?: SpaceBodyFormat;
   links?: EntityLink[];
@@ -685,7 +730,24 @@ export type SpaceNodeChanges = {
   title?: string;
   links?: EntityLink[];
   table?: SpaceTable;
-} & { [K in 'icon' | 'body']?: string | null };
+} & { [K in 'icon' | 'body' | 'description']?: string | null };
+
+/** A new property for a SPACE database; its id is assigned unless given. */
+export type NewSpaceColumn = Omit<SpaceColumn, 'id'> & { id?: string };
+
+/** Changes to a property. A type change converts every cell or is refused. */
+export type SpaceColumnChanges = Partial<Omit<SpaceColumn, 'id'>>;
+
+/** A new view; its id is assigned unless given. */
+export type NewSpaceView = Omit<SpaceView, 'id'> & { id?: string };
+
+/**
+ * Optional optimistic check for structural writes: when given, the write is
+ * refused with `SpaceConflictError` if the node's revision moved on.
+ */
+export interface Expect {
+  baseRevision?: number;
+}
 
 /**
  * SPACE, the knowledge hierarchy (ADR-062): sections, pages and tables with
@@ -694,6 +756,7 @@ export type SpaceNodeChanges = {
  * deleted.
  */
 export interface SpaceRepository {
+  /* v2.1 operations are listed after the PHASE 014 ones below. */
   get(id: Id): Promise<SpaceNode | undefined>;
   /** The node with a maintained key (`projects`, `project:<id>`…), if it exists. */
   getByKey(key: string): Promise<SpaceNode | undefined>;
@@ -752,8 +815,86 @@ export interface SpaceRepository {
     columnId: string,
     value: SpaceCellValue | null,
   ): Promise<SpaceNode>;
-  /** Adds a row to a table page; returns the page. */
-  addRow(id: Id, cells: Record<string, SpaceCellValue>): Promise<SpaceNode>;
+  /**
+   * Adds a row to a table page; returns the page. `rowId` and `index` let a
+   * deleted row come back as it was (undo).
+   */
+  addRow(
+    id: Id,
+    cells: Record<string, SpaceCellValue>,
+    options?: { rowId?: string; index?: number },
+  ): Promise<SpaceNode>;
+  /** Sets several cells of one row (`null` empties a cell). */
+  updateRow(
+    id: Id,
+    rowId: string,
+    cells: Record<string, SpaceCellValue | null>,
+    expect?: Expect,
+  ): Promise<SpaceNode>;
+  /** Removes a row; returns the page. */
+  deleteRow(id: Id, rowId: string, expect?: Expect): Promise<SpaceNode>;
+  /** Adds a property, last or at `position`. */
+  addColumn(id: Id, column: NewSpaceColumn, position?: number, expect?: Expect): Promise<SpaceNode>;
+  /** Renames or changes a property; a type change converts every cell or is refused. */
+  updateColumn(
+    id: Id,
+    columnId: string,
+    changes: SpaceColumnChanges,
+    expect?: Expect,
+  ): Promise<SpaceNode>;
+  /** Removes a property and its cells (and drops it from views). */
+  removeColumn(id: Id, columnId: string, expect?: Expect): Promise<SpaceNode>;
+  /** Adds or replaces a saved view (by id). */
+  saveView(id: Id, view: NewSpaceView): Promise<SpaceNode>;
+  removeView(id: Id, viewId: string): Promise<SpaceNode>;
+  /** Inserts blocks after `afterBlockId` (null: at the top). */
+  insertBlocks(
+    id: Id,
+    afterBlockId: string | null,
+    blocks: NewSpaceBlock[],
+    expect?: Expect,
+  ): Promise<SpaceNode>;
+  /** Removes blocks by id. Imported content kept as it was can't be removed this way. */
+  deleteBlocks(id: Id, blockIds: readonly string[], expect?: Expect): Promise<SpaceNode>;
+  /** Moves one block after `afterBlockId` (null: to the top). */
+  moveBlock(
+    id: Id,
+    blockId: string,
+    afterBlockId: string | null,
+    expect?: Expect,
+  ): Promise<SpaceNode>;
+  /** Replaces a run of consecutive blocks (first to last id) with new ones. */
+  replaceBlocks(
+    id: Id,
+    fromBlockId: string,
+    toBlockId: string,
+    blocks: NewSpaceBlock[],
+    expect?: Expect,
+  ): Promise<SpaceNode>;
+  /** Pins (true) or unpins a page, folder or database. A viewing choice. */
+  setPinned(id: Id, pinned: boolean): Promise<SpaceNode>;
+  /**
+   * A copy of a page, folder or database placed after it. With `deep`, its
+   * subpages too. Content only: no history, no activity.
+   */
+  duplicateTree(id: Id, options?: { deep?: boolean; parentId?: Id }): Promise<SpaceNode>;
+  /**
+   * A new page (or database) from a template page: its blocks (or columns
+   * and views, without rows), never its history.
+   */
+  applyTemplate(templateId: Id, parentId: Id, title?: string): Promise<SpaceNode>;
+  /**
+   * LOWTIDE's own pages under the LOWTIDE section: the Templates folder with
+   * its starting templates (made once; yours to change), and the AI folder's
+   * operating guide, kept as `guide` (rewritten when it differs).
+   */
+  ensureSystemPages(guide: { title: string; markdown: string }): Promise<void>;
+  /**
+   * Deletes an archived page, folder or database for good, with everything
+   * under it. Refused for anything not archived and for sections LOWTIDE
+   * maintains. Returns how many nodes were deleted.
+   */
+  deletePermanently(id: Id): Promise<number>;
   /** Links a page to a record (once). */
   addLink(id: Id, link: EntityLink): Promise<SpaceNode>;
   removeLink(id: Id, link: EntityLink): Promise<SpaceNode>;

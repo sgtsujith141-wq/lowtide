@@ -14,7 +14,7 @@ function setup() {
 }
 
 describe('SPACE (ADR-062)', () => {
-  it('keeps six top-level sections, created once', async () => {
+  it('keeps seven top-level sections, created once', async () => {
     const { r } = setup();
     const first = await r.space.ensureRoots();
     const again = await r.space.ensureRoots();
@@ -25,6 +25,7 @@ describe('SPACE (ADR-062)', () => {
       ['ideas', 'Ideas', 3],
       ['personal', 'Personal', 4],
       ['archive', 'Archive', 5],
+      ['lowtide', 'LOWTIDE', 6],
     ]);
     expect(again.map((n) => n.id)).toEqual(first.map((n) => n.id));
     expect((await r.space.getByKey('archive'))?.id).toBe(first[5]!.id);

@@ -15,6 +15,11 @@ import { deleteEventsFor, eventWriter, refreshSnapshot } from './ledger';
 import { omitUndefined, resolveDeps, type RepositoryDeps } from './shared';
 import type { ProjectRepository } from './types';
 
+/** Live (not archived) milestones in pipeline order. */
+export function liveOrder(milestones: readonly Milestone[]): Milestone[] {
+  return milestones.filter((m) => m.archivedAt === undefined).sort((a, b) => a.order - b.order);
+}
+
 function optionalText(value: string | null | undefined): string | undefined {
   const trimmed = value?.trim();
   return trimmed ? trimmed : undefined;
@@ -118,6 +123,8 @@ export function createDexieProjectRepository(deps: RepositoryDeps): ProjectRepos
             phase: optionalText(input.phase),
             nextAction: optionalText(input.nextAction),
             repoUrl: optionalText(input.repoUrl),
+            description: optionalText(input.description),
+            focus: input.focus,
             createdAt: at,
             updatedAt: at,
             stateChangedAt: at,
@@ -175,7 +182,7 @@ export function createDexieProjectRepository(deps: RepositoryDeps): ProjectRepos
         const next: Record<string, unknown> = { ...(await getProject(id)) };
         if (changes.name !== undefined) next.name = changes.name.trim();
         if (changes.kind !== undefined) next.kind = changes.kind;
-        for (const key of ['objective', 'phase', 'nextAction', 'repoUrl'] as const) {
+        for (const key of ['objective', 'phase', 'nextAction', 'repoUrl', 'description'] as const) {
           if (changes[key] !== undefined) next[key] = optionalText(changes[key]);
         }
         next.updatedAt = toTimestamp(now);
@@ -202,6 +209,21 @@ export function createDexieProjectRepository(deps: RepositoryDeps): ProjectRepos
       });
     },
 
+    setPinned(id, pinned) {
+      return db.transaction('rw', all, async () => {
+        const existing = await getProject(id);
+        if (Boolean(existing.pinnedAt) === pinned) return existing;
+        const project = projectSchema.parse(
+          omitUndefined({
+            ...existing,
+            pinnedAt: pinned ? toTimestamp(clock()) : undefined,
+          }),
+        );
+        await db.projects.put(project);
+        return project;
+      });
+    },
+
     setState(id, state: ProjectState, options) {
       return db.transaction('rw', all, async () => {
         const now = clock();
@@ -212,7 +234,7 @@ export function createDexieProjectRepository(deps: RepositoryDeps): ProjectRepos
           const open = await db.milestones
             .where('projectId')
             .equals(id)
-            .filter((m) => m.completedAt === undefined)
+            .filter((m) => m.completedAt === undefined && m.archivedAt === undefined)
             .count();
           if (open > 0) {
             const override = options?.overrideDecisionId
@@ -285,8 +307,14 @@ export function createDexieProjectRepository(deps: RepositoryDeps): ProjectRepos
           }),
         );
         await db.milestones.add(milestone);
+        if (input.position !== undefined) {
+          const live = liveOrder(siblings).map((m) => m.id);
+          const at2 = Math.max(0, Math.min(input.position, live.length));
+          live.splice(at2, 0, milestone.id);
+          await renumber(projectId, live);
+        }
         await touch(projectId, now);
-        return milestone;
+        return (await db.milestones.get(milestone.id)) ?? milestone;
       });
     },
 
@@ -340,15 +368,75 @@ export function createDexieProjectRepository(deps: RepositoryDeps): ProjectRepos
     moveMilestone(id, direction) {
       return db.transaction('rw', all, async () => {
         const milestone = await getMilestone(id);
-        const ordered = (
-          await db.milestones.where('projectId').equals(milestone.projectId).toArray()
-        ).sort((a, b) => a.order - b.order);
+        const ordered = liveOrder(
+          await db.milestones.where('projectId').equals(milestone.projectId).toArray(),
+        );
         const index = ordered.findIndex((m) => m.id === id);
         const neighbour = ordered[index + direction];
         if (!neighbour) return;
         const at = toTimestamp(clock());
         await db.milestones.put({ ...milestone, order: neighbour.order, updatedAt: at });
         await db.milestones.put({ ...neighbour, order: milestone.order, updatedAt: at });
+      });
+    },
+
+    reorderMilestones(projectId, ids) {
+      return db.transaction('rw', all, async () => {
+        await getProject(projectId);
+        const live = liveOrder(await db.milestones.where('projectId').equals(projectId).toArray());
+        const wanted = new Set(ids);
+        if (
+          wanted.size !== ids.length ||
+          ids.length !== live.length ||
+          live.some((m) => !wanted.has(m.id))
+        ) {
+          throw new InvalidInputError(
+            'Give every milestone of the project exactly once, in the new order',
+          );
+        }
+        await renumber(projectId, [...ids]);
+        await touch(projectId, clock());
+        return liveOrder(await db.milestones.where('projectId').equals(projectId).toArray());
+      });
+    },
+
+    archiveMilestone(id) {
+      return db.transaction('rw', all, async () => {
+        const now = clock();
+        const existing = await getMilestone(id);
+        if (existing.archivedAt) return existing;
+        const at = toTimestamp(now);
+        const milestone = milestoneSchema.parse({ ...existing, archivedAt: at, updatedAt: at });
+        await db.milestones.put(milestone);
+        const siblings = await db.milestones
+          .where('projectId')
+          .equals(existing.projectId)
+          .toArray();
+        await renumber(
+          existing.projectId,
+          liveOrder(siblings).map((m) => m.id),
+        );
+        await touch(existing.projectId, now);
+        return (await db.milestones.get(id)) ?? milestone;
+      });
+    },
+
+    restoreMilestone(id) {
+      return db.transaction('rw', all, async () => {
+        const now = clock();
+        const existing = await getMilestone(id);
+        if (!existing.archivedAt) return existing;
+        const siblings = await db.milestones
+          .where('projectId')
+          .equals(existing.projectId)
+          .toArray();
+        const milestone = milestoneSchema.parse(
+          omitUndefined({ ...existing, archivedAt: undefined, updatedAt: toTimestamp(now) }),
+        );
+        await db.milestones.put(milestone);
+        await renumber(existing.projectId, [...liveOrder(siblings).map((m) => m.id), id]);
+        await touch(existing.projectId, now);
+        return (await db.milestones.get(id)) ?? milestone;
       });
     },
 
@@ -369,16 +457,22 @@ export function createDexieProjectRepository(deps: RepositoryDeps): ProjectRepos
 
     watchMilestones(projectId) {
       return watch(async () =>
-        (await db.milestones.where('projectId').equals(projectId).toArray()).sort(
-          (a, b) => a.order - b.order,
-        ),
+        liveOrder(await db.milestones.where('projectId').equals(projectId).toArray()),
+      );
+    },
+
+    watchArchivedMilestones(projectId) {
+      return watch(async () =>
+        (await db.milestones.where('projectId').equals(projectId).toArray())
+          .filter((m) => m.archivedAt !== undefined)
+          .sort((a, b) => b.archivedAt!.localeCompare(a.archivedAt!)),
       );
     },
 
     watchAllMilestones: watch(async () =>
-      (await db.milestones.toArray()).sort(
-        (a, b) => a.projectId.localeCompare(b.projectId) || a.order - b.order,
-      ),
+      (await db.milestones.toArray())
+        .filter((m) => m.archivedAt === undefined)
+        .sort((a, b) => a.projectId.localeCompare(b.projectId) || a.order - b.order),
     ),
 
     /* Command items */
@@ -575,6 +669,19 @@ export function createDexieProjectRepository(deps: RepositoryDeps): ProjectRepos
       );
     },
   };
+
+  /** Gives live milestones orders 0…n-1 in this order, then archived ones after them. */
+  async function renumber(projectId: Id, liveIds: readonly Id[]) {
+    const all = await db.milestones.where('projectId').equals(projectId).toArray();
+    const byId = new Map(all.map((m) => [m.id, m]));
+    const archived = all
+      .filter((m) => m.archivedAt !== undefined && !liveIds.includes(m.id))
+      .sort((a, b) => a.order - b.order);
+    const sequence = [...liveIds.map((i) => byId.get(i)!), ...archived];
+    for (const [order, m] of sequence.entries()) {
+      if (m.order !== order) await db.milestones.put({ ...m, order });
+    }
+  }
 
   /** `project.approval_requested` / `project.item_parked` when an item enters those lanes. */
   async function laneEvent(item: ProjectItem, now: Date, fromLane?: ProjectLane) {

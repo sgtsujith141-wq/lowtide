@@ -222,6 +222,7 @@ describe('Notion import: SPACE', () => {
       'ideas',
       'personal',
       'archive',
+      'lowtide',
     ]);
     const widget = (await db.projects.where('slug').equals('widget').first())!;
     const projectNode = (await db.spaceNodes.where('key').equals(`project:${widget.id}`).first())!;

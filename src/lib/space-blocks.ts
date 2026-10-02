@@ -275,6 +275,8 @@ export function blockText(block: SpaceBlock): string {
   if (block.type === 'grid') return (block.rows ?? []).map((r) => r.join(' · ')).join('\n');
   if (block.type === 'file') return block.file?.name ?? '';
   if (block.type === 'link') return block.link?.label ?? '';
+  if (block.type === 'bookmark')
+    return [block.title, block.url, block.text].filter(Boolean).join(' · ');
   if (block.type === 'code' || block.type === 'fallback') return block.text ?? '';
   return plainInline(block.text ?? '');
 }
@@ -378,6 +380,9 @@ export function blocksToMarkdown(blocks: readonly SpaceBlock[]): string {
       }
       case 'fallback':
         parts.push(t);
+        break;
+      case 'bookmark':
+        parts.push(`[${b.title || b.url || 'Link'}](${b.url ?? ''})${t ? ` — ${t}` : ''}`);
         break;
       default:
         parts.push(t);

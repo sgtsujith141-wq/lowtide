@@ -37,6 +37,11 @@ export interface Task {
   /** A milestone of the same project (schema V4). Requires `projectId`. */
   milestoneId?: Id;
   /**
+   * The task this is a subtask of (schema V10). Same project as its parent;
+   * one level deep, so a subtask has no subtasks of its own.
+   */
+  parentId?: Id;
+  /**
    * The local day the user chose to work on this ("in my plan for that day").
    * Independent of `dueAt`: planning never changes the deadline and vice versa.
    * Kept after completion as a record of intent (ADR-019).
@@ -141,6 +146,10 @@ export interface Hackathon {
   notes?: string;
   /** A technical Project tracking the build (schema V4, ADR-039). Owner-set only. */
   projectId?: Id;
+  /** Set when archived (schema V10): out of the lists, kept, restorable. */
+  archivedAt?: Timestamp;
+  /** Set when pinned (schema V10): shown first. A viewing choice, never activity. */
+  pinnedAt?: Timestamp;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -206,6 +215,10 @@ export interface Project {
   repoUrl?: string;
   /** Portfolio focus (schema V8). Changing it is not a project movement. */
   focus?: ProjectFocus;
+  /** What the project is, in a sentence or two (schema V10). */
+  description?: string;
+  /** Set when pinned (schema V10). A viewing choice, never project movement. */
+  pinnedAt?: Timestamp;
   createdAt: Timestamp;
   updatedAt: Timestamp;
   stateChangedAt: Timestamp;
@@ -222,6 +235,11 @@ export interface Milestone {
   weight: number;
   dueOn?: LocalDate;
   completedAt?: Timestamp;
+  /**
+   * Set when archived (schema V10): left out of the roadmap and of progress,
+   * kept with its history, restorable.
+   */
+  archivedAt?: Timestamp;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -505,8 +523,10 @@ export interface Note {
 /* ------------------------------------------------------------------------ */
 
 /**
- * `section`: a container in the hierarchy (Projects, Archive, a project's
- * Planning…). `page`: a document. `table`: a page whose content is a table.
+ * `section`: a folder in the hierarchy (shown as a Folder). LOWTIDE keeps
+ * some itself (Projects, Archive, a project's Planning…, each with a `key`);
+ * folders the owner or an AI client make have no key. `page`: a document.
+ * `table`: a database (a page whose content is a table).
  */
 export const SPACE_NODE_KINDS = ['section', 'page', 'table'] as const;
 export type SpaceNodeKind = (typeof SPACE_NODE_KINDS)[number];
@@ -568,6 +588,12 @@ export interface SpaceAttachment {
   note?: string;
 }
 
+/**
+ * Property types of a SPACE table (a database). `link` is a Relation to
+ * LOWTIDE records or SPACE pages and rows. The last six (schema V10) hold no
+ * cells: created/updated time and by come from each row's own record, and
+ * rollups and formulas are computed from the row whenever they're shown.
+ */
 export const SPACE_COLUMN_TYPES = [
   'text',
   'number',
@@ -578,8 +604,39 @@ export const SPACE_COLUMN_TYPES = [
   'multiSelect',
   'url',
   'link',
+  'createdTime',
+  'updatedTime',
+  'createdBy',
+  'updatedBy',
+  'rollup',
+  'formula',
 ] as const;
 export type SpaceColumnType = (typeof SPACE_COLUMN_TYPES)[number];
+
+/** Column types whose values are derived, never stored in a cell. */
+export const DERIVED_COLUMN_TYPES: readonly SpaceColumnType[] = [
+  'createdTime',
+  'updatedTime',
+  'createdBy',
+  'updatedBy',
+  'rollup',
+  'formula',
+];
+
+/** What a rollup computes over a row's related records. */
+export const ROLLUP_FUNCTIONS = ['count', 'countDone', 'percentDone', 'sum', 'latest'] as const;
+export type RollupFunction = (typeof ROLLUP_FUNCTIONS)[number];
+
+export interface SpaceRollup {
+  /** The relation (`link`) column of the same table it reads. */
+  relation: string;
+  fn: RollupFunction;
+  /**
+   * For `sum` and `latest` over related rows of a SPACE table: the column of
+   * that table to read (number or date).
+   */
+  property?: string;
+}
 
 export interface SpaceColumnOption {
   name: string;
@@ -594,6 +651,12 @@ export interface SpaceColumn {
   /** For `select`, `status` and `multiSelect`. */
   options?: SpaceColumnOption[];
   description?: string;
+  /** For `link` (schema V10): the kinds of record it may point at (absent: any). */
+  targets?: LinkableType[];
+  /** For `rollup` (schema V10). */
+  rollup?: SpaceRollup;
+  /** For `formula` (schema V10): an expression over the row's properties. */
+  formula?: string;
 }
 
 /**
@@ -612,11 +675,69 @@ export interface SpaceRow {
   pageId?: Id;
   /** LOWTIDE records this row became or describes. */
   links?: EntityLink[];
+  /* Schema V10: when and by whom the row was made and last changed ('owner' or an AI client). */
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+  createdBy?: string;
+  updatedBy?: string;
+}
+
+/** The ways a SPACE database can be shown (schema V10). */
+export const SPACE_VIEW_TYPES = ['table', 'board', 'list', 'calendar'] as const;
+export type SpaceViewType = (typeof SPACE_VIEW_TYPES)[number];
+
+export const SPACE_FILTER_OPS = [
+  'contains',
+  'is',
+  'isNot',
+  'isEmpty',
+  'isNotEmpty',
+  'gt',
+  'lt',
+  'before',
+  'after',
+  'checked',
+  'unchecked',
+] as const;
+export type SpaceFilterOp = (typeof SPACE_FILTER_OPS)[number];
+
+export interface SpaceFilter {
+  column: string;
+  op: SpaceFilterOp;
+  value?: string;
+}
+
+export interface SpaceSort {
+  column: string;
+  dir: 'asc' | 'desc';
+}
+
+/**
+ * A saved way of looking at a database (schema V10): its layout, filters,
+ * sorts, grouping and which properties show, in what order. Views never copy
+ * rows; every view reads the same table.
+ */
+export interface SpaceView {
+  id: string;
+  name: string;
+  type: SpaceViewType;
+  filters?: SpaceFilter[];
+  sorts?: SpaceSort[];
+  /** Board columns (a select or status property), or list/table grouping. */
+  groupBy?: string;
+  /** The date property a calendar view places rows by. */
+  dateColumn?: string;
+  /** Properties hidden in this view. */
+  hidden?: string[];
+  /** Property order in this view (absent: the table's own order). */
+  order?: string[];
 }
 
 export interface SpaceTable {
   columns: SpaceColumn[];
   rows: SpaceRow[];
+  /** Saved views (schema V10); absent means one plain table view. */
+  views?: SpaceView[];
 }
 
 /**
@@ -643,6 +764,7 @@ export const SPACE_BLOCK_TYPES = [
   'table',
   'grid',
   'fallback',
+  'bookmark',
 ] as const;
 export type SpaceBlockType = (typeof SPACE_BLOCK_TYPES)[number];
 
@@ -681,6 +803,9 @@ export interface SpaceBlock {
   file?: SpaceBlockFile;
   /** `grid` blocks: rows of cell text, the first row being the header. */
   rows?: string[][];
+  /** `bookmark` blocks (schema V10): a saved link with a title and an optional note in `text`. */
+  url?: string;
+  title?: string;
   by?: SpaceBlockAuthor;
 }
 
@@ -741,6 +866,10 @@ export interface SpaceNode {
   kind: SpaceNodeKind;
   title: string;
   icon?: string;
+  /** A short line under the title (schema V10). */
+  description?: string;
+  /** Set when pinned (schema V10): shown in Pinned. A viewing choice, never activity. */
+  pinnedAt?: Timestamp;
   /**
    * A stable name for sections LOWTIDE maintains itself: `projects`,
    * `archive`, `project:<id>`, `project:<id>:planning`… Unique.
@@ -781,6 +910,8 @@ export const SPACE_ROOTS = [
   { key: 'ideas', title: 'Ideas' },
   { key: 'personal', title: 'Personal' },
   { key: 'archive', title: 'Archive' },
+  /** v2.1: LOWTIDE's own pages: templates and the AI operating guide. */
+  { key: 'lowtide', title: 'LOWTIDE' },
 ] as const;
 export type SpaceRootKey = (typeof SPACE_ROOTS)[number]['key'];
 

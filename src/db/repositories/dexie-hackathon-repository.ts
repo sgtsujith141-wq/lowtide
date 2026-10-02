@@ -32,6 +32,22 @@ export function createDexieHackathonRepository(deps: RepositoryDeps): HackathonR
   const resolved = resolveDeps(deps);
   const { db, clock, newId, watch } = resolved;
 
+  /** Read-modify-write of one hackathon; `change` returns null for "nothing to do". */
+  function flag(
+    id: string,
+    change: (h: Hackathon, at: string) => Record<string, unknown> | null,
+  ): Promise<Hackathon> {
+    return db.transaction('rw', db.hackathons, async () => {
+      const existing = await db.hackathons.get(id);
+      if (!existing) throw new RecordNotFoundError('Hackathon', id);
+      const next = change(existing, toTimestamp(clock()));
+      if (!next) return existing;
+      const hackathon = validate(next);
+      await db.hackathons.put(hackathon);
+      return hackathon;
+    });
+  }
+
   return {
     async create(input) {
       const at = toTimestamp(clock());
@@ -80,6 +96,25 @@ export function createDexieHackathonRepository(deps: RepositoryDeps): HackathonR
         await db.hackathons.put(hackathon);
         return hackathon;
       });
+    },
+
+    archive(id) {
+      return flag(id, (h, at) => (h.archivedAt ? null : { ...h, archivedAt: at, updatedAt: at }));
+    },
+
+    restore(id) {
+      return flag(id, (h, at) =>
+        h.archivedAt ? omitUndefined({ ...h, archivedAt: undefined, updatedAt: at }) : null,
+      );
+    },
+
+    setPinned(id, pinned) {
+      // A viewing choice: updatedAt stays.
+      return flag(id, (h, at) =>
+        Boolean(h.pinnedAt) === pinned
+          ? null
+          : omitUndefined({ ...h, pinnedAt: pinned ? at : undefined }),
+      );
     },
 
     watchAll: watch(async () =>

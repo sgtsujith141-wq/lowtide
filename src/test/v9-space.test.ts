@@ -13,7 +13,7 @@ describe('schema V9: SPACE blocks, revisions and history (ADR-067)', () => {
   it('creates a page with blocks, revision 0 and a "created" entry, and writes no ledger event', async () => {
     const db = newDb();
     const r = createDexieRepositories(db, { clock: steppingClock() });
-    expect(SCHEMA_VERSION).toBe(9);
+    expect(SCHEMA_VERSION).toBeGreaterThanOrEqual(9);
     const page = await r.space.create({
       title: 'Plan',
       blocks: [

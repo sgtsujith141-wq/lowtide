@@ -97,6 +97,7 @@ const TYPE_LABEL: Record<SpaceBlockType, string> = {
   table: 'Table',
   grid: 'Imported table',
   fallback: 'Imported content',
+  bookmark: 'Bookmark',
 };
 
 type Command =
