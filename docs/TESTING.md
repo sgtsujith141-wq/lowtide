@@ -62,7 +62,16 @@ findBy…()).toHaveFocus()` can run a moment too early. Use `expectFocus(…)` f
 - `setupTestDatabase` unmounts rendered trees before deleting the database, so no live
   subscription outlives it.
 
-## Current coverage (v2 PHASE 015): 64 files, 663 tests
+## Current coverage (v2 PHASE 016): 65 files, 677 tests
+
+New or strengthened: the rhythm stepper (rapid taps, sequences, clearing, reload) in
+`src/test/rhythm-page.test.tsx`; Home's way to begin in `src/test/home-page.test.tsx`;
+long tables, code and Mermaid blocks, the SPACE home and the archived-page tree in
+`src/test/space-page.test.tsx`; palette create commands in
+`src/test/palette-create.test.tsx`. The companion e2e (`npm run e2e:companion`) follows
+the current UI.
+
+## Coverage after v2 PHASE 015: 64 files, 663 tests
 
 `src/test/modes.test.tsx` covers Work Mode and Sleep Mode end to end (chooser and
 defaults, focus, pause and resume, the bar, finish and note, reload, the dormant layer,

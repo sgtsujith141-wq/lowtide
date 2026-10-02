@@ -1,68 +1,83 @@
-# LOWTIDE v2 — Status after PHASE 015
+# LOWTIDE v2 — Status after PHASE 016 (final refinement)
 
 - **Date:** 2026-10-02
 - **Baseline:** v2 PHASE 001 at `8ba660f`; the overnight build ended at `f4ffe5a`;
   PHASE 008B starts at `a638466`
 - **Rule followed:** only what was implemented and verified is listed as done
 
-## COMPLETED
+## COMPLETE
 
-| Phase                     | What                                                                                                                                                                                                                                                                                                                                                          | Key decisions             |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| 002 V4 data foundation    | Schema V4: projects, milestones, board items, decisions, work and off-time sessions, event ledger, progress snapshots, AI sessions. Additive, with repositories, rules and backups.                                                                                                                                                                           | ADR-046                   |
-| 003 Home v2               | Home at `/`, Today at `/today`, the v2 navigation, the Daily Pulse year calendar, project cards, Needs you, a compact Today, recent activity, secondary grids.                                                                                                                                                                                                | ADR-043, ADR-047, ADR-048 |
-| 004 Project Command Room  | Completion ring, milestone pipeline, seven lanes, charts, a project calendar, a timeline, tabs: Overview, Tasks, Milestones, Docs, AI, GitHub, History.                                                                                                                                                                                                       | ADR-050                   |
-| 005 Work + Sleep Mode     | Start Work, a global timer bar that survives a reload, Sleep Mode (dims, keeps navigation, Wake up; refused while work runs).                                                                                                                                                                                                                                 | ADR-049                   |
-| 006 Life + Rhythm         | Schema V5 college items; the Life page; Rhythm on the shared grid with 7-day to 12-month ranges.                                                                                                                                                                                                                                                              | ADR-051, ADR-052          |
-| 007 Hackathons + Calendar | A seven-stage rail, an explicit "Track the build as a project", a combined calendar, coursework in Needs you.                                                                                                                                                                                                                                                 | ADR-053                   |
-| 008 Shared AI context     | Scoped context packs (never protected time) and the workspace export (browser mode).                                                                                                                                                                                                                                                                          | ADR-054                   |
-| 008B SQLite companion     | Schema V6 (notes, recorded research status, AI attribution). One storage contract for Dexie and SQLite, with parity tests. The companion: SQLite canonical after an owner-triggered, verified move; companion-backed repositories with live events; MCP with scoped grants, 22 tools, attribution and audit; the live workspace and optional Git; Appearance. | ADR-056 to ADR-061        |
-| 010 Data consolidation    | Schema V7: SPACE (sections, pages, typed tables) and source provenance. The Notion importer and `import-notion` (idempotent, LOWTIDE wins, no invented history). The owner's Notion workspace imported: real projects, tasks, milestones, blockers, decisions and hackathons, the rest in SPACE.                                                              | ADR-062                   |
-| 015 Work and Sleep Modes  | Sleep as a full-screen dormant layer with a finish-first decision for running work and a passing wake summary; Work Mode as a focus surface with a keyboard chooser that offers the current project first, a compact bar, a light finish summary, state-aware palette actions and ⌘/Ctrl ⇧ Enter. Session data unchanged.                                     | ADR-069                   |
-| 014 SPACE                 | SPACE as a three-pane workspace on the real imported hierarchy: a keyboard tree, a block editor with autosave, conflicts and history, first-class tables, links and backlinks, a context inspector, local search, a global ⌘K, and ten scoped SPACE tools over MCP (schema V9).                                                                               | ADR-067, ADR-068          |
-| 013 Projects flagship     | Projects as a tiered, full-width portfolio; the Command Room rebuilt around identity, milestone progress, a clickable roadmap, Start Work, a five-fact summary, a work plane, honest progress and time charts, a six-month gold grid and meaningful activity; explicit milestone sets reconciled from Notion with provenance and no fake history.             | ADR-065, ADR-066          |
-| 012 Home v3               | Home rebuilt on real data: a full-width Daily Pulse hero with a day drawer, Project Command rows ordered by the new project focus (schema V8), grouped Needs you, a Today strip, recent events, one rhythm at a time, a ⌘K local search.                                                                                                                      | ADR-064                   |
-| 011 Visual foundation     | Cold graphite tokens with colour reserved for data, Geist, an icon rail with a launcher, page widths and layout primitives, flattened surfaces, compact controls, fitted contribution grids, motion tokens and a dormant Sleep state; 0 axe violations at 320–1920 px.                                                                                        | ADR-063                   |
-| 009 QA and polish         | Vendor chunks, an axe-core sweep, overflow, large-data timing and keyboard checks.                                                                                                                                                                                                                                                                            | see PHASE 009             |
+| Phase                     | What                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | Key decisions             |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| 002 V4 data foundation    | Schema V4: projects, milestones, board items, decisions, work and off-time sessions, event ledger, progress snapshots, AI sessions. Additive, with repositories, rules and backups.                                                                                                                                                                                                                                                                                                            | ADR-046                   |
+| 003 Home v2               | Home at `/`, Today at `/today`, the v2 navigation, the Daily Pulse year calendar, project cards, Needs you, a compact Today, recent activity, secondary grids.                                                                                                                                                                                                                                                                                                                                 | ADR-043, ADR-047, ADR-048 |
+| 004 Project Command Room  | Completion ring, milestone pipeline, seven lanes, charts, a project calendar, a timeline, tabs: Overview, Tasks, Milestones, Docs, AI, GitHub, History.                                                                                                                                                                                                                                                                                                                                        | ADR-050                   |
+| 005 Work + Sleep Mode     | Start Work, a global timer bar that survives a reload, Sleep Mode (dims, keeps navigation, Wake up; refused while work runs).                                                                                                                                                                                                                                                                                                                                                                  | ADR-049                   |
+| 006 Life + Rhythm         | Schema V5 college items; the Life page; Rhythm on the shared grid with 7-day to 12-month ranges.                                                                                                                                                                                                                                                                                                                                                                                               | ADR-051, ADR-052          |
+| 007 Hackathons + Calendar | A seven-stage rail, an explicit "Track the build as a project", a combined calendar, coursework in Needs you.                                                                                                                                                                                                                                                                                                                                                                                  | ADR-053                   |
+| 008 Shared AI context     | Scoped context packs (never protected time) and the workspace export (browser mode).                                                                                                                                                                                                                                                                                                                                                                                                           | ADR-054                   |
+| 008B SQLite companion     | Schema V6 (notes, recorded research status, AI attribution). One storage contract for Dexie and SQLite, with parity tests. The companion: SQLite canonical after an owner-triggered, verified move; companion-backed repositories with live events; MCP with scoped grants, 22 tools, attribution and audit; the live workspace and optional Git; Appearance.                                                                                                                                  | ADR-056 to ADR-061        |
+| 010 Data consolidation    | Schema V7: SPACE (sections, pages, typed tables) and source provenance. The Notion importer and `import-notion` (idempotent, LOWTIDE wins, no invented history). The owner's Notion workspace imported: real projects, tasks, milestones, blockers, decisions and hackathons, the rest in SPACE.                                                                                                                                                                                               | ADR-062                   |
+| 016 Refinement and QA     | Rhythm stepper race fixed at its root; Home offers a way to begin; Hackathons, Rhythm, Life, Calendar, AI and Settings refined; readable long SPACE tables, labelled code and Mermaid source with copy, a SPACE home from real pages; palette create commands; shorter copy. Re-verified on real data: 238-combination axe and overflow sweep plus interactive states (0), backup round trip on a disposable copy (identical), MCP smoke (scopes, Personal and protected time refused, audit). | see PHASE 016             |
+| 015 Work and Sleep Modes  | Sleep as a full-screen dormant layer with a finish-first decision for running work and a passing wake summary; Work Mode as a focus surface with a keyboard chooser that offers the current project first, a compact bar, a light finish summary, state-aware palette actions and ⌘/Ctrl ⇧ Enter. Session data unchanged.                                                                                                                                                                      | ADR-069                   |
+| 014 SPACE                 | SPACE as a three-pane workspace on the real imported hierarchy: a keyboard tree, a block editor with autosave, conflicts and history, first-class tables, links and backlinks, a context inspector, local search, a global ⌘K, and ten scoped SPACE tools over MCP (schema V9).                                                                                                                                                                                                                | ADR-067, ADR-068          |
+| 013 Projects flagship     | Projects as a tiered, full-width portfolio; the Command Room rebuilt around identity, milestone progress, a clickable roadmap, Start Work, a five-fact summary, a work plane, honest progress and time charts, a six-month gold grid and meaningful activity; explicit milestone sets reconciled from Notion with provenance and no fake history.                                                                                                                                              | ADR-065, ADR-066          |
+| 012 Home v3               | Home rebuilt on real data: a full-width Daily Pulse hero with a day drawer, Project Command rows ordered by the new project focus (schema V8), grouped Needs you, a Today strip, recent events, one rhythm at a time, a ⌘K local search.                                                                                                                                                                                                                                                       | ADR-064                   |
+| 011 Visual foundation     | Cold graphite tokens with colour reserved for data, Geist, an icon rail with a launcher, page widths and layout primitives, flattened surfaces, compact controls, fitted contribution grids, motion tokens and a dormant Sleep state; 0 axe violations at 320–1920 px.                                                                                                                                                                                                                         | ADR-063                   |
+| 009 QA and polish         | Vendor chunks, an axe-core sweep, overflow, large-data timing and keyboard checks.                                                                                                                                                                                                                                                                                                                                                                                                             | see PHASE 009             |
 
 ## PARTIAL
 
 **AI client connections.** Everything on LOWTIDE's side is built and tested: the MCP
-endpoint, the stdio bridge in real sessions, and the whole flow in a headless browser.
-What hasn't happened yet is a session from inside the actual apps:
+endpoint, the stdio bridge, scoped grants, audit, and the whole flow in a headless
+browser (`npm run e2e:companion`) and against a disposable copy of the real data
+(PHASE 016). What hasn't happened yet is a session from inside the actual apps:
 
-- **Claude Code:** the bridge it would launch is protocol-tested; not yet run from
-  Claude Code itself. First user action.
-- **Claude (Claude Desktop):** same bridge, same status.
-- **ChatGPT:** not connected. Its MCP connectors reach servers over the internet, and the
-  companion deliberately listens only on this computer.
-- **Other clients:** stdio and HTTP both work with any MCP client that can hold a token.
+- **Claude Code** and **Claude (Desktop):** the bridge they would launch is
+  protocol-tested; not yet run from the apps themselves. First user action.
+- **Other MCP clients:** stdio and HTTP both work with any client that can hold a grant
+  token; none besides the test harness has been tried.
 
 LOWTIDE's AI area shows each client's real status, so this becomes visible the moment a
 client connects.
 
-## BLOCKED
+## KNOWN LIMITATIONS
 
-Nothing is blocked.
+These are not built, and nothing in LOWTIDE claims they work:
 
-## NOT STARTED
+- **GitHub integration:** no repository access; the Command Room's GitHub tab says so.
+- **ChatGPT direct connection:** none. Its connectors reach servers over the internet;
+  the companion listens only on this computer.
+- **Notion sync:** the import is one-way and read-only; Notion is never written, and
+  later Notion edits aren't pulled.
+- **File uploads:** SPACE holds references to files, not uploaded files.
+- **Workspace Git remote/sync:** the workspace can be a local Git repository; no remote,
+  no push, no sync.
+- **Mermaid diagrams** are shown as labelled source, not drawn; SPACE has no pinned
+  pages; "Recently opened" is per device.
+
+## NOT BUILT
 
 - GitHub read access (a repository-scoped token held by the companion; ADR-041).
-- Encrypted backups, sync, PWA/offline caching.
+- Encrypted backups, sync between devices, PWA/offline caching.
 - Starting the companion at login (it's started by hand with `npm run companion`).
+- Audit-log pruning.
 
 ## TEST COUNTS
 
-- **Vitest:** 64 files and 663 tests (`npm test -- --run`); under heavy machine load a few jsdom screen tests can time out and pass on a rerun.
+- **Vitest:** 65 files and 677 tests (`npm test -- --run`), all passing; companion and
+  MCP suites are 9 of those files (47 tests).
 - **Progression:** 338 at the v0.1 baseline → 356 after v2 PHASE 001 → 514 after the
-  overnight build → 521 with schema V6 → 555 now.
+  overnight build → 521 with schema V6 → 663 after PHASE 015 → 677 now.
 - **PHASE 008B suites:** SQLite store and parity, migration and rollback, MCP and the HTTP
   boundary, the workspace, the stdio bridge, the wire contract, the app against a real
   companion, and Settings (see TESTING.md).
 - **Real-browser check:** `npm run e2e:companion`, 16 steps, all passing, no console
   errors (headless Chromium, throwaway profile and data folder).
-- The overnight build's browser checks (overflow, axe-core, large data) were not re-run
-  on the new Settings and AI screens; they follow the same components and tokens.
+- **PHASE 016 browser checks on real data:** axe-core and overflow over 17 routes × 7
+  widths × 2 themes (238 combinations) plus modes, SPACE and Command Room overlays: 0
+  violations, 0 horizontal overflow. Backup → preview → restore on a disposable copy:
+  integrity ok, all tables identical. MCP smoke on a disposable copy: all checks pass.
 
 ## CURRENT ARCHITECTURE
 
@@ -104,9 +119,7 @@ Nothing is blocked.
 
 ## NEXT HUMAN DECISIONS
 
-1. **Move your real profile** into the companion when you're ready
-   ([COMPANION.md](COMPANION.md) §2–3): pair, download the backup, move, check the
-   report, switch.
+1. **Download a fresh backup** from Data & backup and keep it somewhere you trust.
 2. **Connect Claude Code** with a project-scoped grant and watch it appear as connected
    in the AI area.
 3. **Workspace location:** keep `~/.lowtide/workspace`, or point `workspaceDir` at a

@@ -5,6 +5,21 @@ app's `package.json` version.
 
 ## [Unreleased]
 
+### Changed (v2 PHASE 016 — final refinement and QA)
+
+- Fixed: quick taps on a rhythm's − / + could store the wrong amount.
+- Home offers "Start ‹project›" when nothing has happened today; the rhythm preview is
+  quieter; recent AI sessions read as short summaries.
+- Hackathons is a progress view with a side sheet; Rhythm and Life lead with history and
+  today's state; Calendar shows what's coming and moves by keyboard; AI and Settings are
+  compact.
+- SPACE tables size columns to their content, keep the first column fixed and clamp long
+  cells until "Show full text"; code blocks show their language and copy exactly
+  (Mermaid as labelled source); the SPACE home lists recent, project and idea pages.
+- The command palette can create a task, SPACE page, project or hackathon.
+- Shorter empty states and plainer wording; restore says where it writes.
+- Fixed: the SPACE tree had no Tab stop while an archived page was open.
+
 ### Changed (v2 PHASE 015 — Work Mode and Sleep Mode)
 
 - Sleep Mode covers the screen with a near-black dormant layer: the timer, Off time, when
