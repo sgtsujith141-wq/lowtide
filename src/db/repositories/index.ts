@@ -71,8 +71,16 @@ export type {
   TaskRepository,
   Unsubscribe,
   Watch,
+  NewSpaceBlock,
+  ProjectSpaceSlot,
 } from './types';
-export { InvalidInputError, RecordStateError, RecordNotFoundError } from './errors';
+export { PROJECT_SPACE_SLOTS } from './types';
+export {
+  InvalidInputError,
+  RecordStateError,
+  RecordNotFoundError,
+  SpaceConflictError,
+} from './errors';
 /** Current database schema version (display only, e.g. backup previews). */
 export { SCHEMA_VERSION } from '../schema';
 

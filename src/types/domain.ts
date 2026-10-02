@@ -619,6 +619,99 @@ export interface SpaceTable {
   rows: SpaceRow[];
 }
 
+/**
+ * Blocks of a SPACE page (v2 PHASE 014, schema V9). Text blocks hold a small
+ * inline Markdown subset (**bold**, *italic*, `code`, ~~strike~~ and
+ * [links](url), where `space:<id>` links a page). `grid` is a static table
+ * kept from an imported body; `fallback` is imported content LOWTIDE can't
+ * edit, shown as it was so nothing is dropped.
+ */
+export const SPACE_BLOCK_TYPES = [
+  'paragraph',
+  'heading1',
+  'heading2',
+  'heading3',
+  'bullet',
+  'numbered',
+  'check',
+  'quote',
+  'callout',
+  'code',
+  'divider',
+  'file',
+  'link',
+  'table',
+  'grid',
+  'fallback',
+] as const;
+export type SpaceBlockType = (typeof SPACE_BLOCK_TYPES)[number];
+
+/** A file a block points at. LOWTIDE keeps the reference, never pretends to hold the bytes. */
+export interface SpaceBlockFile {
+  name: string;
+  kind: SpaceAttachmentKind;
+  url?: string;
+  mime?: string;
+  size?: number;
+  /** The page attachment it shows, for an imported file. */
+  attachmentId?: string;
+}
+
+/** Who last wrote a block, when that was an AI client. */
+export interface SpaceBlockAuthor {
+  client: string;
+  at: Timestamp;
+}
+
+export interface SpaceBlock {
+  /** Stable within its page. */
+  id: string;
+  type: SpaceBlockType;
+  text?: string;
+  /** `check` blocks. */
+  checked?: boolean;
+  /** List nesting, 0–3. */
+  indent?: number;
+  /** `callout` blocks. */
+  icon?: string;
+  /** `code` blocks. */
+  language?: string;
+  /** `link` blocks: the record; `table` blocks: the table page shown. */
+  link?: EntityLink;
+  file?: SpaceBlockFile;
+  /** `grid` blocks: rows of cell text, the first row being the header. */
+  rows?: string[][];
+  by?: SpaceBlockAuthor;
+}
+
+/** Kinds of change kept in a page's history. */
+export const SPACE_EDIT_KINDS = [
+  'created',
+  'edited',
+  'renamed',
+  'moved',
+  'archived',
+  'restored',
+  'table',
+  'linked',
+] as const;
+export type SpaceEditKind = (typeof SPACE_EDIT_KINDS)[number];
+
+/**
+ * One entry of a page's history: who changed it, how, and when. Edits by the
+ * same author in one sitting are batched into one entry (`count` changes
+ * from `startedAt` to `at`), never one per keystroke. No content is kept.
+ */
+export interface SpaceEdit {
+  kind: SpaceEditKind;
+  by: EventSource;
+  /** The AI client, when `by` is `ai-client`. */
+  client?: string;
+  startedAt: Timestamp;
+  at: Timestamp;
+  count: number;
+}
+
 export const SOURCE_SYSTEMS = ['notion'] as const;
 export type SourceSystem = (typeof SOURCE_SYSTEMS)[number];
 
@@ -664,9 +757,21 @@ export interface SpaceNode {
   /** Present exactly when `kind` is `table`. */
   table?: SpaceTable;
   source?: SourceRef;
+  /**
+   * The page's editable content (schema V9). Absent until the page is first
+   * written in LOWTIDE; an imported page then keeps its original `body`
+   * untouched beside it.
+   */
+  blocks?: SpaceBlock[];
+  /** Bumped by every content change; editors save against it (absent: 0). */
+  revision?: number;
+  /** Newest last, at most `SPACE_EDIT_LIMIT` entries. */
+  edits?: SpaceEdit[];
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
+
+export const SPACE_EDIT_LIMIT = 200;
 
 /** The top-level SPACE sections LOWTIDE keeps (ADR-062), in display order. */
 export const SPACE_ROOTS = [

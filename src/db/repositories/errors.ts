@@ -32,3 +32,14 @@ export class InvalidInputError extends Error {
     this.name = 'InvalidInputError';
   }
 }
+
+/** A SPACE page changed since the revision an editor saved against. */
+export class SpaceConflictError extends Error {
+  constructor(
+    message: string,
+    readonly revision?: number,
+  ) {
+    super(message);
+    this.name = 'SpaceConflictError';
+  }
+}

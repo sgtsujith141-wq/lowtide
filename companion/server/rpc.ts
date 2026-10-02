@@ -104,6 +104,7 @@ const DOMAIN_ERRORS = new Set([
   'RecordNotFoundError',
   'RecordStateError',
   'InvalidInputError',
+  'SpaceConflictError',
   'ConstraintError',
   'RpcError',
 ]);

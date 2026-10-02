@@ -117,7 +117,7 @@ describe('schema V3 → V4 (additive only, ADR-046)', () => {
     const db = openDatabase(name);
     await db.open();
     // V4's upgrade runs on the way to the current schema (V5 adds a store only).
-    expect(SCHEMA_VERSION).toBe(8);
+    expect(SCHEMA_VERSION).toBe(9);
     expect(db.verno).toBe(SCHEMA_VERSION);
     for (const [store, records] of Object.entries(v3Data)) {
       const stored = await db.table(store).toArray();

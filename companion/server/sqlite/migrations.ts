@@ -89,6 +89,30 @@ export const MIGRATIONS: Migration[] = [
       );
     },
   },
+  {
+    id: 5,
+    name: 'domain schema V9: SPACE blocks, revision and edits',
+    statements: () => [],
+    // Additive, like migration 4: new databases already have the columns.
+    apply: (sql) => {
+      const columns = new Set(
+        (sql.prepare('PRAGMA table_info(space_nodes)').all() as { name: string }[]).map(
+          (c) => c.name,
+        ),
+      );
+      if (!columns.has('blocks')) sql.exec(
+          'ALTER TABLE space_nodes ADD COLUMN blocks TEXT CHECK (blocks IS NULL OR json_valid(blocks))',
+        );
+      if (!columns.has('revision')) {
+        sql.exec('ALTER TABLE space_nodes ADD COLUMN revision INTEGER');
+      }
+      if (!columns.has('edits')) {
+        sql.exec(
+          'ALTER TABLE space_nodes ADD COLUMN edits TEXT CHECK (edits IS NULL OR json_valid(edits))',
+        );
+      }
+    },
+  },
 ];
 
 export function applyMigrations(sql: DatabaseSync) {

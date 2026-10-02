@@ -109,7 +109,7 @@ describe('schema V2 → V3 migration (hackathon dates become LocalDate)', () => 
     const db = openDatabase(name);
     await db.open();
     // V3's rewrite runs on the way to the current schema (V4 adds stores only).
-    expect(SCHEMA_VERSION).toBe(8);
+    expect(SCHEMA_VERSION).toBe(9);
     expect(db.verno).toBe(SCHEMA_VERSION);
 
     const migrated = await db.hackathons.get(legacy.id);

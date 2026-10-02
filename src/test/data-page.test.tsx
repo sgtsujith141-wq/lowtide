@@ -91,7 +91,7 @@ describe('Data & backup page', () => {
     expect(await screen.findByText(/^Downloaded lowtide-backup-/)).toBeInTheDocument();
     expect(names[0]).toMatch(/^lowtide-backup-\d{4}-\d{2}-\d{2}-\d{4}\.json$/);
     const doc = JSON.parse(await blobs[0]!.text());
-    expect(doc).toMatchObject({ format: 'lowtide-backup', formatVersion: 1, schemaVersion: 8 });
+    expect(doc).toMatchObject({ format: 'lowtide-backup', formatVersion: 1, schemaVersion: 9 });
     expect(doc.data.tasks).toHaveLength(2);
     expect(Object.keys(doc.data)).toHaveLength(19);
   });

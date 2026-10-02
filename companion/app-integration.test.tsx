@@ -218,7 +218,7 @@ describe('the app with a real companion', () => {
     await vi.waitFor(() => expect(within(clients).getByText('Connected')).toBeInTheDocument(), {
       timeout: 5000,
     });
-    const log = screen.getByRole('list', { name: 'AI activity' });
+    const log = await screen.findByRole('list', { name: 'AI activity' }, { timeout: 5000 });
     expect(
       await within(log).findByText(/added a note/, undefined, { timeout: 5000 }),
     ).toBeInTheDocument();

@@ -127,6 +127,15 @@ export const REPOSITORY_CONTRACT = {
     watchLinked: 'watchFactory',
     watchSources: 'watchFactory',
     watchProjectSources: 'watchFactory',
+    saveContent: 'call',
+    appendBlocks: 'call',
+    updateBlock: 'call',
+    setCell: 'call',
+    addRow: 'call',
+    addLink: 'call',
+    removeLink: 'call',
+    duplicate: 'call',
+    ensureProjectSpace: 'call',
   },
 } as const satisfies {
   [R in keyof Repositories]: { [M in keyof Repositories[R]]: MemberKind };

@@ -9,6 +9,11 @@ import {
   SPACE_BODY_FORMATS,
   SPACE_COLUMN_TYPES,
   SPACE_NODE_KINDS,
+  SPACE_BLOCK_TYPES,
+  SPACE_EDIT_KINDS,
+  SPACE_EDIT_LIMIT,
+  type SpaceBlock,
+  type SpaceEdit,
   type EntityLink,
   type SourceRecord,
   type SourceRef,
@@ -366,6 +371,38 @@ const spaceRow = z.object({
   links: z.exactOptional(z.array(entityLink)),
 }) satisfies z.ZodMiniType<SpaceRow>;
 
+const spaceBlock = z.object({
+  id: shortKey,
+  type: z.enum(SPACE_BLOCK_TYPES),
+  text: z.exactOptional(z.string().check(z.maxLength(200_000))),
+  checked: z.exactOptional(z.boolean()),
+  indent: z.exactOptional(z.number().check(z.int(), z.minimum(0), z.maximum(3))),
+  icon: z.exactOptional(z.string().check(z.maxLength(64))),
+  language: z.exactOptional(z.string().check(z.maxLength(40))),
+  link: z.exactOptional(entityLink),
+  file: z.exactOptional(
+    z.object({
+      name: text.check(z.maxLength(500)),
+      kind: z.enum(SPACE_ATTACHMENT_KINDS),
+      url: z.exactOptional(text),
+      mime: z.exactOptional(z.string().check(z.maxLength(200))),
+      size: z.exactOptional(count),
+      attachmentId: z.exactOptional(shortKey),
+    }),
+  ),
+  rows: z.exactOptional(z.array(z.array(z.string()))),
+  by: z.exactOptional(z.object({ client: text.check(z.maxLength(200)), at: timestamp })),
+}) satisfies z.ZodMiniType<SpaceBlock>;
+
+const spaceEdit = z.object({
+  kind: z.enum(SPACE_EDIT_KINDS),
+  by: z.enum(EVENT_SOURCES),
+  client: z.exactOptional(z.string().check(z.maxLength(200))),
+  startedAt: timestamp,
+  at: timestamp,
+  count: z.number().check(z.int(), z.minimum(1)),
+}) satisfies z.ZodMiniType<SpaceEdit>;
+
 export const spaceNodeSchema = z.object({
   id,
   parentId: z.exactOptional(id),
@@ -382,6 +419,9 @@ export const spaceNodeSchema = z.object({
   attachments: z.array(spaceAttachment),
   table: z.exactOptional(z.object({ columns: z.array(spaceColumn), rows: z.array(spaceRow) })),
   source: z.exactOptional(sourceRef),
+  blocks: z.exactOptional(z.array(spaceBlock).check(z.maxLength(10_000))),
+  revision: z.exactOptional(count),
+  edits: z.exactOptional(z.array(spaceEdit).check(z.maxLength(SPACE_EDIT_LIMIT))),
   createdAt: timestamp,
   updatedAt: timestamp,
 }) satisfies z.ZodMiniType<SpaceNode>;
@@ -412,7 +452,7 @@ export const DATABASE_NAME = 'lowtide';
  * Current schema version. Bump it (never edit a shipped version) when the
  * store layout or record shape changes; see docs/DATA-MODEL.md#migrations.
  */
-export const SCHEMA_VERSION = 8;
+export const SCHEMA_VERSION = 9;
 
 /**
  * Dexie store definitions for version 1. First entry is the primary key;
@@ -501,3 +541,10 @@ export const STORES_V7 = {
  * projects keep focus unset.
  */
 export const STORES_V8 = {} as const;
+
+/**
+ * Version 9 (v2 PHASE 014, ADR-067): SPACE pages gain optional `blocks`,
+ * `revision` and `edits`. No store or index changes; imported bodies are
+ * never converted.
+ */
+export const STORES_V9 = {} as const;

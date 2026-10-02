@@ -7,6 +7,8 @@ import type {
   SpaceNode,
   SpaceNodeKind,
   SpaceTable,
+  SpaceBlock,
+  SpaceCellValue,
   ResearchStatus,
   Note,
   NoteKind,
@@ -650,7 +652,26 @@ export interface NewSpaceNode {
   bodyFormat?: SpaceBodyFormat;
   links?: EntityLink[];
   table?: SpaceTable;
+  /** The page's content as blocks (ids are assigned when missing). */
+  blocks?: NewSpaceBlock[];
 }
+
+/** A block to add: its id is assigned unless given. */
+export type NewSpaceBlock = Omit<SpaceBlock, 'id'> & { id?: string };
+
+/** A slot of a project's SPACE folder (Overview, Planning, Architecture…). */
+export type ProjectSpaceSlot = (typeof PROJECT_SPACE_SLOTS)[number];
+export const PROJECT_SPACE_SLOTS = [
+  'overview',
+  'planning',
+  'research',
+  'architecture',
+  'decisions',
+  'build-plans',
+  'notes',
+  'tables',
+  'ai-sessions',
+] as const;
 
 /** Omitted keys are left alone; `null` removes an optional field. */
 export type SpaceNodeChanges = {
@@ -692,6 +713,41 @@ export interface SpaceRepository {
    * trail, never activity.
    */
   watchProjectSources(projectId: Id): Watch<SourceRecord[]>;
+
+  /*
+   * Editing (v2 PHASE 014, ADR-067). Every change bumps the page's revision
+   * and adds to its batched history, attributed to the owner or the AI
+   * client. Still no ledger events: knowledge is not activity.
+   */
+
+  /**
+   * Saves a page's title and blocks as an editor sees them. Refused with a
+   * `SpaceConflictError` when the page changed since `baseRevision`, so a
+   * write from elsewhere is never silently overwritten.
+   */
+  saveContent(
+    id: Id,
+    content: { title?: string; blocks: SpaceBlock[] },
+    baseRevision: number,
+  ): Promise<SpaceNode>;
+  /** Adds blocks at the end (an imported body becomes blocks first, unchanged). */
+  appendBlocks(id: Id, blocks: NewSpaceBlock[]): Promise<SpaceNode>;
+  /** Changes one block. */
+  updateBlock(id: Id, blockId: string, changes: Partial<Omit<SpaceBlock, 'id'>>): Promise<SpaceNode>;
+  /** Sets one cell of a table page (`null` empties it). */
+  setCell(id: Id, rowId: string, columnId: string, value: SpaceCellValue | null): Promise<SpaceNode>;
+  /** Adds a row to a table page; returns the page. */
+  addRow(id: Id, cells: Record<string, SpaceCellValue>): Promise<SpaceNode>;
+  /** Links a page to a record (once). */
+  addLink(id: Id, link: EntityLink): Promise<SpaceNode>;
+  removeLink(id: Id, link: EntityLink): Promise<SpaceNode>;
+  /** A copy of a page (content only, not its subpages), placed after it. */
+  duplicate(id: Id): Promise<SpaceNode>;
+  /**
+   * The project's SPACE folder under Projects, made when first needed, and
+   * optionally one of its standard slots. Nothing is made before it's used.
+   */
+  ensureProjectSpace(projectId: Id, slot?: ProjectSpaceSlot): Promise<SpaceNode>;
 }
 
 /** Raw records behind activity grids and the Daily Pulse, for a date range. */

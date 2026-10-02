@@ -46,7 +46,7 @@ describe('SQLite schema (companion migrations)', () => {
     const meta = store.sql
       .prepare("SELECT value FROM companion_meta WHERE key = 'lowtide_schema_version'")
       .get() as { value: string };
-    expect(meta.value).toBe('8');
+    expect(meta.value).toBe('9');
   });
 
   it('enforces enumerations, types and deferred references in the database itself', async () => {
@@ -113,6 +113,49 @@ describe('companion migration 4 (schema V8)', () => {
       const r = createRepositories(reopened);
       expect((await r.projects.get(p.id))?.name).toBe('Engine');
       expect((await r.projects.setFocus(p.id, 'secondary')).focus).toBe('secondary');
+      reopened.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('companion migration 5 (schema V9)', () => {
+  it('adds SPACE blocks, revision and edits to an older database, keeping its pages', async () => {
+    const { mkdtempSync, rmSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const { DatabaseSync } = await import('node:sqlite');
+    const dir = mkdtempSync(join(tmpdir(), 'lowtide-v9-'));
+    try {
+      const file = join(dir, 'old.sqlite');
+      const first = new SqliteStore(file);
+      const page = await createRepositories(first).space.create({
+        title: 'Plan',
+        body: '# Plan\n\nShip it.',
+      });
+      first.close();
+      // A pre-V9 database: none of the three columns, migration 5 not run.
+      const raw = new DatabaseSync(file);
+      raw.exec('UPDATE space_nodes SET blocks = NULL, revision = NULL, edits = NULL');
+      for (const c of ['blocks', 'revision', 'edits']) {
+        raw.exec(`ALTER TABLE space_nodes DROP COLUMN ${c}`);
+      }
+      raw.exec('DELETE FROM companion_migrations WHERE id = 5');
+      raw.close();
+      const reopened = new SqliteStore(file);
+      const columns = (
+        reopened.sql.prepare('PRAGMA table_info(space_nodes)').all() as { name: string }[]
+      ).map((c) => c.name);
+      expect(columns).toEqual(expect.arrayContaining(['blocks', 'revision', 'edits']));
+      const r = createRepositories(reopened);
+      const kept = await r.space.get(page.id);
+      expect(kept).toMatchObject({ title: 'Plan', body: '# Plan\n\nShip it.' });
+      expect(kept).not.toHaveProperty('blocks');
+      const saved = await r.space.appendBlocks(page.id, [{ type: 'paragraph', text: 'More' }]);
+      expect(saved.blocks?.map((b) => b.text)).toEqual(['Plan', 'Ship it.', 'More']);
+      expect(saved.body).toBe('# Plan\n\nShip it.');
+      expect(saved.revision).toBe(1);
       reopened.close();
     } finally {
       rmSync(dir, { recursive: true, force: true });

@@ -12,7 +12,7 @@ describe('schema V8: project focus (ADR-064)', () => {
   it('is set and cleared without moving the project or writing to the ledger', async () => {
     const db = newDb();
     const r = createDexieRepositories(db, { clock: steppingClock() });
-    expect(SCHEMA_VERSION).toBe(8);
+    expect(SCHEMA_VERSION).toBe(9);
     const p = await r.projects.create({ name: 'Engine' });
     const events = await db.events.count();
     const focused = await r.projects.setFocus(p.id, 'primary');
@@ -31,7 +31,7 @@ describe('schema V8: project focus (ADR-064)', () => {
     const p = await r.projects.create({ name: 'Engine' });
     await r.projects.setFocus(p.id, 'supporting');
     const doc = await r.backup.exportBackup();
-    expect(doc.schemaVersion).toBe(8);
+    expect(doc.schemaVersion).toBe(9);
     const result = r.backup.inspect(JSON.stringify(doc));
     if (!result.ok) throw new Error(result.issues.join('; '));
     const target = createDexieRepositories(newDb());
