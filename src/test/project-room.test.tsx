@@ -354,9 +354,16 @@ describe('Project Command Room (v2 PHASE 013)', () => {
       await r.tasks.create({ title: 'Engine: write docs', projectId: p.id });
     });
     await user.click(await screen.findByRole('button', { name: 'Choose what to work on' }));
-    await user.click(screen.getByRole('button', { name: /Write docs/ }));
+    const chooser = await screen.findByRole('dialog', { name: 'Start work' }, { timeout: 5000 });
+    await user.click(
+      await within(chooser).findByRole('option', { name: /Write docs/ }, { timeout: 5000 }),
+    );
+    const focus = await screen.findByRole('region', { name: 'Work Mode' }, { timeout: 5000 });
     expect(
-      await screen.findByText('· Write docs', undefined, { timeout: 5000 }),
+      await within(focus).findByRole('heading', { name: 'Engine' }, { timeout: 5000 }),
+    ).toBeInTheDocument();
+    expect(
+      await within(focus).findByText('Write docs', undefined, { timeout: 5000 }),
     ).toBeInTheDocument();
     const active = await watchOnce(repositories.work.watchActive);
     expect(active?.taskId).toBeDefined();

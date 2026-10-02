@@ -1,4 +1,4 @@
-import { ArrowRight, ExternalLink, Link2, Lock, Plus, X } from 'lucide-react';
+import { ArrowRight, ExternalLink, Link2, Lock, Play, Plus, X } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { formatFull, formatWhen } from '../../lib/when';
@@ -16,6 +16,10 @@ import {
 import { milestoneCount, nowNext } from '../projects/display';
 import { FOCUS_LABEL, STATE_LABEL } from '../projects/summary';
 import { useProjectSummaries } from '../projects/useProjectSummaries';
+import { shortDuration } from '../modes/clocks';
+import { useModeApi } from '../modes/mode-context';
+import { activeMs } from '../work/duration';
+import { useNow } from '../../hooks/useNow';
 import { useSpaceData } from './context';
 import { LINK_WORD } from './entities';
 import { backlinksOf, documentsUnder, isPersonal, pathOf, projectIdOf } from './model';
@@ -338,13 +342,43 @@ function ProjectContext({ projectId }: { projectId: string }) {
         {s.milestones.length === 1 ? 'milestone' : 'milestones'} · {pages} SPACE{' '}
         {pages === 1 ? 'page' : 'pages'}
       </p>
-      <Link
-        to={`/projects/${s.project.slug}`}
-        className="mt-2 inline-flex items-center gap-1 text-xs font-medium hover:underline"
-      >
-        Open Command Room <ArrowRight aria-hidden className="size-3" />
-      </Link>
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+        <Link
+          to={`/projects/${s.project.slug}`}
+          className="inline-flex items-center gap-1 text-xs font-medium hover:underline"
+        >
+          Open Command Room <ArrowRight aria-hidden className="size-3" />
+        </Link>
+        <WorkHere projectId={projectId} />
+      </div>
     </section>
+  );
+}
+
+/** Working on this project now, or a way to start. */
+function WorkHere({ projectId }: { projectId: string }) {
+  const modes = useModeApi();
+  const now = useNow(!!modes.work, 30_000);
+  if (modes.work?.projectId === projectId)
+    return (
+      <button
+        type="button"
+        onClick={() => modes.setFocusOpen(true)}
+        className="inline-flex items-center gap-1.5 text-xs text-work-4 hover:underline"
+      >
+        <span aria-hidden className="size-1.5 rounded-full bg-work-3" />
+        Working now · {shortDuration(activeMs(modes.work, now))}
+      </button>
+    );
+  if (modes.work || modes.offTime) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => modes.openStartWork({ projectId })}
+      className="inline-flex items-center gap-1 text-xs text-fg-muted hover:text-fg"
+    >
+      <Play aria-hidden className="size-3" /> Start work
+    </button>
   );
 }
 

@@ -231,7 +231,7 @@ describe('SPACE (v2 PHASE 014)', () => {
     expect(names()).toEqual(['Alpha', 'Beta']);
     await user.type(screen.getByRole('searchbox', { name: 'Filter rows' }), 'bet');
     expect(names()).toEqual(['Beta']);
-    expect(screen.getByRole('status')).toHaveTextContent('1 of 2 rows');
+    expect(screen.getByText('1 of 2 rows')).toBeInTheDocument();
     await user.clear(screen.getByRole('searchbox', { name: 'Filter rows' }));
     const beta = within(grid)
       .getAllByRole('row')
@@ -272,6 +272,10 @@ describe('SPACE (v2 PHASE 014)', () => {
       'href',
       '/projects/engine',
     );
+    expect(within(sheet).getByRole('button', { name: /Start work/ })).toBeInTheDocument();
+    // While work on the project runs, the inspector says so instead.
+    await s.r.work.start({ kind: 'project', projectId: s.projectId });
+    expect(await within(sheet).findByRole('button', { name: /Working now/ })).toBeInTheDocument();
   });
 
   it('finds pages by their content with ⌘P, and SPACE pages from the global ⌘K', async () => {

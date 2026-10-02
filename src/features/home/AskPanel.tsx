@@ -4,6 +4,7 @@ import { Link } from 'react-router';
 import { useRepositories } from '../../hooks/useRepositories';
 import { useWatch } from '../../hooks/useWatch';
 import { blocksOf, blockText } from '../../lib/space-blocks';
+import { useModeApi } from '../modes/mode-context';
 
 /** Places to go by name. */
 const DESTINATIONS: [string, string][] = [
@@ -68,6 +69,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
  */
 export function AskPanel({ onClose }: { onClose: () => void }) {
   const { projects, tasks, hackathons, space } = useRepositories();
+  const modes = useModeApi();
   const [query, setQuery] = useState('');
   const inputId = useId();
   const all = useWatch(projects.watchAll);
@@ -146,6 +148,27 @@ export function AskPanel({ onClose }: { onClose: () => void }) {
     return out.slice(0, 24);
   }, [query, all, milestones, items, open, closed, hacks, nodes, decisions]);
 
+  // The mode actions that make sense right now; none that can't happen.
+  const q = query.trim().toLowerCase();
+  const possible: { label: string; run: () => void }[] = modes.offTime
+    ? [{ label: 'Wake up', run: () => void modes.wake() }]
+    : modes.work
+      ? [
+          { label: 'Return to Work Mode', run: () => modes.setFocusOpen(true) },
+          modes.work.pauses.at(-1) && !modes.work.pauses.at(-1)!.resumedAt
+            ? { label: 'Resume work', run: () => void modes.resume() }
+            : { label: 'Pause work', run: () => void modes.pause() },
+          { label: 'Finish work', run: () => void modes.finish() },
+          { label: 'Sleep mode', run: modes.requestSleep },
+        ]
+      : [
+          { label: 'Start work', run: () => modes.openStartWork() },
+          { label: 'Sleep mode', run: modes.requestSleep },
+        ];
+  const actions = modes.ready
+    ? possible.filter((a) => !q || a.label.toLowerCase().includes(q))
+    : [];
+
   return (
     <div role="search" className="p-3" onKeyDown={(e) => e.key === 'Escape' && onClose()}>
       <label htmlFor={inputId} className="sr-only">
@@ -165,6 +188,25 @@ export function AskPanel({ onClose }: { onClose: () => void }) {
       <p className="mt-2 px-1 text-[11px] text-fg-muted">
         Searches what’s on this device; nothing leaves it.
       </p>
+      {actions.length > 0 && (
+        <ul aria-label="Actions" className="mt-2 border-b border-line pb-2">
+          {actions.map((a) => (
+            <li key={a.label}>
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  a.run();
+                }}
+                className="flex w-full items-baseline gap-2 rounded-md px-1 py-1.5 text-left text-sm hover:bg-hover"
+              >
+                <span className="w-24 shrink-0 text-[11px] text-fg-muted">Action</span>
+                <span>{a.label}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
       {query.trim().length >= 2 && (
         <ul aria-label="Results" className="mt-2 max-h-[50vh] divide-y divide-line overflow-y-auto">
           {hits.length === 0 ? (

@@ -669,7 +669,6 @@ function SearchDialog({
         </label>
         <input
           id={inputId}
-          autoFocus
           role="combobox"
           aria-expanded={hits.length > 0}
           aria-controls={`${inputId}-results`}
@@ -785,7 +784,6 @@ function MoveDialog({ id, onClose }: { id: Id | null; onClose: () => void }) {
       </label>
       <input
         id={inputId}
-        autoFocus
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Find a section or page"

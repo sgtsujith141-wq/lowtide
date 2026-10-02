@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, Check, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Check, Play, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { useId, useMemo, useState, type FormEvent } from 'react';
 import { Button, IconButton } from '../../../components/ui/Button';
 import { ErrorNotice } from '../../../components/ui/Notice';
@@ -14,6 +14,7 @@ import {
   type Task,
 } from '../../../types/domain';
 import { Timeline } from '../../activity/Timeline';
+import { useModeApi } from '../../modes/mode-context';
 
 function useRun() {
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +38,7 @@ function useRun() {
 
 export function TasksTab({ project, tasks }: { project: Project; tasks: readonly Task[] }) {
   const { tasks: repo } = useRepositories();
+  const modes = useModeApi();
   const open = useWatch(repo.watchOpen);
   const [title, setTitle] = useState('');
   const [link, setLink] = useState('');
@@ -104,7 +106,16 @@ export function TasksTab({ project, tasks }: { project: Project; tasks: readonly
         </div>
       )}
       {error && <ErrorNotice>{error}</ErrorNotice>}
-      <TaskList title="Open" tasks={mine} onComplete={(t) => void run(() => repo.complete(t.id))} />
+      <TaskList
+        title="Open"
+        tasks={mine}
+        onComplete={(t) => void run(() => repo.complete(t.id))}
+        onStart={
+          modes.work || modes.offTime
+            ? undefined
+            : (t) => modes.openStartWork({ projectId: project.id, taskId: t.id })
+        }
+      />
       <TaskList title="Done" tasks={finished} />
     </div>
   );
@@ -114,10 +125,13 @@ function TaskList({
   title,
   tasks,
   onComplete,
+  onStart,
 }: {
   title: string;
   tasks: readonly Task[];
   onComplete?: (t: Task) => void;
+  /** Offers Work Mode on the task (the chooser opens with it chosen). */
+  onStart?: ((t: Task) => void) | undefined;
 }) {
   return (
     <section aria-label={`${title} tasks`}>
@@ -141,6 +155,14 @@ function TaskList({
               )}
               <span className={`text-sm ${onComplete ? '' : 'text-fg-muted'}`}>{t.title}</span>
               {t.status === 'doing' && <span className="text-[10px] text-accent-ink">Now</span>}
+              {onStart && (
+                <IconButton
+                  label={`Start work on: ${t.title}`}
+                  icon={<Play aria-hidden className="size-3.5" />}
+                  onClick={() => onStart(t)}
+                  className="ml-auto"
+                />
+              )}
             </li>
           ))}
         </ul>
