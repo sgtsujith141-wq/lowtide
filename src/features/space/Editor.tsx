@@ -135,11 +135,11 @@ const SLASH: SlashItem[] = [
     aliases: 'h2',
   },
   {
-    label: 'Small heading',
-    hint: '### ',
-    icon: Heading3,
-    command: { kind: 'type', type: 'heading3' },
-    aliases: 'h3',
+    label: 'Checklist',
+    hint: '[] ',
+    icon: CheckSquare,
+    command: { kind: 'type', type: 'check' },
+    aliases: 'todo task',
   },
   { label: 'Bullet list', hint: '- ', icon: List, command: { kind: 'type', type: 'bullet' } },
   {
@@ -147,13 +147,6 @@ const SLASH: SlashItem[] = [
     hint: '1. ',
     icon: ListOrdered,
     command: { kind: 'type', type: 'numbered' },
-  },
-  {
-    label: 'Checklist',
-    hint: '[] ',
-    icon: CheckSquare,
-    command: { kind: 'type', type: 'check' },
-    aliases: 'todo task',
   },
   { label: 'Quote', hint: '> ', icon: Quote, command: { kind: 'type', type: 'quote' } },
   {
@@ -210,7 +203,17 @@ const SLASH: SlashItem[] = [
     command: { kind: 'file' },
     aliases: 'upload attachment image',
   },
+  {
+    label: 'Small heading',
+    hint: '### ',
+    icon: Heading3,
+    command: { kind: 'type', type: 'heading3' },
+    aliases: 'h3',
+  },
 ];
+
+/** At most this many commands show at once; typing finds the rest. */
+const SLASH_SHOWN = 12;
 
 const SHORTCUTS: [RegExp, SpaceBlockType][] = [
   [/^###\s/, 'heading3'],
@@ -572,7 +575,9 @@ export function PageEditor({
   const slashItems = useMemo(() => {
     if (!slash) return [];
     const q = slash.query.toLowerCase();
-    return SLASH.filter((s) => !q || `${s.label} ${s.aliases ?? ''}`.toLowerCase().includes(q));
+    return SLASH.filter(
+      (s) => !q || `${s.label} ${s.aliases ?? ''}`.toLowerCase().includes(q),
+    ).slice(0, SLASH_SHOWN);
   }, [slash]);
 
   function onInput(block: SpaceBlock, el: HTMLElement) {
@@ -1294,7 +1299,12 @@ function StaticBlock(p: RowProps) {
       const [head = [], ...rows] = block.rows ?? [];
       return (
         <div {...common} role="group" aria-label="Imported table">
-          <div className="overflow-x-auto rounded-md border border-line">
+          <div
+            tabIndex={0}
+            role="region"
+            aria-label="Imported table, scrolls sideways"
+            className="overflow-x-auto rounded-md border border-line"
+          >
             <table className="w-full text-left text-sm">
               <thead className="bg-surface">
                 <tr>
@@ -1358,7 +1368,7 @@ function SlashMenu({
       id={listId}
       role="listbox"
       aria-label="Insert a block"
-      className="lt-pop absolute left-0 z-30 mt-1 max-h-80 w-72 overflow-y-auto rounded-lg border border-line bg-raised p-1 shadow-[var(--lt-shadow)]"
+      className="lt-pop absolute left-0 z-30 mt-1 w-72 rounded-lg border border-line bg-raised p-1 shadow-[var(--lt-shadow)]"
     >
       {items.map((item, i) => {
         const Icon = item.icon;
@@ -1379,6 +1389,11 @@ function SlashMenu({
           </li>
         );
       })}
+      {items.length === SLASH_SHOWN && (
+        <li role="presentation" className="px-2 pt-1.5 pb-1 text-[11px] text-fg-muted">
+          Type to find more: links, files
+        </li>
+      )}
     </ul>
   );
 }

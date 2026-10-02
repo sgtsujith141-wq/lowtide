@@ -574,13 +574,28 @@ const OPERATION_LABEL: Record<string, string> = {
   park_item: 'parked an item',
   resume_item: 'resumed an item',
   log_ai_session: 'logged its session',
+  get_space_tree: 'read the SPACE tree',
+  get_space_page: 'read a SPACE page',
+  search_space: 'searched SPACE',
+  create_space_page: 'saved a SPACE page',
+  create_space_subpage: 'added a SPACE subpage',
+  append_space_blocks: 'added to a SPACE page',
+  update_space_block: 'changed a SPACE page',
+  add_space_table_row: 'added a table row',
+  link_space_entity: 'linked a SPACE page',
+  archive_space_page: 'archived a SPACE page',
 };
 
 function AuditLog({ entries, projects }: { entries: AuditEntry[]; projects: Project[] }) {
   const [changesOnly, setChangesOnly] = useState(true);
   const now = new Date();
   const shown = changesOnly
-    ? entries.filter((e) => !e.operation.startsWith('get_') && e.operation !== 'search_workspace')
+    ? entries.filter(
+        (e) =>
+          !e.operation.startsWith('get_') &&
+          e.operation !== 'search_workspace' &&
+          e.operation !== 'search_space',
+      )
     : entries;
   const projectName = (scope: string) =>
     scope.startsWith('project ')
