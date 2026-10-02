@@ -284,9 +284,12 @@ describe('the command palette knows the modes', () => {
     const actions = async () => {
       await user.keyboard('{Control>}k{/Control}');
       const list = await screen.findByRole('list', { name: 'Actions' });
+      // Mode actions only; the create commands are covered in palette-create.
       const names = within(list)
         .getAllByRole('button')
-        .map((b) => b.textContent?.replace(/^Action/, ''));
+        .map((b) => b.textContent ?? '')
+        .filter((t) => t.startsWith('Action'))
+        .map((t) => t.replace(/^Action/, ''));
       return { list, names };
     };
     let { names } = await actions();

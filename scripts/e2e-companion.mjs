@@ -171,6 +171,7 @@ try {
   await page.getByRole('radio', { name: /Dark/ }).check();
 
   await page.goto(`${APP}/ai`);
+  await page.getByRole('button', { name: 'Give access' }).click();
   const grant = page.getByRole('form', { name: 'Give an AI client access' });
   await grant.getByRole('radio', { name: 'Read and make changes' }).check();
   await grant.getByRole('checkbox', { name: /May also resolve approval requests/ }).check();
@@ -237,7 +238,12 @@ try {
   await tool('update_project', { nextAction: 'Pair Claude Code for real' });
   step('4. resolved it and updated the next action');
   await page.getByText('Pair Claude Code for real').first().waitFor({ timeout: 10000 });
-  await page.getByText('(by Claude Code)').first().waitFor({ timeout: 10000 });
+  // The room's activity leads each change with who made it.
+  await page
+    .getByRole('region', { name: 'Activity' })
+    .getByText('Claude Code', { exact: true })
+    .first()
+    .waitFor({ timeout: 10000 });
   await shot('03-after-resolve');
   step('5. the Project Room followed live, attributed to Claude Code');
   await tool('log_ai_session', {
@@ -270,7 +276,7 @@ try {
 
   await page.goto(`${APP}/`);
   await page.getByRole('button', { name: 'Sleep Mode' }).click();
-  await page.getByRole('region', { name: 'Off time' }).waitFor();
+  await page.getByRole('dialog', { name: 'Off time' }).waitFor();
   const [theme, sleeping] = await page.evaluate(() => [
     document.documentElement.dataset.theme,
     !!document.querySelector('[data-mode="sleep"]'),
