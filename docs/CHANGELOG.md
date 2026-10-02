@@ -5,6 +5,22 @@ app's `package.json` version.
 
 ## [Unreleased]
 
+### Added (v2 PHASE 014 — SPACE)
+
+- SPACE workspace: the real hierarchy as a keyboard tree (create, rename, move, drag,
+  archive, restore), a block editor (Markdown shortcuts, a short slash menu, links to
+  pages and records, tables, file references, undo, autosave), first-class tables (sort,
+  filter, edit in place, add rows), links and backlinks, and a context inspector with
+  the page's project, provenance and history. Phone widths get the page alone with the
+  tree and details as sheets.
+- Find in SPACE (Cmd/Ctrl P); the command palette (Cmd/Ctrl K) works everywhere and also
+  finds SPACE pages, tables and decisions.
+- SPACE over MCP: ten scoped tools so AI clients can save at a path, append, edit
+  blocks, add table rows, link and archive, attributed and audited; a new Personal SPACE
+  permission. `park_item` can record a new parked idea.
+- Schema V9: SPACE pages gain blocks, revisions and batched history; imported bodies are
+  never rewritten. Edits from elsewhere never overwrite unsaved text.
+
 ### Changed (v2 PHASE 013 — Projects flagship)
 
 - Projects: the card grid is gone. Projects are grouped by tier (primary, secondary,

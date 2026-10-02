@@ -388,6 +388,22 @@ owner's portfolio priority. Set with `projects.setFocus`, which changes nothing 
 (no `updatedAt`, no ledger event). Backups at schema 8 carry it; older backups import
 with focus unset. SQLite: companion migration 4 adds `projects.focus` where missing.
 
+## Schema V9 (v2 PHASE 014, ADR-067)
+
+No store changes. `SpaceNode` gains:
+
+- `blocks?: SpaceBlock[]`: the page's editable content, written on first edit. Types:
+  paragraph, heading1–3, bullet, numbered, check, quote, callout, code, divider, file,
+  link, table, grid, fallback. Text is a small inline Markdown subset. `by` marks a block
+  an AI client wrote.
+- `revision?: number`: bumped by every content change; editors save against it.
+- `edits?: SpaceEdit[]`: batched history (kind, by, client, startedAt, at, count), at
+  most 200.
+
+An imported `body` is never rewritten; `blocksOf(node)` parses it on read. Companion
+migration 5 adds `blocks`, `revision` and `edits` columns where missing.
+`projects.watchAllDecisions` lists every decision (SPACE links, search and the palette).
+
 ## Reconciled milestones (v2 PHASE 013, ADR-065)
 
 No schema change. Milestones from an import plan's `milestoneSets` are ordinary

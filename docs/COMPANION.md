@@ -164,8 +164,18 @@ the same bridge command as above.
 | `get_recent_activity`, `get_waiting`, `get_parked`        | `update_project`: phase, next action, objective, state (not archive) |
 | `get_approval_requests`, `get_decisions`                  | `complete_task`, `complete_milestone`                                |
 | `get_tasks`, `get_milestones`                             | `request_approval`; `resolve_approval` if delegated                  |
-| `search_workspace`, `get_document`                        | `park_item`, `resume_item`                                           |
-|                                                           | `log_ai_session`: what the session did, factually                    |
+| `search_workspace`, `get_document`                        | `park_item` (or a new parked idea by title), `resume_item`           |
+| `get_space_tree`, `get_space_page`, `search_space`        | `log_ai_session`: what the session did, factually                    |
+|                                                           | `create_space_page`: save at a path such as `Projects / X / Notes`   |
+|                                                           | `create_space_subpage`, `append_space_blocks`, `update_space_block`  |
+|                                                           | `add_space_table_row`, `link_space_entity`, `archive_space_page`     |
+
+SPACE is reached by scope: a project grant sees its project's folder (made the first time
+it writes there), a workspace grant sees Projects, Hackathons, Ideas and Archive, and a
+global grant sees everything except College and Personal unless you tick those
+permissions (**Personal SPACE** is its own permission). SPACE writes show in the page's
+history and on each block as the client's ("Updated by Claude · 2m ago"). The generated
+`PROJECT.md` and `CONTEXT.md` files aren't SPACE and can't be written by a client.
 
 Every change goes through the same rules as the app itself (a project can't be marked
 done with open milestones, for example) and is attributed to the client. LOWTIDE never

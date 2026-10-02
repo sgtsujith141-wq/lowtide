@@ -62,7 +62,18 @@ findBy…()).toHaveFocus()` can run a moment too early. Use `expectFocus(…)` f
 - `setupTestDatabase` unmounts rendered trees before deleting the database, so no live
   subscription outlives it.
 
-## Current coverage (v2 PHASE 013): 59 files, 624 tests
+## Current coverage (v2 PHASE 014): 64 files, 658 tests
+
+New: `src/test/space-blocks.test.ts` (Markdown and Notion parsing, fallbacks, links),
+`src/test/v9-space.test.ts` (revisions, conflicts, batched history, AI attribution,
+tables, links, duplicate, lazy project folders), `src/test/space-model.test.ts` (paths,
+privacy, backlinks, search, scale), `src/test/space-page.test.tsx` (tree, drawers,
+imported content, editing, slash menu, live writes and conflicts, tables, backlinks,
+search, the global palette, tree operations), `companion/server/space-mcp.test.ts`
+(SPACE tools, scopes, Personal permission, audit), and migration 5 in
+`companion/server/sqlite/store.test.ts`.
+
+## Coverage after v2 PHASE 013: 59 files, 624 tests
 
 New: `src/test/project-display.test.ts` (display text, now and next, roadmap order,
 tiers, health, activity lines); `src/test/project-room.test.tsx` rewritten for the

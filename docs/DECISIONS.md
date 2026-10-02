@@ -1394,3 +1394,51 @@ surfaces, and the room opened on tabs and metadata.
 
 **Consequences.** One reading of a project across Home, Projects and the room
 (`features/projects/display.ts`).
+
+## ADR-067 — SPACE pages as blocks, with revisions and batched history (v2)
+
+**Context.** SPACE held imported Notion bodies and tables but nothing could edit them,
+and AI clients and the owner may write the same page.
+
+**Decision.**
+
+- Schema V9 adds optional `blocks`, `revision` and `edits` to `SpaceNode`. No new store.
+- Imported bodies are never converted in storage: `blocksOf` parses them on read
+  (Markdown and Notion's enhanced Markdown), and unknown structures become read-only
+  `fallback` blocks holding the original text. The first edit writes `blocks`; the body
+  stays as provenance.
+- Editors save against `revision`; the repository refuses a stale save with
+  `SpaceConflictError`. The UI never overwrites unsaved text with a change from
+  elsewhere: it offers the new version, a copy of the local one, or replacing.
+- History is batched per author and kind within 15 minutes, at most 200 entries, with no
+  content.
+- Links are derived on read (node links, link and table blocks, inline `space:` links)
+  rather than copied into text; backlinks are computed from them.
+- Knowledge is not activity: no SPACE change writes a ledger event or lights a square.
+
+**Consequences.** Imported knowledge stays exactly as imported until edited, and every
+change is attributable.
+
+## ADR-068 — SPACE over MCP, scoped, with a Personal SPACE permission (v2)
+
+**Context.** AI clients need to put knowledge somewhere intentional ("save this under the
+project's Architecture"), without reaching what isn't theirs.
+
+**Decision.**
+
+- Ten tools: three reads (`get_space_tree`, `get_space_page`, `search_space`) and seven
+  writes (`create_space_page` by a path of titles, `create_space_subpage`,
+  `append_space_blocks`, `update_space_block`, `add_space_table_row`,
+  `link_space_entity`, `archive_space_page`). `park_item` also records a new parked
+  idea by title.
+- Scope: project → its project's folder (made on first write); workspace → Projects,
+  Hackathons, Ideas, Archive; global → everything except College (college permission)
+  and Personal (the new `personalSpace` permission).
+- Writes go through the SPACE repository as the client: attributed per page and block,
+  audited, streamed live to the app. Maintained sections (roots, project folders, slots)
+  can't be renamed or archived by a client. A project's standard sections are made in
+  place when a path names them; projects themselves are never made from SPACE.
+- Generated context files are not SPACE and stay unwritable.
+
+**Consequences.** "Save this under …" works in one call and is visible, attributed and
+reversible (archive, history).

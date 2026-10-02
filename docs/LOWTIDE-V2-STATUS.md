@@ -1,4 +1,4 @@
-# LOWTIDE v2 — Status after PHASE 013
+# LOWTIDE v2 — Status after PHASE 014
 
 - **Date:** 2026-10-02
 - **Baseline:** v2 PHASE 001 at `8ba660f`; the overnight build ended at `f4ffe5a`;
@@ -18,6 +18,7 @@
 | 008 Shared AI context     | Scoped context packs (never protected time) and the workspace export (browser mode).                                                                                                                                                                                                                                                                          | ADR-054                   |
 | 008B SQLite companion     | Schema V6 (notes, recorded research status, AI attribution). One storage contract for Dexie and SQLite, with parity tests. The companion: SQLite canonical after an owner-triggered, verified move; companion-backed repositories with live events; MCP with scoped grants, 22 tools, attribution and audit; the live workspace and optional Git; Appearance. | ADR-056 to ADR-061        |
 | 010 Data consolidation    | Schema V7: SPACE (sections, pages, typed tables) and source provenance. The Notion importer and `import-notion` (idempotent, LOWTIDE wins, no invented history). The owner's Notion workspace imported: real projects, tasks, milestones, blockers, decisions and hackathons, the rest in SPACE.                                                              | ADR-062                   |
+| 014 SPACE                 | SPACE as a three-pane workspace on the real imported hierarchy: a keyboard tree, a block editor with autosave, conflicts and history, first-class tables, links and backlinks, a context inspector, local search, a global ⌘K, and ten scoped SPACE tools over MCP (schema V9).                                                                               | ADR-067, ADR-068          |
 | 013 Projects flagship     | Projects as a tiered, full-width portfolio; the Command Room rebuilt around identity, milestone progress, a clickable roadmap, Start Work, a five-fact summary, a work plane, honest progress and time charts, a six-month gold grid and meaningful activity; explicit milestone sets reconciled from Notion with provenance and no fake history.             | ADR-065, ADR-066          |
 | 012 Home v3               | Home rebuilt on real data: a full-width Daily Pulse hero with a day drawer, Project Command rows ordered by the new project focus (schema V8), grouped Needs you, a Today strip, recent events, one rhythm at a time, a ⌘K local search.                                                                                                                      | ADR-064                   |
 | 011 Visual foundation     | Cold graphite tokens with colour reserved for data, Geist, an icon rail with a launcher, page widths and layout primitives, flattened surfaces, compact controls, fitted contribution grids, motion tokens and a dormant Sleep state; 0 axe violations at 320–1920 px.                                                                                        | ADR-063                   |
@@ -48,11 +49,10 @@ Nothing is blocked.
 - GitHub read access (a repository-scoped token held by the companion; ADR-041).
 - Encrypted backups, sync, PWA/offline caching.
 - Starting the companion at login (it's started by hand with `npm run companion`).
-- A SPACE screen, and SPACE over MCP (the data is there; nothing shows it yet).
 
 ## TEST COUNTS
 
-- **Vitest:** 59 files and 624 tests (`npm test -- --run`); under heavy machine load a few jsdom screen tests can time out and pass on a rerun.
+- **Vitest:** 64 files and 658 tests (`npm test -- --run`); under heavy machine load a few jsdom screen tests can time out and pass on a rerun.
 - **Progression:** 338 at the v0.1 baseline → 356 after v2 PHASE 001 → 514 after the
   overnight build → 521 with schema V6 → 555 now.
 - **PHASE 008B suites:** SQLite store and parity, migration and rollback, MCP and the HTTP
@@ -71,7 +71,7 @@ Nothing is blocked.
   companion mode keeps `~/.lowtide/lowtide.sqlite` canonical, and the app's repositories
   call the companion. The same domain repositories run on both through `StoreDb`
   (ADR-057). There's no fallback between them.
-- **Schema V8:** 19 stores (V8 added `Project.focus`); every upgrade additive. Backups: envelope format 1, 19
+- **Schema V9:** 19 stores (V8 added `Project.focus`, V9 SPACE blocks, revisions and history); every upgrade additive. Backups: envelope format 1, 19
   stores; V1–V6 still import.
 - **The companion:** one process on 127.0.0.1 (Host and Origin checks, owner token for
   the app, grant tokens for AI clients, rate and size limits, owner-only files). Live
