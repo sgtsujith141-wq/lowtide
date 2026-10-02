@@ -1328,3 +1328,23 @@ wide screens and muted the data that matters.
 
 **Consequences.** Every screen shares one system; data stands out; wide displays are
 used. Full details: [phases/V2-PHASE-011.md](phases/V2-PHASE-011.md).
+
+## ADR-064 — Project focus: the owner's portfolio priority (v2)
+
+**Context.** Home v3 must lead with the projects that matter now. LOWTIDE had no field
+for that, the imported Notion data disagreed with itself (PHASE 010, conflict C1), and
+project records must not be rewritten to fake an order.
+
+**Decision.** Schema V8 adds an optional `Project.focus`: `primary`, `secondary`,
+`supporting` or `background` (shown as "not current"). Absent means not set.
+
+- Set by the owner (Command Room header; `projects.setFocus`). Never derived.
+- A viewing priority, not project movement: setting it doesn't touch `updatedAt` or
+  `stateChangedAt` and writes no ledger event, so no grid, "moved" label or timeline
+  changes.
+- LOWTIDE's own: the Notion importer keeps an existing focus when it re-applies a record.
+- In SQLite, companion migration 4 adds the column to databases created before V8.
+- Context packs show it, so AI clients see the same priority.
+
+**Consequences.** Home orders projects by focus, then state, then recent movement, and
+leaves background projects to Projects.

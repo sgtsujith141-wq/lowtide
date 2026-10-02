@@ -62,7 +62,15 @@ findBy…()).toHaveFocus()` can run a moment too early. Use `expectFocus(…)` f
 - `setupTestDatabase` unmounts rendered trees before deleting the database, so no live
   subscription outlives it.
 
-## Current coverage (v2 PHASE 011): 56 files, 589 tests
+## Current coverage (v2 PHASE 012): 58 files, 603 tests
+
+New: `src/test/home-model.test.ts` (greeting, focus-based project selection, Needs you
+grouping, what's next, prefix handling), a rewritten `src/test/home-page.test.tsx`
+(Home v3 against real repositories), `src/test/v8-focus.test.ts` (focus without
+movement, backups, kept on re-import) and the SQLite migration 4 test in
+`companion/server/sqlite/store.test.ts`.
+
+## Coverage after v2 PHASE 011: 56 files, 589 tests
 
 PHASE 011 changed the visual system only; the navigation tests now cover the rail and
 the launcher (Escape, focus return). Browser checks (not in Git): axe-core 4.13 and

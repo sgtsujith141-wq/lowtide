@@ -5,6 +5,16 @@ app's `package.json` version.
 
 ## [Unreleased]
 
+### Changed (v2 PHASE 012 — Home v3)
+
+- Home rebuilt: a greeting and compact actions; a full-width Daily Pulse hero with a
+  day drawer; Project Command rows; Needs you grouped by project; a Today strip with
+  what's next; the latest events; one rhythm grid at a time. Empty sections are hidden.
+- Schema V8: optional project focus (primary, secondary, supporting, not current), set
+  in the Command Room, never counted as movement. Home orders projects by it.
+- ⌘K opens the local search as a palette on Home.
+- Grids: an `xl` hero size, a minimum square size, no clipped month labels.
+
 ### Changed (v2 PHASE 011 — visual foundation)
 
 - A cold, dark graphite visual system replaces warm paper: semantic tokens, colour

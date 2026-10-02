@@ -381,6 +381,13 @@ backups still import, with both stores empty. Integrity: SPACE parents exist and
 no loop, maintained keys are unique, table cells match their columns, and one source
 record per (system, source id, record type). Links may point at records removed since.
 
+## Schema V8 (v2 PHASE 012, ADR-064)
+
+No store changes. `Project.focus?`: `primary | secondary | supporting | background`, the
+owner's portfolio priority. Set with `projects.setFocus`, which changes nothing else
+(no `updatedAt`, no ledger event). Backups at schema 8 carry it; older backups import
+with focus unset. SQLite: companion migration 4 adds `projects.focus` where missing.
+
 ## The companion's SQLite schema (PHASE 008B, ADR-057, ADR-058)
 
 In companion mode the same records live in `~/.lowtide/lowtide.sqlite`, one table per
