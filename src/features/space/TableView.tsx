@@ -72,6 +72,19 @@ function Table({ node, compact }: { node: SpaceNode; compact: boolean }) {
     (c) => (c.type === 'select' || c.type === 'status') && c.options?.length,
   );
 
+  const [wrap, setWrap] = useState<'compact' | 'full'>('compact');
+  // Column widths from their content: prose gets room, short values stay narrow.
+  const widths = useMemo(() => {
+    const out: Record<string, string> = {};
+    for (const c of table.columns) {
+      let longest = c.name.length;
+      for (const r of table.rows) longest = Math.max(longest, display(r.cells[c.id]).length);
+      out[c.id] =
+        longest > 120 ? '22rem' : longest > 50 ? '16rem' : longest > 20 ? '10rem' : '6rem';
+    }
+    return out;
+  }, [table]);
+
   const rows = useMemo(() => {
     const q = filter.trim().toLowerCase();
     let out = table.rows.filter(
@@ -153,7 +166,19 @@ function Table({ node, compact }: { node: SpaceNode; compact: boolean }) {
               ? `${rows.length} ${rows.length === 1 ? 'row' : 'rows'}`
               : `${rows.length} of ${table.rows.length} rows`}
           </span>
-          <Button size="sm" className="ml-auto" onClick={() => void run(space.addRow(node.id, {}))}>
+          <label className="ml-auto flex items-center gap-1.5 text-xs text-fg-muted">
+            Rows
+            <select
+              aria-label="Rows"
+              value={wrap}
+              onChange={(e) => setWrap(e.target.value as 'compact' | 'full')}
+              className="h-8 rounded-md border border-line bg-raised px-1.5 text-xs text-fg"
+            >
+              <option value="compact">Compact</option>
+              <option value="full">Show full text</option>
+            </select>
+          </label>
+          <Button size="sm" onClick={() => void run(space.addRow(node.id, {}))}>
             <Plus aria-hidden className="size-3.5" /> Add row
           </Button>
         </div>
@@ -176,7 +201,8 @@ function Table({ node, compact }: { node: SpaceNode; compact: boolean }) {
                     key={c.id}
                     scope="col"
                     aria-sort={active ? (sort!.dir === 1 ? 'ascending' : 'descending') : 'none'}
-                    className="px-3 py-2 font-medium whitespace-nowrap"
+                    style={{ minWidth: widths[c.id] }}
+                    className={`px-3 py-2 font-medium whitespace-nowrap ${c === table.columns[0] && !compact ? 'sticky left-0 z-10 bg-surface' : ''}`}
                   >
                     {compact ? (
                       c.name
@@ -214,8 +240,12 @@ function Table({ node, compact }: { node: SpaceNode; compact: boolean }) {
           <tbody>
             {rows.slice(0, limit).map((r) => (
               <tr key={r.id} className="border-t border-line hover:bg-hover/40">
-                {table.columns.map((c) => (
-                  <td key={c.id} className="px-3 py-1.5 align-top">
+                {table.columns.map((c, i) => (
+                  <td
+                    key={c.id}
+                    style={{ minWidth: widths[c.id], maxWidth: '28rem' }}
+                    className={`px-3 py-1.5 align-top ${wrap === 'compact' || compact ? '[&_.cell-text]:line-clamp-3' : ''} ${i === 0 && !compact ? 'sticky left-0 z-[1] bg-canvas' : ''}`}
+                  >
                     <Cell
                       row={r}
                       column={c}
@@ -313,7 +343,14 @@ function Cell({
           {value}
         </a>
       );
-    return <span className="whitespace-pre-line">{display(value)}</span>;
+    return (
+      <span
+        className="cell-text whitespace-pre-line"
+        title={display(value).length > 120 ? display(value) : undefined}
+      >
+        {display(value)}
+      </span>
+    );
   }
   if ((column.type === 'select' || column.type === 'status') && column.options?.length) {
     return (
@@ -343,7 +380,9 @@ function Cell({
         onClick={() => setEditing(true)}
         className="block min-h-6 w-full rounded px-0.5 text-left whitespace-pre-line hover:bg-hover"
       >
-        {display(value) || <span className="text-fg-subtle"> </span>}
+        <span className="cell-text">
+          {display(value) || <span className="text-fg-subtle"> </span>}
+        </span>
       </button>
     );
   const type = column.type === 'number' ? 'number' : column.type === 'date' ? 'date' : 'text';

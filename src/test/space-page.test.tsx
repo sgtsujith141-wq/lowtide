@@ -1,5 +1,5 @@
 import { screen, waitFor, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createDexieRepositories, type Repositories } from '../db/repositories';
 import type { SpaceNode } from '../types/domain';
 import { setupTestDatabase } from './helpers';
@@ -341,5 +341,68 @@ describe('SPACE (v2 PHASE 014)', () => {
         'restored',
       ]);
     });
+  });
+
+  it('keeps long table text readable: wide columns, a fixed first column, full text on request', async () => {
+    const s = await seed();
+    const long = 'A long description that keeps going. '.repeat(6).trim();
+    await s.r.space.setCell(s.table.id, 'r1', 'name', long);
+    const { user } = await open(s, `/space/${s.table.id}`);
+    const grid = await screen.findByRole('table', { name: 'Leads' }, { timeout: 10_000 });
+    const [first, second] = within(grid).getAllByRole('columnheader');
+    expect(first!.style.minWidth).toBe('22rem');
+    expect(second!.style.minWidth).toBe('6rem');
+    expect(first!.className).toMatch(/sticky/);
+    const cell = within(grid).getAllByRole('cell')[0]!;
+    expect(cell.className).toMatch(/line-clamp-3/);
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Rows' }), 'Show full text');
+    expect(within(grid).getAllByRole('cell')[0]!.className).not.toMatch(/line-clamp/);
+    // Nothing about the table itself changed.
+    expect((await latest(s.r, s.table.id)).table!.rows[0]!.cells.name).toBe(long);
+  });
+
+  it('labels code and Mermaid blocks and copies them exactly, without redrawing them', async () => {
+    const s = await seed();
+    const page = await s.r.space.create({
+      parentId: s.engine.id,
+      title: 'Diagrams',
+      blocks: [
+        { type: 'code', language: 'mermaid', text: 'graph TD\n  A-->B' },
+        { type: 'code', language: 'ts', text: 'const x = 1;' },
+      ],
+    });
+    const { user } = await open(s, `/space/${page.id}`);
+    // user-event installs its own clipboard; watch what reaches it.
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText');
+    const article = await screen.findByRole('article', { name: 'Diagrams' }, { timeout: 10_000 });
+    expect(within(article).getByText('Mermaid diagram source')).toBeInTheDocument();
+    expect(within(article).getByText('ts')).toBeInTheDocument();
+    await user.click(within(article).getAllByRole('button', { name: 'Copy' })[0]!);
+    expect(writeText).toHaveBeenCalledWith('graph TD\n  A-->B');
+    expect(await within(article).findByRole('button', { name: 'Copied' })).toBeInTheDocument();
+  });
+
+  it('opens SPACE on recent, project and idea pages, all from real data', async () => {
+    const s = await seed();
+    const ideas = (await s.r.space.ensureRoots()).find((n) => n.key === 'ideas')!;
+    await s.r.space.create({ parentId: ideas.id, title: 'Half-formed thought', blocks: [] });
+    const { user } = await open(s, '/space');
+    const projects = await screen.findByRole('region', { name: 'Projects' });
+    expect(within(projects).getByRole('button', { name: /Engine/ })).toHaveTextContent(/pages?$/);
+    expect(
+      within(screen.getByRole('region', { name: 'Ideas' })).getByRole('button', {
+        name: /Half-formed thought/,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('region', { name: 'Recently opened' })).not.toBeInTheDocument();
+    await user.click(
+      within(screen.getByRole('region', { name: 'Recently updated' })).getByRole('button', {
+        name: /Scratch notes/,
+      }),
+    );
+    await screen.findByRole('article', { name: 'Scratch notes' }, { timeout: 10_000 });
+    await user.click(screen.getAllByRole('link', { name: 'SPACE' })[0]!);
+    const opened = await screen.findByRole('region', { name: 'Recently opened' });
+    expect(within(opened).getByRole('button', { name: 'Scratch notes' })).toBeInTheDocument();
   });
 });

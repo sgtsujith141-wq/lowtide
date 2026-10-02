@@ -3,6 +3,7 @@ import {
   ArrowUp,
   CheckSquare,
   Code2,
+  Copy,
   FileText,
   GripVertical,
   Heading1,
@@ -1199,12 +1200,44 @@ function TextBlock(p: RowProps) {
     );
   if (block.type === 'code')
     return (
-      <div className="my-1 rounded-md bg-surface px-4 py-3">
-        {block.language && <p className="mb-1 text-[11px] text-fg-muted">{block.language}</p>}
+      <div className="my-1 rounded-md bg-surface px-4 pt-1.5 pb-3">
+        <CodeHeader language={block.language} text={block.text ?? ''} />
         {editable}
       </div>
     );
   return editable;
+}
+
+/**
+ * A code block's label and copy action. Mermaid stays as its source,
+ * labelled as a diagram: imported content is shown exactly, never redrawn.
+ */
+function CodeHeader({ language, text }: { language: string | undefined; text: string }) {
+  const [copied, setCopied] = useState(false);
+  const mermaid = language?.toLowerCase() === 'mermaid';
+  return (
+    <div className="mb-1 flex min-h-7 items-center justify-between gap-2" contentEditable={false}>
+      <span className="text-[11px] text-fg-muted">
+        {mermaid ? 'Mermaid diagram source' : language || 'Code'}
+      </span>
+      <button
+        type="button"
+        onClick={() =>
+          void navigator.clipboard?.writeText(text).then(
+            () => {
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1500);
+            },
+            () => setCopied(false),
+          )
+        }
+        className="inline-flex h-7 items-center gap-1 rounded px-1.5 text-[11px] text-fg-muted hover:bg-hover hover:text-fg"
+      >
+        <Copy aria-hidden className="size-3" />
+        <span aria-live="polite">{copied ? 'Copied' : 'Copy'}</span>
+      </button>
+    </div>
+  );
 }
 
 const KIND_WORD: Record<SpaceAttachmentKind, string> = {

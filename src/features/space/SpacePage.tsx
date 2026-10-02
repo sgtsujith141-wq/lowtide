@@ -50,6 +50,29 @@ interface Panes {
   inspectorOpen: boolean;
 }
 
+const OPENED = 'lowtide.space.opened';
+
+/** Pages opened on this device, newest first: a convenience, not a record. */
+function loadOpened(): Id[] {
+  try {
+    const v = JSON.parse(localStorage.getItem(OPENED) ?? '[]') as unknown;
+    return Array.isArray(v) ? v.filter((x): x is Id => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+function rememberOpened(id: Id) {
+  try {
+    localStorage.setItem(
+      OPENED,
+      JSON.stringify([id, ...loadOpened().filter((x) => x !== id)].slice(0, 12)),
+    );
+  } catch {
+    // Not remembered in a private window.
+  }
+}
+
 function loadPanes(): Panes {
   const fallback: Panes = { tree: 272, inspector: 320, treeOpen: true, inspectorOpen: true };
   try {
@@ -100,6 +123,9 @@ function Workspace() {
   const navigate = useNavigate();
   const node = nodeId ? index.byId.get(nodeId) : undefined;
   useDocumentTitle(node ? node.title : 'SPACE');
+  useEffect(() => {
+    if (node && node.kind !== 'section') rememberOpened(node.id);
+  }, [node]);
   const desktop = useWide('(min-width: 1024px)');
   const roomy = useWide('(min-width: 1280px)');
   const [panes, setPanes] = useState(loadPanes);
@@ -521,76 +547,131 @@ function SpaceHome({ onOpen }: { onOpen: (id: Id) => void }) {
   const { index, nodes } = useSpaceData();
   const { space } = useRepositories();
   const roots = index.children.get('') ?? [];
+  const live = (n: SpaceNode | undefined): n is SpaceNode =>
+    !!n && !n.archived && n.kind !== 'section';
+  const [openedIds] = useState(loadOpened);
+  const opened = openedIds
+    .map((id) => index.byId.get(id))
+    .filter(live)
+    .slice(0, 6);
   const recent = nodes
-    .filter((n) => !n.archived && n.kind !== 'section')
+    .filter(live)
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-    .slice(0, 10);
+    .slice(0, 8);
+  const projectsRoot = nodes.find((n) => n.key === 'projects');
+  const projectFolders = (projectsRoot ? (index.children.get(projectsRoot.id) ?? []) : [])
+    .filter((n) => !n.archived)
+    .map((n) => ({ node: n, count: documentsUnder(index, n.id).length }))
+    .sort((a, b) => b.count - a.count || a.node.title.localeCompare(b.node.title));
+  const ideasRoot = nodes.find((n) => n.key === 'ideas');
+  const ideas = ideasRoot
+    ? documentsUnder(index, ideasRoot.id)
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+        .slice(0, 6)
+    : [];
   const now = new Date();
+
+  const pageRow = (n: SpaceNode, when?: boolean) => {
+    const last = n.edits?.at(-1);
+    return (
+      <li key={n.id}>
+        <button
+          type="button"
+          onClick={() => onOpen(n.id)}
+          className="flex w-full items-baseline gap-2.5 px-1 py-2 text-left text-sm hover:bg-hover/60"
+        >
+          <span className="min-w-0 flex-1 truncate">{n.title || 'Untitled'}</span>
+          {when && (
+            <span className="shrink-0 text-xs text-fg-muted">
+              {last?.by === 'ai-client' ? `${last.client ?? 'AI'} · ` : ''}
+              {formatWhen(n.updatedAt, now)}
+            </span>
+          )}
+        </button>
+      </li>
+    );
+  };
+  const list = 'divide-y divide-line border-y border-line';
+  const heading = 'mb-2 text-xs font-semibold text-fg-muted';
+
   return (
-    <div className="mx-auto max-w-[60rem] px-6 py-10">
+    <div className="mx-auto max-w-[64rem] px-4 py-8 sm:px-6 sm:py-10">
       <p className="text-[32px] leading-tight font-semibold tracking-tight">SPACE</p>
-      <p className="mt-2 text-sm text-fg-muted">
-        Project notes, plans, research, decisions and tables, in one hierarchy.
-      </p>
-      <div className="mt-8 grid gap-x-12 gap-y-10 md:grid-cols-2">
-        <section aria-label="Sections">
-          <h2 className="mb-2 text-xs font-semibold text-fg-muted">Sections</h2>
-          <ul className="divide-y divide-line border-y border-line">
-            {roots.map((r) => (
-              <li key={r.id}>
-                <button
-                  type="button"
-                  onClick={() => onOpen(r.id)}
-                  className="flex w-full items-center gap-2.5 px-1 py-2.5 text-left text-sm hover:bg-hover/60"
-                >
-                  <Folder aria-hidden className="size-3.5 text-fg-muted" />
-                  <span className="flex-1">{r.title}</span>
-                  <span className="figure text-xs text-fg-muted">
-                    {documentsUnder(index, r.id).length}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-          <Button
-            size="sm"
-            className="mt-3"
-            onClick={async () => {
-              const ideas = nodes.find((n) => n.key === 'ideas');
-              const page = await space.create({
-                ...(ideas ? { parentId: ideas.id } : {}),
-                title: 'Untitled',
-                blocks: [],
-              });
-              onOpen(page.id);
-            }}
+      <nav aria-label="Sections" className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+        {roots.map((r) => (
+          <button
+            key={r.id}
+            type="button"
+            onClick={() => onOpen(r.id)}
+            className="inline-flex items-center gap-1.5 py-1 text-fg-muted hover:text-fg"
           >
-            <Plus aria-hidden className="size-3.5" /> New page in Ideas
-          </Button>
-        </section>
-        <section aria-label="Recently updated">
-          <h2 className="mb-2 text-xs font-semibold text-fg-muted">Recently updated</h2>
-          <ul className="divide-y divide-line border-y border-line">
-            {recent.map((n) => {
-              const last = n.edits?.at(-1);
-              return (
-                <li key={n.id}>
-                  <button
-                    type="button"
-                    onClick={() => onOpen(n.id)}
-                    className="flex w-full items-baseline gap-2.5 px-1 py-2 text-left text-sm hover:bg-hover/60"
-                  >
-                    <span className="min-w-0 flex-1 truncate">{n.title}</span>
-                    <span className="shrink-0 text-xs text-fg-muted">
-                      {last?.by === 'ai-client' ? `${last.client ?? 'AI'} · ` : ''}
-                      {formatWhen(n.updatedAt, now)}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </section>
+            <Folder aria-hidden className="size-3.5" />
+            {r.title}
+          </button>
+        ))}
+      </nav>
+      <div className="mt-8 grid gap-x-12 gap-y-10 md:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-10">
+          {opened.length > 0 && (
+            <section aria-label="Recently opened">
+              <h2 className={heading}>Recently opened</h2>
+              <ul className={list}>{opened.map((n) => pageRow(n))}</ul>
+            </section>
+          )}
+          <section aria-label="Recently updated">
+            <h2 className={heading}>Recently updated</h2>
+            {recent.length === 0 ? (
+              <p className="text-sm text-fg-muted">No pages yet.</p>
+            ) : (
+              <ul className={list}>{recent.map((n) => pageRow(n, true))}</ul>
+            )}
+          </section>
+        </div>
+        <div className="flex min-w-0 flex-col gap-10">
+          {projectFolders.length > 0 && (
+            <section aria-label="Projects">
+              <h2 className={heading}>Projects</h2>
+              <ul className={list}>
+                {projectFolders.map(({ node: n, count }) => (
+                  <li key={n.id}>
+                    <button
+                      type="button"
+                      onClick={() => onOpen(n.id)}
+                      className="flex w-full items-center gap-2.5 px-1 py-2 text-left text-sm hover:bg-hover/60"
+                    >
+                      <span className="min-w-0 flex-1 truncate">{n.title}</span>
+                      <span className="figure shrink-0 text-xs text-fg-muted">
+                        {count} {count === 1 ? 'page' : 'pages'}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          <section aria-label="Ideas">
+            <h2 className={heading}>Ideas</h2>
+            {ideas.length > 0 ? (
+              <ul className={list}>{ideas.map((n) => pageRow(n, true))}</ul>
+            ) : (
+              <p className="text-sm text-fg-muted">No ideas yet.</p>
+            )}
+            <Button
+              size="sm"
+              className="mt-3"
+              onClick={async () => {
+                const page = await space.create({
+                  ...(ideasRoot ? { parentId: ideasRoot.id } : {}),
+                  title: 'Untitled',
+                  blocks: [],
+                });
+                onOpen(page.id);
+              }}
+            >
+              <Plus aria-hidden className="size-3.5" /> New page in Ideas
+            </Button>
+          </section>
+        </div>
       </div>
     </div>
   );
