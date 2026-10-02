@@ -62,7 +62,14 @@ findBy…()).toHaveFocus()` can run a moment too early. Use `expectFocus(…)` f
 - `setupTestDatabase` unmounts rendered trees before deleting the database, so no live
   subscription outlives it.
 
-## Current coverage (v2 PHASE 014): 64 files, 658 tests
+## Current coverage (v2 PHASE 015): 64 files, 663 tests
+
+`src/test/modes.test.tsx` covers Work Mode and Sleep Mode end to end (chooser and
+defaults, focus, pause and resume, the bar, finish and note, reload, the dormant layer,
+waking, the running-work decision, reduced motion, palette actions); a work session
+across a companion restart is in `companion/server/sqlite/store.test.ts`.
+
+## Coverage after v2 PHASE 014: 64 files, 658 tests
 
 New: `src/test/space-blocks.test.ts` (Markdown and Notion parsing, fallbacks, links),
 `src/test/v9-space.test.ts` (revisions, conflicts, batched history, AI attribution,

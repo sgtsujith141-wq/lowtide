@@ -1,4 +1,4 @@
-# LOWTIDE v2 — Status after PHASE 014
+# LOWTIDE v2 — Status after PHASE 015
 
 - **Date:** 2026-10-02
 - **Baseline:** v2 PHASE 001 at `8ba660f`; the overnight build ended at `f4ffe5a`;
@@ -18,6 +18,7 @@
 | 008 Shared AI context     | Scoped context packs (never protected time) and the workspace export (browser mode).                                                                                                                                                                                                                                                                          | ADR-054                   |
 | 008B SQLite companion     | Schema V6 (notes, recorded research status, AI attribution). One storage contract for Dexie and SQLite, with parity tests. The companion: SQLite canonical after an owner-triggered, verified move; companion-backed repositories with live events; MCP with scoped grants, 22 tools, attribution and audit; the live workspace and optional Git; Appearance. | ADR-056 to ADR-061        |
 | 010 Data consolidation    | Schema V7: SPACE (sections, pages, typed tables) and source provenance. The Notion importer and `import-notion` (idempotent, LOWTIDE wins, no invented history). The owner's Notion workspace imported: real projects, tasks, milestones, blockers, decisions and hackathons, the rest in SPACE.                                                              | ADR-062                   |
+| 015 Work and Sleep Modes  | Sleep as a full-screen dormant layer with a finish-first decision for running work and a passing wake summary; Work Mode as a focus surface with a keyboard chooser that offers the current project first, a compact bar, a light finish summary, state-aware palette actions and ⌘/Ctrl ⇧ Enter. Session data unchanged.                                     | ADR-069                   |
 | 014 SPACE                 | SPACE as a three-pane workspace on the real imported hierarchy: a keyboard tree, a block editor with autosave, conflicts and history, first-class tables, links and backlinks, a context inspector, local search, a global ⌘K, and ten scoped SPACE tools over MCP (schema V9).                                                                               | ADR-067, ADR-068          |
 | 013 Projects flagship     | Projects as a tiered, full-width portfolio; the Command Room rebuilt around identity, milestone progress, a clickable roadmap, Start Work, a five-fact summary, a work plane, honest progress and time charts, a six-month gold grid and meaningful activity; explicit milestone sets reconciled from Notion with provenance and no fake history.             | ADR-065, ADR-066          |
 | 012 Home v3               | Home rebuilt on real data: a full-width Daily Pulse hero with a day drawer, Project Command rows ordered by the new project focus (schema V8), grouped Needs you, a Today strip, recent events, one rhythm at a time, a ⌘K local search.                                                                                                                      | ADR-064                   |
@@ -52,7 +53,7 @@ Nothing is blocked.
 
 ## TEST COUNTS
 
-- **Vitest:** 64 files and 658 tests (`npm test -- --run`); under heavy machine load a few jsdom screen tests can time out and pass on a rerun.
+- **Vitest:** 64 files and 663 tests (`npm test -- --run`); under heavy machine load a few jsdom screen tests can time out and pass on a rerun.
 - **Progression:** 338 at the v0.1 baseline → 356 after v2 PHASE 001 → 514 after the
   overnight build → 521 with schema V6 → 555 now.
 - **PHASE 008B suites:** SQLite store and parity, migration and rollback, MCP and the HTTP

@@ -1442,3 +1442,27 @@ project's Architecture"), without reaching what isn't theirs.
 
 **Consequences.** "Save this under …" works in one call and is visible, attributed and
 reversible (archive, history).
+
+## ADR-069 — Work Mode and Sleep Mode as experiences, over unchanged sessions (v2)
+
+**Context.** Sleep Mode only dimmed LOWTIDE and Work Mode was a utilitarian bar; both
+modes worked, but neither felt like a mode.
+
+**Decision.**
+
+- A mode controller in the shell owns how the modes are entered, shown and left; the
+  sessions are unchanged repository records (ADR-042 semantics stand).
+- Sleep Mode is a full-viewport near-black layer over an `inert` app: timer, state, start
+  time, Wake up. Running work is never stopped silently: finish it and sleep, or go back.
+  Waking shows a passing summary, not a modal.
+- Work Mode is a focus surface over the page (rail kept, receding), foldable to a
+  one-line bar; it opens on start, survives reloads, and closes on navigation.
+- Start Work is a keyboard chooser that offers the current page's project (Command Room,
+  SPACE page) or task first, then recent work, projects and general kinds.
+- Finishing records the end at once; an optional note is saved with `work.describe`
+  (outcome only, no event).
+- ⌘/Ctrl ⇧ Enter starts or returns to Work Mode (⌘⇧W would close the window). The
+  palette lists only the mode actions possible now.
+
+**Consequences.** No data migration; every existing consumer of sessions (pulse, grids,
+project time, timeline) is untouched.

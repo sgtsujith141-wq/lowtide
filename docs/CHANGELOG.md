@@ -5,6 +5,19 @@ app's `package.json` version.
 
 ## [Unreleased]
 
+### Changed (v2 PHASE 015 — Work Mode and Sleep Mode)
+
+- Sleep Mode covers the screen with a near-black dormant layer: the timer, Off time, when
+  it started, Wake up. Running work is never stopped silently (finish it and sleep, or go
+  back). Waking shows a small passing summary.
+- Work Mode is a focused surface: the project and task, a large timer, Pause or Resume
+  and Finish, today's total and what's next; it folds into a one-line bar. Finishing
+  shows a light summary with an optional note.
+- Start Work is a keyboard chooser that offers the current project (or task) first,
+  then recent work, projects, general work and study.
+- The command palette lists the mode actions possible now; ⌘/Ctrl ⇧ Enter starts or
+  returns to Work Mode.
+
 ### Added (v2 PHASE 014 — SPACE)
 
 - SPACE workspace: the real hierarchy as a keyboard tree (create, rename, move, drag,

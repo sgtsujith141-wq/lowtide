@@ -388,6 +388,12 @@ owner's portfolio priority. Set with `projects.setFocus`, which changes nothing 
 (no `updatedAt`, no ledger event). Backups at schema 8 carry it; older backups import
 with focus unset. SQLite: companion migration 4 adds `projects.focus` where missing.
 
+## Work session outcome (v2 PHASE 015, ADR-069)
+
+No schema change. `work.describe(id, outcome)` sets or clears a finished session's
+`outcome` (the optional "What changed?" note); it never changes times and writes no
+ledger event.
+
 ## Schema V9 (v2 PHASE 014, ADR-067)
 
 No store changes. `SpaceNode` gains:
