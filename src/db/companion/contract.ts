@@ -82,6 +82,7 @@ export const REPOSITORY_CONTRACT = {
     watchAllItems: 'watch',
     recordDecision: 'call',
     watchDecisions: 'watchFactory',
+    watchAllDecisions: 'watch',
     watchSnapshots: 'watchFactory',
     watchTasks: 'watchFactory',
   },

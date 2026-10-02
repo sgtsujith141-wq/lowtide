@@ -207,11 +207,14 @@ export function Drawer({
   onClose,
   title,
   children,
+  side = 'right',
 }: {
   open: boolean;
   onClose: () => void;
   title: ReactNode;
   children: ReactNode;
+  /** Which edge the sheet comes from. */
+  side?: 'left' | 'right';
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -238,7 +241,7 @@ export function Drawer({
         // A click on the backdrop (the dialog box itself, outside the sheet) closes it.
         if (event.target === event.currentTarget) onClose();
       }}
-      className="lt-drawer m-0 ml-auto h-dvh max-h-dvh w-full max-w-md bg-raised p-0 text-fg shadow-[var(--lt-shadow)] backdrop:bg-scrim"
+      className={`lt-drawer m-0 h-dvh max-h-dvh w-full max-w-md bg-raised p-0 text-fg shadow-[var(--lt-shadow)] backdrop:bg-scrim ${side === 'left' ? 'mr-auto' : 'ml-auto'}`}
     >
       <div className="flex h-full flex-col">
         <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-3">

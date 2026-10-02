@@ -116,9 +116,15 @@ export const routes: RouteObject[] = [
         path: 'calendar',
         lazy: async () => ({ Component: framed((await screens.calendar()).CalendarPage, 'wide') }),
       },
+      // SPACE fills the canvas edge to edge: its own panes, no frame.
+      { path: 'space', lazy: async () => ({ Component: (await screens.space()).SpacePage }) },
       {
-        path: 'space',
-        lazy: async () => ({ Component: framed((await screens.space()).SpacePage, 'standard') }),
+        path: 'space/project/:projectId',
+        lazy: async () => ({ Component: (await screens.space()).SpacePage }),
+      },
+      {
+        path: 'space/:nodeId',
+        lazy: async () => ({ Component: (await screens.space()).SpacePage }),
       },
       { path: '*', element: <NotFound /> },
     ],

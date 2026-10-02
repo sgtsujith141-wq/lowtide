@@ -149,7 +149,7 @@ describe('Data & backup page', () => {
 
     const heading = await screen.findByRole('heading', { level: 3, name: /^Backup from / });
     await expectFocus(() => heading);
-    expect(screen.getByText(/my-backup\.json · Database version 8/)).toBeInTheDocument();
+    expect(screen.getByText(/my-backup\.json · Database version 9/)).toBeInTheDocument();
     const table = screen.getByRole('table', {
       name: 'Records in the backup and in this browser now',
     });

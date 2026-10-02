@@ -428,6 +428,11 @@
     animation: lt-fade-in var(--lt-dur-panel) var(--ease-tide);
   }
 
+  /* A page arriving in SPACE: a short fade, no movement. */
+  .lt-fade {
+    animation: lt-fade-in var(--lt-dur-panel) var(--ease-tide);
+  }
+
   /* The roadmap's current stage announces itself once on arrival, then rests. */
   .lt-current {
     animation: lt-current-in 1.4s var(--ease-tide) 1;

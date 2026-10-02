@@ -206,10 +206,22 @@ export function createDexieSpaceRepository(deps: RepositoryDeps): SpaceRepositor
         const parent = parentId ?? undefined;
         await checkParent(id, parent);
         const at = toTimestamp(clock());
+        let position = order ?? (await nextSpaceOrder(db, parent));
+        if (order !== undefined) {
+          // Insert at `order`: siblings are renumbered around it, in their order.
+          const siblings = (await spaceChildren(db, parent)).filter((s) => s.id !== id);
+          const insertAt = siblings.findIndex((s) => s.order >= order);
+          const slot = insertAt < 0 ? siblings.length : insertAt;
+          for (const [i, s] of siblings.entries()) {
+            const next = i < slot ? i : i + 1;
+            if (s.order !== next) await db.spaceNodes.put({ ...s, order: next });
+          }
+          position = slot;
+        }
         return put({
           ...node,
           parentId: parent,
-          order: order ?? (await nextSpaceOrder(db, parent)),
+          order: position,
           edits: withEdit(node.edits, 'moved', at, source, client),
           updatedAt: at,
         });

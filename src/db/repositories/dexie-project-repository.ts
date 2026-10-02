@@ -547,6 +547,10 @@ export function createDexieProjectRepository(deps: RepositoryDeps): ProjectRepos
       });
     },
 
+    watchAllDecisions: watch(async () =>
+      (await db.decisions.toArray()).sort((a, b) => b.decidedAt.localeCompare(a.decidedAt)),
+    ),
+
     watchDecisions(projectId) {
       return watch(async () =>
         (await db.decisions.where('projectId').equals(projectId).toArray()).sort((a, b) =>

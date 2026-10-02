@@ -493,6 +493,8 @@ export interface ProjectRepository {
   recordDecision(projectId: Id, input: NewDecision): Promise<Decision>;
   /** Newest first. */
   watchDecisions(projectId: Id): Watch<Decision[]>;
+  /** Every project's decisions, newest first (SPACE links and search). */
+  watchAllDecisions: Watch<Decision[]>;
   /** Oldest first. */
   watchSnapshots(projectId: Id): Watch<ProgressSnapshot[]>;
   /** A project's tasks (any status), oldest first. */
@@ -733,9 +735,18 @@ export interface SpaceRepository {
   /** Adds blocks at the end (an imported body becomes blocks first, unchanged). */
   appendBlocks(id: Id, blocks: NewSpaceBlock[]): Promise<SpaceNode>;
   /** Changes one block. */
-  updateBlock(id: Id, blockId: string, changes: Partial<Omit<SpaceBlock, 'id'>>): Promise<SpaceNode>;
+  updateBlock(
+    id: Id,
+    blockId: string,
+    changes: Partial<Omit<SpaceBlock, 'id'>>,
+  ): Promise<SpaceNode>;
   /** Sets one cell of a table page (`null` empties it). */
-  setCell(id: Id, rowId: string, columnId: string, value: SpaceCellValue | null): Promise<SpaceNode>;
+  setCell(
+    id: Id,
+    rowId: string,
+    columnId: string,
+    value: SpaceCellValue | null,
+  ): Promise<SpaceNode>;
   /** Adds a row to a table page; returns the page. */
   addRow(id: Id, cells: Record<string, SpaceCellValue>): Promise<SpaceNode>;
   /** Links a page to a record (once). */

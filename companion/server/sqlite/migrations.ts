@@ -100,7 +100,8 @@ export const MIGRATIONS: Migration[] = [
           (c) => c.name,
         ),
       );
-      if (!columns.has('blocks')) sql.exec(
+      if (!columns.has('blocks'))
+        sql.exec(
           'ALTER TABLE space_nodes ADD COLUMN blocks TEXT CHECK (blocks IS NULL OR json_valid(blocks))',
         );
       if (!columns.has('revision')) {
