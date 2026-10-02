@@ -1,5 +1,5 @@
 import { Check, Minus, Plus, X } from 'lucide-react';
-import { useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { IconButton } from '../../components/ui/Button';
 import { ErrorNotice } from '../../components/ui/Notice';
 import { fieldClass } from '../../components/ui/styles';
@@ -129,43 +129,51 @@ function AmountRow({
   const { habits } = useRepositories();
   const saved = entry ? String(entry.value) : '';
   const [draft, setDraft] = useState<string | null>(null);
-  const value = draft ?? saved;
   const id = useId();
   const unitWord = habit.unit === 'minutes' ? 'min' : '';
   const input = useRef<HTMLInputElement>(null);
 
   const step = habit.unit === 'minutes' ? 5 : 1;
-  /**
-   * The stepper: each tap changes today's amount at once and saves it; quick
-   * taps queue up in order, so none is lost.
+  /*
+   * The stepper: each tap changes today's amount at once and saves it; taps
+   * queue in order. The intended amount (`pending`) is what the row shows and
+   * what the next tap builds on until the stored entry has caught up with it
+   * and nothing is still saving, so a quick tap never starts from a stale
+   * amount and the screen never shows less than what will be stored.
    */
-  const queue = useRef<Promise<unknown>>(Promise.resolve());
+  const [pending, setPending] = useState<number | null>(null);
+  const [inflight, setInflight] = useState(0);
   const wanted = useRef<number | null>(null);
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
+  if (pending !== null && inflight === 0 && Number(saved || 0) === pending) setPending(null);
+  useEffect(() => {
+    if (pending === null) wanted.current = null;
+  }, [pending]);
+
+  const value = draft ?? (pending !== null ? (pending ? String(pending) : '') : saved);
+
   function nudge(delta: number) {
     const base = wanted.current ?? Number(saved || 0);
     const next = Math.max(0, base + delta);
     if (next === base) return;
     wanted.current = next;
-    setDraft(next ? String(next) : '');
+    setPending(next);
+    setDraft(null);
+    setInflight((n) => n + 1);
     setError(null);
     const label = habit.unit === 'minutes' ? `${next} min` : String(next);
     queue.current = queue.current
       .then(async () => {
         if (next === 0) await habits.clearEntry(habit.id, today);
         else await habits.setEntry(habit.id, today, next);
-      })
-      .then(() => {
         onSaved(next === 0 ? `${habit.name}: cleared for today` : `${habit.name}: ${label} today`);
-        if (wanted.current === next) {
-          wanted.current = null;
-          setDraft(null);
-        }
       })
       .catch(() => {
         wanted.current = null;
-        setDraft(null);
+        setPending(null);
         setError('Couldn’t save that. Nothing changed.');
-      });
+      })
+      .finally(() => setInflight((n) => n - 1));
   }
 
   async function commit() {
@@ -219,7 +227,7 @@ function AmountRow({
         <IconButton
           label={`${habit.name}: ${step} less`}
           icon={<Minus aria-hidden className="size-3.5" />}
-          disabled={!entry && !draft}
+          disabled={!entry && !pending}
           onClick={() => nudge(-step)}
           className="size-8"
         />

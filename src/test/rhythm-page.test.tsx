@@ -42,16 +42,41 @@ describe('Rhythm page', () => {
     expect(screen.queryByText(/streak|score|missed|perfect/i)).not.toBeInTheDocument();
   });
 
-  it('steps a count routine up and down, saving at each tap', async () => {
-    const { user, db } = await setup((r) =>
-      r.habits.create({ name: 'Water', category: 'personal', unit: 'count', target: 4 }),
+  it('steps a count routine up and down, saving at each tap, even when tapped quickly', async () => {
+    const { user, db, unmount } = await setup((r) =>
+      r.habits.create({ name: 'Water', category: 'personal', unit: 'count', target: 8 }),
     );
     const more = await within(todayLog()).findByRole('button', { name: 'Water: 1 more' });
+    const less = within(todayLog()).getByRole('button', { name: 'Water: 1 less' });
+    const amount = within(todayLog()).getByRole('spinbutton', { name: 'Water, count today' });
+    // Quick taps: the row shows each new amount at once.
     await user.click(more);
     await user.click(more);
+    await user.click(more);
+    expect(amount).toHaveValue(3);
+    await vi.waitFor(async () => expect((await db.habitEntries.toArray())[0]?.value).toBe(3));
+    // A mixed sequence ends where the taps say, on screen and in storage.
+    await user.click(less);
+    await user.click(more);
+    await user.click(more);
+    await user.click(less);
+    expect(amount).toHaveValue(3);
+    await user.click(less);
     await vi.waitFor(async () => expect((await db.habitEntries.toArray())[0]?.value).toBe(2));
-    await user.click(within(todayLog()).getByRole('button', { name: 'Water: 1 less' }));
+    expect(amount).toHaveValue(2);
+    // Down to nothing clears today's entry.
+    await user.click(less);
+    await user.click(less);
+    await vi.waitFor(async () => expect(await db.habitEntries.count()).toBe(0));
+    expect(amount).toHaveValue(null);
+    await user.click(more);
     await vi.waitFor(async () => expect((await db.habitEntries.toArray())[0]?.value).toBe(1));
+    // A reload shows what was stored.
+    unmount();
+    await renderApp('/rhythm', createDexieRepositories(db));
+    expect(
+      await within(todayLog()).findByRole('spinbutton', { name: 'Water, count today' }),
+    ).toHaveValue(1);
   });
 
   it('creates habits with the form; targets only for amounts', async () => {
