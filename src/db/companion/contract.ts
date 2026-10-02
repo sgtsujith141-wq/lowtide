@@ -60,6 +60,7 @@ export const REPOSITORY_CONTRACT = {
     createFromHackathon: 'call',
     update: 'call',
     setState: 'call',
+    setFocus: 'call',
     get: 'call',
     watchAll: 'watch',
     watchBySlug: 'watchFactory',

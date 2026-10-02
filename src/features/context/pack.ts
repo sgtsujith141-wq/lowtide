@@ -11,7 +11,7 @@ import {
   type Project,
 } from '../../types/domain';
 import { hackathonStages, STAGE_LABEL } from '../hackathons/progress';
-import { LANE_LABEL, STATE_LABEL, summariseProject } from '../projects/summary';
+import { FOCUS_LABEL, LANE_LABEL, STATE_LABEL, summariseProject } from '../projects/summary';
 import { activeMinutes } from '../work/duration';
 import { slugOf } from './slug';
 
@@ -148,6 +148,7 @@ function projectSections(
       title: 'State',
       lines: [
         `State: ${STATE_LABEL[project.state]}`,
+        ...(project.focus ? [`Focus: ${FOCUS_LABEL[project.focus]}`] : []),
         ...(project.phase ? [`Phase: ${project.phase}`] : []),
         ...(project.nextAction ? [`Next action: ${project.nextAction}`] : []),
         ...(project.repoUrl ? [`Repository: ${project.repoUrl}`] : []),

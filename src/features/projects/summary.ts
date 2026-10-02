@@ -5,6 +5,7 @@ import type {
   Milestone,
   Project,
   ProjectItem,
+  ProjectFocus,
   ProjectLane,
   ProjectState,
   Task,
@@ -28,6 +29,13 @@ export const STATE_LABEL: Record<ProjectState, string> = {
   review: 'Review',
   done: 'Done',
   archived: 'Archived',
+};
+
+export const FOCUS_LABEL: Record<ProjectFocus, string> = {
+  primary: 'Primary',
+  secondary: 'Secondary',
+  supporting: 'Supporting',
+  background: 'Not current',
 };
 
 export const LANE_LABEL: Record<ProjectLane, string> = {

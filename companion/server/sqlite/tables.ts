@@ -1,4 +1,5 @@
 import {
+  PROJECT_FOCUS,
   LINKABLE_TYPES,
   SOURCE_ROLES,
   SOURCE_SYSTEMS,
@@ -196,6 +197,7 @@ export const TABLES: TableSpec[] = [
       opt('phase'),
       opt('nextAction'),
       opt('repoUrl'),
+      opt('focus', 'text', { values: PROJECT_FOCUS }),
       created,
       updated,
       req('stateChangedAt'),

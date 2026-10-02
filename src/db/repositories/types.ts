@@ -1,4 +1,5 @@
 import type {
+  ProjectFocus,
   EntityLink,
   LinkableType,
   SourceRecord,
@@ -448,6 +449,12 @@ export interface ProjectRepository {
    * decision of this project that records why.
    */
   setState(id: Id, state: ProjectState, options?: { overrideDecisionId?: Id }): Promise<Project>;
+  /**
+   * Sets or clears the portfolio focus (ADR-064). A viewing priority, so it
+   * leaves `updatedAt` alone and writes no ledger event: it never reads as
+   * project movement.
+   */
+  setFocus(id: Id, focus: ProjectFocus | null): Promise<Project>;
   get(id: Id): Promise<Project | undefined>;
   /** Every project, most recently updated first. */
   watchAll: Watch<Project[]>;
@@ -538,6 +545,8 @@ export interface EventQuery {
   /** Private life events (off time, habit logs) are left out unless asked for. */
   includePrivate?: boolean;
   limit?: number;
+  /** Only events on this local day. */
+  day?: LocalDate;
 }
 
 /** An event with the current title of what it refers to (absent if deleted). */

@@ -743,14 +743,18 @@ export async function importNotion(
       content: { ...content, since },
       match: () => db.projects.where('slug').equals(project.slug).first(),
       build: (id, existing) =>
-        projectSchema.parse({
-          ...content,
-          id,
-          createdAt: created ?? since ?? existing?.createdAt ?? now,
-          updatedAt: since ?? now,
-          stateChangedAt:
-            since ?? (existing && existing.state === state ? existing.stateChangedAt : now),
-        }),
+        projectSchema.parse(
+          omit({
+            ...content,
+            // The owner's portfolio focus is LOWTIDE's own, never Notion's (ADR-064).
+            focus: existing?.focus,
+            id,
+            createdAt: created ?? since ?? existing?.createdAt ?? now,
+            updatedAt: since ?? now,
+            stateChangedAt:
+              since ?? (existing && existing.state === state ? existing.stateChangedAt : now),
+          }),
+        ),
     });
   }
 

@@ -191,6 +191,17 @@ export function createDexieProjectRepository(deps: RepositoryDeps): ProjectRepos
       });
     },
 
+    setFocus(id, focus) {
+      return db.transaction('rw', all, async () => {
+        const existing = await getProject(id);
+        const project = projectSchema.parse(
+          omitUndefined({ ...existing, focus: focus ?? undefined }),
+        );
+        await db.projects.put(project);
+        return project;
+      });
+    },
+
     setState(id, state: ProjectState, options) {
       return db.transaction('rw', all, async () => {
         const now = clock();

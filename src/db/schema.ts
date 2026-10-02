@@ -1,5 +1,6 @@
 import { z } from 'zod/mini';
 import {
+  PROJECT_FOCUS,
   LINKABLE_TYPES,
   SOURCE_ROLES,
   SOURCE_SYSTEMS,
@@ -160,6 +161,7 @@ export const projectSchema = z.object({
   phase: z.exactOptional(text),
   nextAction: z.exactOptional(text),
   repoUrl: z.exactOptional(text),
+  focus: z.exactOptional(z.enum(PROJECT_FOCUS)),
   createdAt: timestamp,
   updatedAt: timestamp,
   stateChangedAt: timestamp,
@@ -410,7 +412,7 @@ export const DATABASE_NAME = 'lowtide';
  * Current schema version. Bump it (never edit a shipped version) when the
  * store layout or record shape changes; see docs/DATA-MODEL.md#migrations.
  */
-export const SCHEMA_VERSION = 7;
+export const SCHEMA_VERSION = 8;
 
 /**
  * Dexie store definitions for version 1. First entry is the primary key;
@@ -492,3 +494,10 @@ export const STORES_V7 = {
   spaceNodes: 'id, parentId, &key, updatedAt',
   sourceRecords: 'id, &[system+sourceId+entityType], [entityType+entityId]',
 } as const;
+
+/**
+ * Version 8 (v2 PHASE 012, ADR-064): optional `Project.focus`. No store or
+ * index changes; the version records the new optional field. Existing
+ * projects keep focus unset.
+ */
+export const STORES_V8 = {} as const;

@@ -180,6 +180,14 @@ export const PROJECT_STATES = [
 export type ProjectState = (typeof PROJECT_STATES)[number];
 
 export const PROJECT_KINDS = ['software', 'research', 'other'] as const;
+
+/**
+ * Portfolio focus (schema V8, ADR-064): how much of the owner's attention a
+ * project has right now. A viewing priority set by the owner, never derived
+ * and never counted as project movement. Absent means not set.
+ */
+export const PROJECT_FOCUS = ['primary', 'secondary', 'supporting', 'background'] as const;
+export type ProjectFocus = (typeof PROJECT_FOCUS)[number];
 export type ProjectKind = (typeof PROJECT_KINDS)[number];
 
 export interface Project {
@@ -196,6 +204,8 @@ export interface Project {
   nextAction?: string;
   /** Informational only: nothing is fetched (ADR-041). */
   repoUrl?: string;
+  /** Portfolio focus (schema V8). Changing it is not a project movement. */
+  focus?: ProjectFocus;
   createdAt: Timestamp;
   updatedAt: Timestamp;
   stateChangedAt: Timestamp;

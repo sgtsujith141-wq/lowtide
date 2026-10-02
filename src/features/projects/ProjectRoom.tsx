@@ -12,7 +12,13 @@ import { useRepositories } from '../../hooks/useRepositories';
 import { useToday } from '../../hooks/useToday';
 import { useWatch } from '../../hooks/useWatch';
 import { formatWhen } from '../../lib/when';
-import { PROJECT_STATES, type Project, type ProjectState } from '../../types/domain';
+import {
+  PROJECT_FOCUS,
+  PROJECT_STATES,
+  type Project,
+  type ProjectFocus,
+  type ProjectState,
+} from '../../types/domain';
 import { Timeline } from '../activity/Timeline';
 import { consumeModeFocus, requestModeFocus } from '../modes/focus-intent';
 import { useModes } from '../modes/useModes';
@@ -28,7 +34,7 @@ import {
   TasksTab,
 } from './room/tabs';
 import { CompletionRing, MilestonePipeline, ProgressChart, TimeChart } from './room/visuals';
-import { STATE_LABEL, STATE_TONE, summariseProject } from './summary';
+import { FOCUS_LABEL, STATE_LABEL, STATE_TONE, summariseProject } from './summary';
 
 const TABS = ['Overview', 'Tasks', 'Milestones', 'Docs', 'AI', 'GitHub', 'History'] as const;
 type Tab = (typeof TABS)[number];
@@ -122,7 +128,10 @@ function Room({ project }: { project: Project }) {
         <Chip tone={STATE_TONE[project.state]}>{STATE_LABEL[project.state]}</Chip>
         {project.phase && <span className="text-sm text-fg-muted">Phase: {project.phase}</span>}
         <StartHere project={project} />
-        <StateSelect project={project} />
+        <span className="ml-auto flex flex-wrap items-start gap-2">
+          <FocusSelect project={project} />
+          <StateSelect project={project} />
+        </span>
       </div>
 
       <div
@@ -309,7 +318,7 @@ function StateSelect({ project }: { project: Project }) {
   const [error, setError] = useState<string | null>(null);
   const id = useId();
   return (
-    <span className="ml-auto flex flex-col items-end">
+    <span className="flex flex-col items-end">
       <label htmlFor={id} className="sr-only">
         Project state
       </label>
@@ -333,6 +342,39 @@ function StateSelect({ project }: { project: Project }) {
         {PROJECT_STATES.map((s) => (
           <option key={s} value={s}>
             {STATE_LABEL[s]}
+          </option>
+        ))}
+      </select>
+      {error && <ErrorNotice>{error}</ErrorNotice>}
+    </span>
+  );
+}
+
+/** Portfolio focus (ADR-064): a viewing priority, not project movement. */
+function FocusSelect({ project }: { project: Project }) {
+  const { projects } = useRepositories();
+  const [error, setError] = useState<string | null>(null);
+  const id = useId();
+  return (
+    <span className="flex flex-col items-end">
+      <label htmlFor={id} className="sr-only">
+        Focus
+      </label>
+      <select
+        id={id}
+        value={project.focus ?? ''}
+        onChange={(e) => {
+          setError(null);
+          projects
+            .setFocus(project.id, (e.target.value || null) as ProjectFocus | null)
+            .catch(() => setError('Couldn’t change the focus. Nothing changed.'));
+        }}
+        className={compactFieldClass}
+      >
+        <option value="">Focus: not set</option>
+        {PROJECT_FOCUS.map((f) => (
+          <option key={f} value={f}>
+            Focus: {FOCUS_LABEL[f]}
           </option>
         ))}
       </select>

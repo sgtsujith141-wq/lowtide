@@ -46,7 +46,7 @@ describe('SQLite schema (companion migrations)', () => {
     const meta = store.sql
       .prepare("SELECT value FROM companion_meta WHERE key = 'lowtide_schema_version'")
       .get() as { value: string };
-    expect(meta.value).toBe('7');
+    expect(meta.value).toBe('8');
   });
 
   it('enforces enumerations, types and deferred references in the database itself', async () => {
@@ -85,6 +85,38 @@ describe('SQLite schema (companion migrations)', () => {
     const p1 = await r.projects.create({ name: 'Same' });
     const p2 = await r.projects.create({ name: 'Same' });
     expect([p1.slug, p2.slug]).toEqual(['same', 'same-2']);
+  });
+});
+
+describe('companion migration 4 (schema V8)', () => {
+  it('adds the focus column to a database created before V8, keeping its projects', async () => {
+    const { mkdtempSync, rmSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const { DatabaseSync } = await import('node:sqlite');
+    const dir = mkdtempSync(join(tmpdir(), 'lowtide-v8-'));
+    try {
+      const file = join(dir, 'old.sqlite');
+      const first = new SqliteStore(file);
+      const p = await createRepositories(first).projects.create({ name: 'Engine' });
+      first.close();
+      // Make it look like a pre-V8 database: no focus column, migration 4 not run.
+      const raw = new DatabaseSync(file);
+      raw.exec('ALTER TABLE projects DROP COLUMN focus');
+      raw.exec('DELETE FROM companion_migrations WHERE id = 4');
+      raw.close();
+      const reopened = new SqliteStore(file);
+      const columns = (
+        reopened.sql.prepare('PRAGMA table_info(projects)').all() as { name: string }[]
+      ).map((c) => c.name);
+      expect(columns).toContain('focus');
+      const r = createRepositories(reopened);
+      expect((await r.projects.get(p.id))?.name).toBe('Engine');
+      expect((await r.projects.setFocus(p.id, 'secondary')).focus).toBe('secondary');
+      reopened.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 

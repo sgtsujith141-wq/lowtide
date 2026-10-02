@@ -89,7 +89,7 @@ describe('export', () => {
   it('writes the envelope and every store', async () => {
     const { db, r } = await setupSeeded();
     const doc = await r.backup.exportBackup();
-    expect(doc).toMatchObject({ format: 'lowtide-backup', formatVersion: 1, schemaVersion: 7 });
+    expect(doc).toMatchObject({ format: 'lowtide-backup', formatVersion: 1, schemaVersion: 8 });
     expect(BACKUP_FORMAT_VERSION).toBe(1);
     expect(doc.schemaVersion).toBe(SCHEMA_VERSION);
     expect(new Date(doc.exportedAt).toISOString()).toBe(doc.exportedAt);

@@ -1,5 +1,6 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { SCHEMA_VERSION } from '../../../src/db/schema';
+import { PROJECT_FOCUS } from '../../../src/types/domain';
 import { domainDdl, V6_TABLES, V7_TABLES } from './tables';
 
 /*
@@ -13,6 +14,8 @@ interface Migration {
   id: number;
   name: string;
   statements: () => string[];
+  /** For changes that depend on the database's current shape (run after `statements`). */
+  apply?: (sql: DatabaseSync) => void;
 }
 
 export const MIGRATIONS: Migration[] = [
@@ -72,6 +75,20 @@ export const MIGRATIONS: Migration[] = [
     name: 'domain schema V7: SPACE nodes and source records',
     statements: () => domainDdl(V7_TABLES),
   },
+  {
+    id: 4,
+    name: 'domain schema V8: optional project focus',
+    statements: () => [],
+    // Databases created after V8 already have the column (migration 1 builds
+    // tables from the current definitions); older ones gain it here.
+    apply: (sql) => {
+      const columns = sql.prepare('PRAGMA table_info(projects)').all() as { name: string }[];
+      if (columns.some((c) => c.name === 'focus')) return;
+      sql.exec(
+        `ALTER TABLE projects ADD COLUMN focus TEXT CHECK (focus IN (${PROJECT_FOCUS.map((f) => `'${f}'`).join(', ')}))`,
+      );
+    },
+  },
 ];
 
 export function applyMigrations(sql: DatabaseSync) {
@@ -92,6 +109,7 @@ export function applyMigrations(sql: DatabaseSync) {
     sql.exec('BEGIN IMMEDIATE');
     try {
       for (const statement of migration.statements()) sql.exec(statement);
+      migration.apply?.(sql);
       sql
         .prepare('INSERT INTO companion_migrations (id, name, applied_at) VALUES (?, ?, ?)')
         .run(migration.id, migration.name, new Date().toISOString());

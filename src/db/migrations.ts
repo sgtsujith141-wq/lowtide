@@ -105,6 +105,7 @@ export type StoreName = (typeof STORE_NAMES)[number];
 
 /** The stores a backup written under `schemaVersion` must contain. */
 export function storesForSchema(schemaVersion: number): readonly StoreName[] {
+  // V8 added a field, not a store.
   if (schemaVersion >= 7) return STORE_NAMES;
   if (schemaVersion === 6)
     return [...LEGACY_STORE_NAMES, ...V4_STORE_NAMES, ...V5_STORE_NAMES, ...V6_STORE_NAMES];

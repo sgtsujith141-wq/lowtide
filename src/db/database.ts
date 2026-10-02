@@ -31,6 +31,7 @@ import {
   STORES_V5,
   STORES_V6,
   STORES_V7,
+  STORES_V8,
 } from './schema';
 
 /**
@@ -86,6 +87,8 @@ export class LowtideDatabase extends Dexie {
     this.version(6).stores(STORES_V6);
     // V7 (ADR-062): + spaceNodes, sourceRecords. Additive, no upgrade().
     this.version(7).stores(STORES_V7);
+    // V8 (ADR-064): optional Project.focus. No store changes, no upgrade().
+    this.version(8).stores(STORES_V8);
   }
 }
 
