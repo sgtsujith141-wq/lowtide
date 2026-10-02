@@ -1,12 +1,19 @@
 import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import {
+  CAPABILITIES,
   CLIENT_KINDS,
+  GRANT_PRESETS,
   SENSITIVE,
+  legacyCapabilities,
+  type AiChange,
   type AuditEntry,
+  type Capability,
   type ClientKind,
   type ClientStatus,
   type Grant,
+  type GrantChanges,
+  type GrantPreset,
   type NewGrant,
   type SensitiveCategory,
 } from '../../src/db/companion/wire';
@@ -37,18 +44,77 @@ const hash = (token: string) => createHash('sha256').update(token).digest('hex')
 type Row = Record<string, unknown>;
 
 function toGrant(row: Row): Grant {
+  const access = row.access as Grant['access'];
+  const allowResolveApprovals = row.allow_resolve_approvals === 1;
+  const capabilities = row.capabilities
+    ? (JSON.parse(row.capabilities as string) as Capability[]).filter((c) =>
+        CAPABILITIES.includes(c),
+      )
+    : legacyCapabilities(access, allowResolveApprovals);
   return {
     id: row.id as string,
     label: row.label as string,
     clientKind: row.client_kind as ClientKind,
     scope: row.scope as Grant['scope'],
     ...(row.project_id ? { projectId: row.project_id as string } : {}),
-    access: row.access as Grant['access'],
-    allowResolveApprovals: row.allow_resolve_approvals === 1,
+    access,
+    allowResolveApprovals: capabilities.includes('approvals.resolve'),
     sensitive: JSON.parse(row.sensitive as string) as SensitiveCategory[],
+    capabilities,
+    preset: (row.preset as GrantPreset | null) ?? 'custom',
     createdAt: row.created_at as string,
     ...(row.revoked_at ? { revokedAt: row.revoked_at as string } : {}),
   };
+}
+
+/** Validated capabilities, in their canonical order. */
+function checkCapabilities(list: readonly string[]): Capability[] {
+  const unknown = list.find((c) => !CAPABILITIES.includes(c as Capability));
+  if (unknown) throw new Error(`Unknown capability ${unknown}`);
+  return CAPABILITIES.filter((c) => list.includes(c));
+}
+
+function checkPreset(preset: string | undefined): GrantPreset {
+  if (preset === undefined || preset === 'custom') return 'custom';
+  if (!GRANT_PRESETS.includes(preset as (typeof GRANT_PRESETS)[number]))
+    throw new Error('Unknown preset');
+  return preset as GrantPreset;
+}
+
+/** An inverse operation: a repository call that undoes part of a change. */
+export interface InverseOp {
+  repo: string;
+  member: string;
+  args: unknown[];
+}
+
+/** What must still be true for an undo to be safe (nothing changed since). */
+export interface ChangeGuard {
+  store: string;
+  id: string;
+  /** For SPACE pages: the revision after the change. */
+  revision?: number;
+  /** Otherwise: `updatedAt` after the change. */
+  updatedAt?: string;
+  /** Or: these fields still hold what the change left in them (absent = unset). */
+  fields?: Record<string, unknown>;
+}
+
+export interface NewChange {
+  grantId: string;
+  client: string;
+  tool: string;
+  summary: string;
+  entityType?: string;
+  entityId?: string;
+  batchId?: string;
+  inverse?: InverseOp[];
+  guard?: ChangeGuard;
+}
+
+export interface StoredChange extends AiChange {
+  inverse?: InverseOp[];
+  guard?: ChangeGuard;
 }
 
 export class Grants {
@@ -81,6 +147,12 @@ export class Grants {
     if (input.scope === 'project' && !input.projectId) throw new Error('Choose a project');
     const sensitive = input.scope === 'global' ? [...new Set(input.sensitive ?? [])] : [];
     if (sensitive.some((s) => !SENSITIVE.includes(s))) throw new Error('Unknown category');
+    const capabilities = input.capabilities
+      ? checkCapabilities(input.capabilities)
+      : legacyCapabilities(
+          input.access ?? 'read',
+          input.access === 'write' && input.allowResolveApprovals === true,
+        );
     const token = newToken();
     const grant: Grant = {
       id: randomUUID(),
@@ -88,16 +160,18 @@ export class Grants {
       clientKind: input.clientKind,
       scope: input.scope,
       ...(input.scope === 'project' && input.projectId ? { projectId: input.projectId } : {}),
-      access: input.access,
-      allowResolveApprovals: input.access === 'write' && input.allowResolveApprovals === true,
+      access: capabilities.some((c) => !c.endsWith('.read')) ? 'write' : 'read',
+      allowResolveApprovals: capabilities.includes('approvals.resolve'),
       sensitive,
+      capabilities,
+      preset: checkPreset(input.preset),
       createdAt: this.now().toISOString(),
     };
     this.sql
       .prepare(
         `INSERT INTO ai_grants (id, label, client_kind, scope, project_id, access,
-          allow_resolve_approvals, sensitive, token_hash, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          allow_resolve_approvals, sensitive, token_hash, created_at, capabilities, preset)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         grant.id,
@@ -110,9 +184,128 @@ export class Grants {
         JSON.stringify(grant.sensitive),
         hash(token),
         grant.createdAt,
+        JSON.stringify(grant.capabilities),
+        grant.preset,
       );
     this.changed('grants');
     return { grant, token };
+  }
+
+  /** Changes what a grant may do. Its token stays the same; revoked grants can't change. */
+  update(id: string, changes: GrantChanges): Grant {
+    const current = this.get(id);
+    if (!current || current.revokedAt) throw new Error('No such active grant');
+    const scope = changes.scope ?? current.scope;
+    const projectId = scope === 'project' ? (changes.projectId ?? current.projectId) : undefined;
+    if (scope === 'project' && !projectId) throw new Error('Choose a project');
+    const sensitive =
+      scope === 'global' ? [...new Set(changes.sensitive ?? current.sensitive)] : [];
+    if (sensitive.some((s) => !SENSITIVE.includes(s))) throw new Error('Unknown category');
+    const capabilities = changes.capabilities
+      ? checkCapabilities(changes.capabilities)
+      : current.capabilities;
+    const access = capabilities.some((c) => !c.endsWith('.read')) ? 'write' : 'read';
+    this.sql
+      .prepare(
+        `UPDATE ai_grants SET label = ?, scope = ?, project_id = ?, access = ?,
+           allow_resolve_approvals = ?, sensitive = ?, capabilities = ?, preset = ?
+         WHERE id = ?`,
+      )
+      .run(
+        (changes.label ?? current.label).trim() || current.label,
+        scope,
+        projectId ?? null,
+        access,
+        capabilities.includes('approvals.resolve') ? 1 : 0,
+        JSON.stringify(sensitive),
+        JSON.stringify(capabilities),
+        changes.preset !== undefined ? checkPreset(changes.preset) : current.preset,
+        id,
+      );
+    this.changed('grants');
+    return this.get(id)!;
+  }
+
+  get(id: string): Grant | undefined {
+    const row = this.sql.prepare('SELECT * FROM ai_grants WHERE id = ?').get(id) as Row | undefined;
+    return row ? toGrant(row) : undefined;
+  }
+
+  /** Keeps a reviewable, possibly undoable record of one AI change. */
+  recordChange(change: NewChange): AiChange {
+    const id = randomUUID();
+    const at = this.now().toISOString();
+    this.sql
+      .prepare(
+        `INSERT INTO ai_changes (id, at, grant_id, client, tool, summary, entity_type, entity_id,
+           batch_id, inverse, guard)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        id,
+        at,
+        change.grantId,
+        change.client,
+        change.tool,
+        change.summary.slice(0, 500),
+        change.entityType ?? null,
+        change.entityId ?? null,
+        change.batchId ?? null,
+        change.inverse?.length ? JSON.stringify(change.inverse) : null,
+        change.guard ? JSON.stringify(change.guard) : null,
+      );
+    this.changed('audit');
+    return this.change(id)!;
+  }
+
+  private toChange(r: Row): StoredChange {
+    return {
+      id: r.id as string,
+      at: r.at as string,
+      grantId: r.grant_id as string,
+      client: r.client as string,
+      tool: r.tool as string,
+      summary: r.summary as string,
+      ...(r.entity_type ? { entityType: r.entity_type as string } : {}),
+      ...(r.entity_id ? { entityId: r.entity_id as string } : {}),
+      ...(r.batch_id ? { batchId: r.batch_id as string } : {}),
+      revertible: Boolean(r.inverse) && !r.reverted_at,
+      ...(r.reverted_at ? { revertedAt: r.reverted_at as string } : {}),
+      ...(r.inverse ? { inverse: JSON.parse(r.inverse as string) as InverseOp[] } : {}),
+      ...(r.guard ? { guard: JSON.parse(r.guard as string) as ChangeGuard } : {}),
+    };
+  }
+
+  change(id: string): StoredChange | undefined {
+    const row = this.sql.prepare('SELECT * FROM ai_changes WHERE id = ?').get(id) as
+      Row | undefined;
+    return row ? this.toChange(row) : undefined;
+  }
+
+  /** Newest first, without the undo details. */
+  changes(limit = 100, since?: string): AiChange[] {
+    const rows = (
+      since
+        ? this.sql
+            .prepare('SELECT * FROM ai_changes WHERE at > ? ORDER BY at DESC, rowid DESC LIMIT ?')
+            .all(since, limit)
+        : this.sql
+            .prepare('SELECT * FROM ai_changes ORDER BY at DESC, rowid DESC LIMIT ?')
+            .all(limit)
+    ) as Row[];
+    return rows.map((r) => {
+      const c = this.toChange(r);
+      delete c.inverse;
+      delete c.guard;
+      return c;
+    });
+  }
+
+  markReverted(id: string) {
+    this.sql
+      .prepare('UPDATE ai_changes SET reverted_at = ? WHERE id = ? AND reverted_at IS NULL')
+      .run(this.now().toISOString(), id);
+    this.changed('audit');
   }
 
   list(): Grant[] {

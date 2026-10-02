@@ -6,7 +6,17 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { STORE_NAMES } from '../../src/db/migrations';
 import { createRepositories } from '../../src/db/repositories';
+import { CLAUDE_GUIDE } from '../../src/features/space/guide';
+import {
+  CAPABILITIES,
+  GRANT_PRESETS,
+  type Capability,
+  type GrantChanges,
+  type GrantPreset,
+} from '../../src/db/companion/wire';
+import { Checkpoints } from './checkpoints';
 import { loadConfig, type CompanionConfig } from './config';
+import { SystemService } from './system';
 import {
   CLIENT_KINDS,
   clientStatuses,
@@ -51,6 +61,12 @@ export interface CompanionOptions {
   now?: () => Date;
   syncDebounceMs?: number;
   log?: (line: string) => void;
+  /** How to restart this process (main.ts); absent: restart isn't offered. */
+  onRestart?: () => void;
+  /** Where the LaunchAgent goes (tests). */
+  launchAgentsDir?: string;
+  /** What the LaunchAgent runs (defaults to this process). */
+  program?: { node: string; script: string; cwd: string };
 }
 
 export interface Companion {
@@ -152,6 +168,49 @@ function send(
   res.end(text);
 }
 
+function parseCapabilities(value: unknown): Capability[] | undefined {
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value) || value.some((c) => !CAPABILITIES.includes(c as Capability))) {
+    throw new HttpError(400, 'Unknown permission');
+  }
+  return value as Capability[];
+}
+
+function parsePreset(value: unknown): GrantPreset | undefined {
+  if (value === undefined) return undefined;
+  if (value !== 'custom' && !GRANT_PRESETS.includes(value as never)) {
+    throw new HttpError(400, 'Unknown preset');
+  }
+  return value as GrantPreset;
+}
+
+function parseGrantChanges(body: unknown, projectIds: Set<string>): GrantChanges {
+  if (!body || typeof body !== 'object') throw new HttpError(400, 'Expected changes');
+  const b = body as Record<string, unknown>;
+  const out: GrantChanges = {};
+  if (typeof b.label === 'string') out.label = b.label.trim().slice(0, 80);
+  if (b.scope !== undefined) {
+    if (!['project', 'workspace', 'global'].includes(b.scope as string))
+      throw new HttpError(400, 'Choose a scope');
+    out.scope = b.scope as GrantChanges['scope'] & string;
+  }
+  if (b.projectId !== undefined) {
+    if (!projectIds.has(b.projectId as string))
+      throw new HttpError(400, 'Choose an existing project');
+    out.projectId = b.projectId as string;
+  }
+  if (b.sensitive !== undefined) {
+    if (!Array.isArray(b.sensitive) || b.sensitive.some((x) => !SENSITIVE.includes(x as never)))
+      throw new HttpError(400, 'Unknown private category');
+    out.sensitive = b.sensitive as NonNullable<GrantChanges['sensitive']>;
+  }
+  const capabilities = parseCapabilities(b.capabilities);
+  if (capabilities) out.capabilities = capabilities;
+  const preset = parsePreset(b.preset);
+  if (preset) out.preset = preset;
+  return out;
+}
+
 function parseGrant(body: unknown, projectIds: Set<string>): NewGrant {
   if (!body || typeof body !== 'object') throw new HttpError(400, 'Expected a grant');
   const b = body as Record<string, unknown>;
@@ -160,7 +219,10 @@ function parseGrant(body: unknown, projectIds: Set<string>): NewGrant {
   if (!['project', 'workspace', 'global'].includes(b.scope as string)) {
     throw new HttpError(400, 'Choose a scope');
   }
-  if (b.access !== 'read' && b.access !== 'write') throw new HttpError(400, 'Choose access');
+  const capabilities = parseCapabilities(b.capabilities);
+  const preset = parsePreset(b.preset);
+  if (!capabilities && b.access !== 'read' && b.access !== 'write')
+    throw new HttpError(400, 'Choose access');
   if (b.scope === 'project' && !projectIds.has(b.projectId as string)) {
     throw new HttpError(400, 'Choose an existing project');
   }
@@ -173,9 +235,11 @@ function parseGrant(body: unknown, projectIds: Set<string>): NewGrant {
     clientKind: b.clientKind as NewGrant['clientKind'],
     scope: b.scope as NewGrant['scope'],
     ...(b.scope === 'project' ? { projectId: b.projectId as string } : {}),
-    access: b.access,
+    ...(b.access === 'read' || b.access === 'write' ? { access: b.access } : {}),
     allowResolveApprovals: b.allowResolveApprovals === true,
     sensitive: sensitive as NonNullable<NewGrant['sensitive']>,
+    ...(capabilities ? { capabilities } : {}),
+    ...(preset ? { preset } : {}),
   };
 }
 
@@ -188,7 +252,22 @@ export async function startCompanion(options: CompanionOptions): Promise<Compani
     ...(options.allowedOrigins ? { allowedOrigins: options.allowedOrigins } : {}),
   };
   const now = options.now ?? (() => new Date());
-  const log = options.log ?? (() => undefined);
+  const system = new SystemService(
+    options.dataDir,
+    {
+      ...(options.program ?? {
+        node: process.execPath,
+        script: process.argv[1] ?? '',
+        cwd: process.cwd(),
+      }),
+      port: config.port,
+    },
+    options.launchAgentsDir ? { launchAgentsDir: options.launchAgentsDir } : {},
+  );
+  const log = (line: string) => {
+    options.log?.(line);
+    system.log(`[${now().toISOString()}] ${line}`);
+  };
   const database = options.database ?? join(options.dataDir, 'lowtide.sqlite');
 
   const store = new SqliteStore(database);
@@ -197,7 +276,15 @@ export async function startCompanion(options: CompanionOptions): Promise<Compani
   const owner = createRepositories(store, { watch: store.watch, clock: now });
   const sync = new WorkspaceSync(store, owner, config.workspaceDir, now, options.syncDebounceMs);
   await sync.start();
-  const mcp = new McpServer({ store, grants, sync, now }, COMPANION_VERSION);
+  const checkpoints =
+    database === ':memory:' ? undefined : new Checkpoints(store, options.dataDir, now);
+  // LOWTIDE's own pages (templates, the AI operating guide); never into an
+  // empty companion, which a migration must fill first.
+  if (!(await isEmpty(store))) await owner.space.ensureSystemPages(CLAUDE_GUIDE);
+  const mcp = new McpServer(
+    { store, grants, sync, now, ...(checkpoints ? { checkpoints } : {}) },
+    COMPANION_VERSION,
+  );
   const limiter = new RateLimiter();
   const streams = new Set<ServerResponse>();
   const startedAt = now().toISOString();
@@ -269,6 +356,65 @@ export async function startCompanion(options: CompanionOptions): Promise<Compani
     res.on('error', close);
   }
 
+  /** Undoes AI changes, newest first, each only if nothing changed it since. */
+  async function revert(ids: string[]) {
+    const changes = ids
+      .map((id) => grants.change(id))
+      .filter((c): c is NonNullable<typeof c> => c !== undefined)
+      .sort((a, b) => b.at.localeCompare(a.at));
+    if (!changes.length) throw new HttpError(404, 'No such change');
+    for (const change of changes) {
+      if (change.revertedAt) throw new HttpError(409, 'That change was already undone');
+      if (!change.inverse?.length)
+        throw new HttpError(409, 'That change can’t be undone automatically');
+    }
+    await store.transaction(
+      'rw',
+      STORE_NAMES.map((n) => store[n]),
+      async () => {
+        for (const change of changes) {
+          const guard = change.guard;
+          if (guard) {
+            if (!(STORE_NAMES as readonly string[]).includes(guard.store))
+              throw new HttpError(409, 'That change can’t be undone automatically');
+            const record = (await (
+              store as unknown as Record<string, { get(id: string): Promise<unknown> }>
+            )[guard.store]!.get(guard.id)) as Record<string, unknown> | undefined;
+            const moved =
+              !record ||
+              (guard.revision !== undefined && (record.revision ?? 0) !== guard.revision) ||
+              (guard.updatedAt !== undefined && record.updatedAt !== guard.updatedAt) ||
+              Object.entries(guard.fields ?? {}).some(
+                ([k, v]) => JSON.stringify(record[k] ?? null) !== JSON.stringify(v ?? null),
+              );
+            if (moved) {
+              throw new HttpError(
+                409,
+                `“${change.summary}” can’t be undone: it changed after that. Change it by hand.`,
+              );
+            }
+          }
+          for (const inverse of change.inverse!) {
+            const args = await Promise.all(
+              inverse.args.map(async (a) =>
+                a && typeof a === 'object' && '$revision' in (a as object)
+                  ? ((await store.spaceNodes.get((a as { $revision: string }).$revision))
+                      ?.revision ?? 0)
+                  : a,
+              ),
+            );
+            await dispatch(owner, { repo: inverse.repo, member: inverse.member, args });
+          }
+        }
+      },
+    );
+    for (const change of changes) {
+      grants.markReverted(change.id);
+      log(`undid AI change: ${change.summary}`);
+    }
+    return changes.map((c) => grants.changes(500).find((x) => x.id === c.id));
+  }
+
   async function ownerRoute(
     req: IncomingMessage,
     res: ServerResponse,
@@ -306,6 +452,109 @@ export async function startCompanion(options: CompanionOptions): Promise<Compani
         `AI grant created: ${created.grant.label} (${created.grant.scope}, ${created.grant.access})`,
       );
       return ok(created);
+    }
+    const grantPath = /^\/api\/ai\/grants\/([0-9a-f-]{36})$/.exec(path);
+    if (method === 'POST' && grantPath) {
+      const projects = new Set((await store.projects.toArray()).map((p) => p.id));
+      try {
+        const updated = grants.update(grantPath[1]!, parseGrantChanges(await json(), projects));
+        log(`AI grant changed: ${updated.label} (${updated.scope}, ${updated.preset})`);
+        return ok(updated);
+      } catch (error) {
+        if (error instanceof HttpError) throw error;
+        throw new HttpError(400, (error as Error).message);
+      }
+    }
+    if (method === 'GET' && path === '/api/ai/changes') {
+      const limit = Math.min(Math.max(Number(url.searchParams.get('limit') ?? 100) || 100, 1), 500);
+      const since = url.searchParams.get('since') ?? undefined;
+      return ok(grants.changes(limit, since));
+    }
+    const revertOne = /^\/api\/ai\/changes\/([0-9a-f-]{36})\/revert$/.exec(path);
+    if (method === 'POST' && revertOne) return ok(await revert([revertOne[1]!]));
+    const revertBatch = /^\/api\/ai\/changes\/batch\/([0-9a-f-]{36})\/revert$/.exec(path);
+    if (method === 'POST' && revertBatch) {
+      const ids = grants
+        .changes(500)
+        .filter((c) => c.batchId === revertBatch[1] && c.revertible)
+        .map((c) => c.id);
+      return ok(await revert(ids));
+    }
+    if (method === 'GET' && path === '/api/checkpoints') return ok(checkpoints?.list() ?? []);
+    if (method === 'POST' && path === '/api/checkpoints') {
+      if (!checkpoints) throw new HttpError(501, 'Checkpoints need a database file');
+      const body = (await json()) as { name?: unknown };
+      const name =
+        typeof body?.name === 'string' && body.name.trim() ? body.name.trim() : 'Checkpoint';
+      const cp = await checkpoints.create(name, 'owner');
+      log(`checkpoint taken: ${cp.name}`);
+      return ok(cp);
+    }
+    const checkpointAction =
+      /^\/api\/checkpoints\/([0-9TZ-]+-[a-z0-9-]{1,60})\/(restore|remove)$/.exec(path);
+    if (method === 'POST' && checkpointAction) {
+      if (!checkpoints) throw new HttpError(501, 'Checkpoints need a database file');
+      const [, cpId, action] = checkpointAction;
+      const known = checkpoints.list().find((c) => c.id === cpId);
+      if (!known) throw new HttpError(404, 'No such checkpoint');
+      if (action === 'remove') {
+        checkpoints.remove(cpId!);
+        return ok({ removed: true });
+      }
+      // Restoring is a normal, validated backup restore, with a checkpoint first.
+      await checkpoints.create(`Before restoring ${known.name}`, 'owner', true);
+      const inspection = owner.backup.inspect(await checkpoints.readAsBackup(cpId!));
+      if (!inspection.ok)
+        throw new HttpError(422, `That checkpoint can’t be restored (${inspection.problem})`);
+      await owner.backup.restore(inspection.backup);
+      log(`restored checkpoint: ${known.name}`);
+      return ok({ restored: known });
+    }
+    if (method === 'GET' && path === '/api/health/details') {
+      const check = store.sql.prepare('PRAGMA quick_check').get() as { quick_check: string };
+      return ok({
+        companion: { running: true, version: COMPANION_VERSION, startedAt, pid: process.pid },
+        database: {
+          healthy: check.quick_check === 'ok',
+          detail: check.quick_check,
+          path: database,
+          schemaVersion: Number(getMeta(store.sql, 'lowtide_schema_version')),
+        },
+        mcp: { available: true, url: `http://127.0.0.1:${port}/mcp`, bridge: BRIDGE_PATH },
+        workspace: {
+          healthy: !(sync.lastReport?.conflicts.length ?? 0),
+          dir: sync.root,
+          lastSync: sync.lastReport?.at ?? null,
+          conflicts: sync.lastReport?.conflicts ?? [],
+        },
+        autostart: system.autostart(),
+        restart: Boolean(options.onRestart),
+      });
+    }
+    if (method === 'GET' && path === '/api/system/logs') {
+      const lines = Math.min(
+        Math.max(Number(url.searchParams.get('lines') ?? 200) || 200, 1),
+        2000,
+      );
+      return ok({ file: system.logFile, lines: system.tail(lines) });
+    }
+    if (method === 'POST' && path === '/api/system/autostart') {
+      const body = (await json()) as { enabled?: unknown; restartOnFailure?: unknown };
+      try {
+        const status = system.setAutostart(body?.enabled === true, body?.restartOnFailure === true);
+        log(
+          `start at login ${status.enabled ? 'on' : 'off'}${status.restartOnFailure ? ', restart on failure' : ''}`,
+        );
+        return ok(status);
+      } catch (error) {
+        throw new HttpError(400, (error as Error).message);
+      }
+    }
+    if (method === 'POST' && path === '/api/system/restart') {
+      if (!options.onRestart) throw new HttpError(501, 'This companion can’t restart itself');
+      log('restart requested from LOWTIDE');
+      setTimeout(() => options.onRestart!(), 150);
+      return ok({ restarting: true });
     }
     const revoke = /^\/api\/ai\/grants\/([0-9a-f-]{36})\/revoke$/.exec(path);
     if (method === 'POST' && revoke) {

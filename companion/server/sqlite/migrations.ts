@@ -130,6 +130,40 @@ export const MIGRATIONS: Migration[] = [
       sql.exec('CREATE INDEX IF NOT EXISTS tasks_parent_id ON tasks (parent_id)');
     },
   },
+  {
+    id: 7,
+    name: 'companion (v2.1): grant capabilities and presets, AI change log',
+    statements: () => [],
+    // Additive: an older companion reads grants by name and ignores the new
+    // columns, and never touches the new table.
+    apply: (sql) => {
+      const columns = new Set(
+        (sql.prepare('PRAGMA table_info(ai_grants)').all() as { name: string }[]).map(
+          (c) => c.name,
+        ),
+      );
+      if (!columns.has('capabilities'))
+        sql.exec(
+          'ALTER TABLE ai_grants ADD COLUMN capabilities TEXT CHECK (capabilities IS NULL OR json_valid(capabilities))',
+        );
+      if (!columns.has('preset')) sql.exec('ALTER TABLE ai_grants ADD COLUMN preset TEXT');
+      sql.exec(`CREATE TABLE IF NOT EXISTS ai_changes (
+        id TEXT PRIMARY KEY,
+        at TEXT NOT NULL,
+        grant_id TEXT NOT NULL,
+        client TEXT NOT NULL,
+        tool TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        entity_type TEXT,
+        entity_id TEXT,
+        batch_id TEXT,
+        inverse TEXT CHECK (inverse IS NULL OR json_valid(inverse)),
+        guard TEXT CHECK (guard IS NULL OR json_valid(guard)),
+        reverted_at TEXT
+      ) STRICT`);
+      sql.exec('CREATE INDEX IF NOT EXISTS ai_changes_at ON ai_changes (at)');
+    },
+  },
 ];
 
 /** ALTER TABLE … ADD COLUMN for each field the table doesn't have yet (from its current spec). */

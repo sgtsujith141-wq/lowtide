@@ -66,6 +66,7 @@ export const REPOSITORY_CONTRACT = {
   backup: { exportBackup: 'call', watchCounts: 'watch', inspect: 'local', restore: 'call' },
   projects: {
     create: 'call',
+    createWithSetup: 'call',
     createFromHackathon: 'call',
     update: 'call',
     setState: 'call',

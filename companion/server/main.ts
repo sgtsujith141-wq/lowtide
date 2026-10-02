@@ -1,3 +1,4 @@
+import { spawn } from 'node:child_process';
 import { parseArgs } from 'node:util';
 import { startCompanion } from './app';
 import { defaultDataDir, loadConfig, rotateOwnerToken } from './config';
@@ -91,11 +92,27 @@ async function main() {
     process.exitCode = 2;
     return;
   }
-  const companion = await startCompanion({
+  const companion: Awaited<ReturnType<typeof startCompanion>> = await startCompanion({
     dataDir,
     ...(port !== undefined ? { port } : {}),
     ...(values.workspace ? { workspaceDir: values.workspace } : {}),
     log: (line) => console.log(`[${new Date().toISOString()}] ${line}`),
+    // Restart (Settings): launchd brings back an agent that restarts on
+    // failure; otherwise a fresh copy is started before this one exits.
+    onRestart: () => {
+      void companion.close().then(() => {
+        if (process.env.LOWTIDE_LAUNCHD === '1' && process.env.LOWTIDE_KEEPALIVE === '1') {
+          process.exit(75);
+        }
+        const child = spawn(process.execPath, process.argv.slice(1), {
+          detached: true,
+          stdio: 'ignore',
+          env: process.env,
+        });
+        child.unref();
+        process.exit(0);
+      });
+    },
   });
   console.log(`
   Data:       ${dataDir}

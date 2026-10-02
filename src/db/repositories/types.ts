@@ -464,8 +464,34 @@ export interface NewDecision {
  * moves a project also upserts today's progress snapshot and appends its
  * ledger event in the same transaction. Projects are archived, never deleted.
  */
+/** What to set up with a new project (v2.1). */
+export interface ProjectSetup {
+  /** Make the project's SPACE folder (default true). */
+  spaceHome?: boolean;
+  /** A project template id (`software`, `hackathon`, `research`, `content`, `utility`). */
+  template?: string;
+  /** Also make the template's suggested milestones (default false). */
+  templateMilestones?: boolean;
+  /** Milestones to make, in order (after any template ones). */
+  milestones?: string[];
+}
+
+export interface ProjectCreated {
+  project: Project;
+  /** The project's SPACE folder, when made. */
+  space?: SpaceNode;
+  milestones: Milestone[];
+  /** SPACE pages and databases the setup made. */
+  pages: SpaceNode[];
+}
+
 export interface ProjectRepository {
   create(input: NewProject): Promise<Project>;
+  /**
+   * A project and its setup in one transaction (v2.1): the SPACE folder,
+   * template sections and pages, and milestones. All of it, or nothing.
+   */
+  createWithSetup(input: NewProject, setup?: ProjectSetup): Promise<ProjectCreated>;
   /**
    * Creates a technical project for a hackathon's build and links it
    * (`hackathon.projectId`) in one transaction. Only on explicit request

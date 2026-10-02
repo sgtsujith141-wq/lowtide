@@ -8,12 +8,15 @@ import type {
   ProjectLane,
   ProjectState,
 } from '../../types/domain';
+import { parseBody } from '../../lib/space-blocks';
+import { templateById } from '../project-templates';
 import { checkProjectItem, checkProjectTransition, defaultLane } from '../rules';
+import { createDexieSpaceRepository } from './dexie-space-repository';
 import { decisionSchema, milestoneSchema, projectItemSchema, projectSchema } from '../schema';
 import { InvalidInputError, RecordNotFoundError, RecordStateError } from './errors';
 import { deleteEventsFor, eventWriter, refreshSnapshot } from './ledger';
 import { omitUndefined, resolveDeps, type RepositoryDeps } from './shared';
-import type { ProjectRepository } from './types';
+import type { ProjectCreated, ProjectRepository } from './types';
 
 /** Live (not archived) milestones in pipeline order. */
 export function liveOrder(milestones: readonly Milestone[]): Milestone[] {
@@ -107,7 +110,59 @@ export function createDexieProjectRepository(deps: RepositoryDeps): ProjectRepos
     }
   }
 
-  return {
+  const repository: ProjectRepository = {
+    createWithSetup(input, setup = {}) {
+      const template = setup.template ? templateById(setup.template) : undefined;
+      if (setup.template && !template) {
+        return Promise.reject(new InvalidInputError(`No project template “${setup.template}”`));
+      }
+      const space = createDexieSpaceRepository(deps);
+      return db.transaction('rw', [...all, db.spaceNodes], async (): Promise<ProjectCreated> => {
+        const project = await repository.create({
+          ...input,
+          ...(template && !input.kind ? { kind: template.kind } : {}),
+        });
+        const created: ProjectCreated = { project, milestones: [], pages: [] };
+        if (setup.spaceHome !== false || template) {
+          created.space = await space.ensureProjectSpace(project.id);
+          for (const slot of template?.slots ?? [])
+            await space.ensureProjectSpace(project.id, slot);
+          for (const [slot, title, markdown] of template?.pages ?? []) {
+            const parent = await space.ensureProjectSpace(project.id, slot);
+            created.pages.push(
+              await space.create({ parentId: parent.id, title, blocks: parseBody(markdown) }),
+            );
+          }
+          if (template?.database) {
+            const parent = await space.ensureProjectSpace(project.id, template.database.slot);
+            created.pages.push(
+              await space.create({
+                parentId: parent.id,
+                title: template.database.title,
+                table: {
+                  columns: template.database.columns.map((c, i) => ({
+                    id: `c${i + 1}`,
+                    name: c.name,
+                    type: c.type,
+                    ...(c.options ? { options: c.options.map((name) => ({ name })) } : {}),
+                  })),
+                  rows: [],
+                },
+              }),
+            );
+          }
+        }
+        const titles = [
+          ...(setup.templateMilestones && template ? template.milestones : []),
+          ...(setup.milestones ?? []),
+        ];
+        for (const title of titles) {
+          created.milestones.push(await repository.addMilestone(project.id, { title }));
+        }
+        return created;
+      });
+    },
+
     create(input) {
       return db.transaction('rw', all, async () => {
         const now = clock();
@@ -669,6 +724,7 @@ export function createDexieProjectRepository(deps: RepositoryDeps): ProjectRepos
       );
     },
   };
+  return repository;
 
   /** Gives live milestones orders 0…n-1 in this order, then archived ones after them. */
   async function renumber(projectId: Id, liveIds: readonly Id[]) {

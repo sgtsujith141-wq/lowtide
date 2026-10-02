@@ -79,8 +79,14 @@ describe('MCP protocol (Streamable HTTP, JSON responses)', () => {
     expect(reader.sessionId).toMatch(/^[0-9a-f-]{36}$/);
     expect(reader.initializedStatus).toBe(202);
 
-    const listed = (await reader.request('tools/list')).result!.tools as { name: string }[];
-    expect(listed.map((x) => x.name)).toEqual(READ_TOOLS);
+    const listed = (await reader.request('tools/list')).result!.tools as {
+      name: string;
+      annotations: { readOnlyHint: boolean };
+    }[];
+    // A read-only grant lists only tools that change nothing.
+    expect(listed.every((x) => x.annotations.readOnlyHint)).toBe(true);
+    expect(listed.map((x) => x.name)).toEqual(expect.arrayContaining(READ_TOOLS));
+    expect(listed.map((x) => x.name)).toContain('get_lowtide_capabilities');
 
     const writer = await mcpClient(
       t.companion.url,
@@ -89,7 +95,13 @@ describe('MCP protocol (Streamable HTTP, JSON responses)', () => {
     const writable = ((await writer.request('tools/list')).result!.tools as { name: string }[]).map(
       (x) => x.name,
     );
-    expect(writable).toEqual([...READ_TOOLS, ...WRITE_TOOLS]);
+    expect(writable).toEqual(
+      expect.arrayContaining([
+        ...READ_TOOLS,
+        ...WRITE_TOOLS.filter((n) => n !== 'resolve_approval'),
+      ]),
+    );
+    expect(writable).not.toContain('resolve_approval');
     const delegate = await mcpClient(
       t.companion.url,
       await t.grant({ scope: 'project', access: 'write', allowResolveApprovals: true }),
@@ -399,7 +411,10 @@ describe('MCP protocol (Streamable HTTP, JSON responses)', () => {
     const refused = await writer.call('resolve_approval', {
       item: (approval.json as { id: string }).id,
     });
-    expect(refused).toMatchObject({ isError: true, text: expect.stringMatching(/hasn’t allowed/) });
+    expect(refused).toMatchObject({
+      isError: true,
+      text: 'Cannot resolve an approval. Grant lacks approvals.resolve.',
+    });
     expect((await writer.call('get_project', { project: 'side-quest' })).isError).toBe(false);
     const bad = await writer.call('create_note', { title: '', body: 'y', extra: true });
     expect(bad).toMatchObject({ isError: true, text: expect.stringMatching(/Invalid arguments/) });
