@@ -47,7 +47,7 @@ const capitalise = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 export function concise(full: string, projectName?: string, max = CONCISE_MAX): Concise {
   const original = full.trim();
   let text = projectName ? withoutProjectPrefix(original, projectName) : original;
-  text = text.replace(LABEL, '');
+  text = text.replace(LABEL, '').replace(/^[A-Z][A-Z0-9 ._-]{1,24}\d[^:]{0,24}:\s+/, '');
   for (const [pattern, say] of PHRASES) {
     const m = text.match(pattern);
     if (m) {

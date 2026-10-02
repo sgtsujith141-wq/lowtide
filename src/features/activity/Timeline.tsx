@@ -20,6 +20,7 @@ import { useRepositories } from '../../hooks/useRepositories';
 import { useWatch } from '../../hooks/useWatch';
 import { formatFull, formatWhen } from '../../lib/when';
 import type { EventType } from '../../types/domain';
+import { concise } from '../projects/display';
 
 const EVENT: Record<EventType, { icon: LucideIcon; text: string }> = {
   'work.started': { icon: Play, text: 'Started work' },
@@ -47,7 +48,10 @@ function sentence({ event, title }: TimelineEntry): string {
     return 'Details updated';
   }
   const base = EVENT[event.type].text;
-  return title ? `${base}: ${title}` : base;
+  // AI summaries can be long: one deterministic line here; the record keeps all of it.
+  const shown =
+    title && event.type === 'ai.session.completed' ? concise(title, undefined, 80).text : title;
+  return shown ? `${base}: ${shown}` : base;
 }
 
 /**
