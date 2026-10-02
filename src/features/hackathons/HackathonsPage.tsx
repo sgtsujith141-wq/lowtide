@@ -41,9 +41,7 @@ export function HackathonsPage() {
   const location = useLocation();
   // A hackathon just made from the New menu opens in its sheet.
   const wanted = (location.state as { open?: unknown } | null)?.open;
-  const [openId, setOpenId] = useState<string | null>(
-    typeof wanted === 'string' ? wanted : null,
-  );
+  const [openId, setOpenId] = useState<string | null>(typeof wanted === 'string' ? wanted : null);
   const [seen, setSeen] = useState(location.key);
   if (seen !== location.key) {
     setSeen(location.key);
