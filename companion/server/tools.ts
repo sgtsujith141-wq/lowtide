@@ -21,6 +21,7 @@ import { operatorTools } from './tools/operator';
 import { spaceOperatorTools } from './tools/space-operator';
 import { lifeTools } from './tools/life';
 import { metaTools } from './tools/meta';
+import { annotationsFor } from './tools/annotations';
 
 export type { CallContext, ToolResult, ToolServices } from './tools/kit';
 
@@ -73,17 +74,16 @@ export function toolsFor(grant: Grant) {
   return TOOLS.filter((t) => refusalFor(grant, t) === undefined).map((t) => {
     const inputSchema = z.toJSONSchema(t.input) as Record<string, unknown>;
     delete inputSchema.$schema; // plain JSON Schema for every client
+    const required = [...needs(t), ...(t.category ? [`private ${t.category}`] : [])];
     return {
       name: t.name,
       title: t.title,
-      description: t.description,
+      // What it needs is part of the description so a model can explain a refusal.
+      description: required.length
+        ? `${t.description} Needs ${required.join(' and ')}.`
+        : t.description,
       inputSchema,
-      annotations: {
-        readOnlyHint: !t.write,
-        destructiveHint: false,
-        idempotentHint: !t.write,
-        openWorldHint: false,
-      },
+      annotations: annotationsFor(t),
     };
   });
 }

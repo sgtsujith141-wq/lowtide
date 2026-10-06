@@ -5,6 +5,7 @@ import type { AddressInfo } from 'node:net';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { STORE_NAMES } from '../../src/db/migrations';
+import { LOWTIDE_VERSION } from '../../src/lib/version';
 import { createRepositories } from '../../src/db/repositories';
 import { CLAUDE_GUIDE } from '../../src/features/space/guide';
 import {
@@ -45,7 +46,8 @@ import { WorkspaceSync } from './workspace-sync';
  * time; per-token rate limits; body size limits; JSON-only bodies.
  */
 
-export const COMPANION_VERSION = '1.0.0';
+/** The companion reports LOWTIDE's version (v2.3). */
+export const COMPANION_VERSION = LOWTIDE_VERSION;
 
 /** The stdio bridge AI clients launch (companion/lowtide-mcp.ts), from source or dist. */
 export const BRIDGE_PATH = join(dirname(fileURLToPath(import.meta.url)), '..', 'lowtide-mcp.ts');

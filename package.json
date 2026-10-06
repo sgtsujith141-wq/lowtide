@@ -1,7 +1,7 @@
 {
   "name": "lowtide",
   "private": true,
-  "version": "0.1.0",
+  "version": "2.3.0",
   "description": "LOWTIDE: a calm, local-first place to run a personal life after a long day.",
   "type": "module",
   "engines": {

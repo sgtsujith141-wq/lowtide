@@ -6,10 +6,11 @@ import {
   SENSITIVE,
   type Capability,
 } from '../../../src/db/companion/wire';
+import { SCHEMA_VERSION } from '../../../src/db/schema';
+import { LOWTIDE_VERSION } from '../../../src/lib/version';
 import { MATRIX } from './matrix';
 import {
   limitArg,
-  needs,
   norm,
   slugOf,
   spaceView,
@@ -61,16 +62,25 @@ export const metaTools: Tool[] = [
         ? data.projects.find((p) => p.id === grant.projectId)
         : undefined;
       const guide = data.spaceNodes.find((n) => n.key === 'lowtide:guide');
+      // Compact: an operation's tools when this grant can use them, otherwise why not.
       const cell = (c: unknown) => {
-        if (typeof c === 'string') return { tools: [c], usable: usable.has(c.split(' ')[0]!) };
-        if (Array.isArray(c))
-          return { tools: c, usable: c.some((x: string) => usable.has(x.split(' ')[0]!)) };
-        return c;
+        const tools = typeof c === 'string' ? [c] : Array.isArray(c) ? (c as string[]) : undefined;
+        if (!tools) return (c as { restricted: string }).restricted;
+        return tools.some((x) => usable.has(x.split(' ')[0]!))
+          ? tools.join(', ')
+          : 'not with this connection';
       };
       return {
         value: {
+          lowtide: {
+            version: LOWTIDE_VERSION,
+            schemaVersion: SCHEMA_VERSION,
+            mcpServer: { name: 'lowtide', version: LOWTIDE_VERSION },
+          },
           connection: {
             name: grant.label,
+            client: grant.clientKind,
+            grant: grant.id,
             scope:
               grant.scope === 'project'
                 ? `one project: ${project?.name ?? grant.projectId}`
@@ -78,25 +88,18 @@ export const metaTools: Tool[] = [
                   ? 'every project and hackathon, and SPACE outside College and Personal'
                   : 'everything except Protected Time',
             preset: grant.preset,
-            permissions: CAPABILITIES.map((c: Capability) => ({
-              capability: c,
-              allowed: grant.capabilities.includes(c),
-              what: CAPABILITY_LABEL[c],
-            })),
-            privateCategories: SENSITIVE.map((s) => ({
-              category: s,
-              allowed: grant.scope === 'global' && grant.sensitive.includes(s),
-            })),
+            allowed: CAPABILITIES.filter((c: Capability) => grant.capabilities.includes(c)).map(
+              (c) => `${c} (${CAPABILITY_LABEL[c]})`,
+            ),
+            notAllowed: CAPABILITIES.filter((c: Capability) => !grant.capabilities.includes(c)),
+            privateCategories: SENSITIVE.filter(
+              (s) => grant.scope === 'global' && grant.sensitive.includes(s),
+            ),
+            tools: usable.size,
           },
           entities: MATRIX.map((row) => ({
             entity: row.entity,
             ...Object.fromEntries(Object.entries(row.mcp).map(([op, c]) => [op, cell(c)])),
-          })),
-          tools: TOOLS.map((t) => ({
-            name: t.name,
-            needs: [...needs(t), ...(t.category ? [`private:${t.category}`] : [])],
-            usable: usable.has(t.name),
-            ...(t.dryRun ? { dryRun: true } : {}),
           })),
           rules: CONSTRAINTS,
           refusals:
