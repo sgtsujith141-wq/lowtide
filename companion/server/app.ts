@@ -278,9 +278,14 @@ export async function startCompanion(options: CompanionOptions): Promise<Compani
   await sync.start();
   const checkpoints =
     database === ':memory:' ? undefined : new Checkpoints(store, options.dataDir, now);
-  // LOWTIDE's own pages (templates, the AI operating guide); never into an
-  // empty companion, which a migration must fill first.
-  if (!(await isEmpty(store))) await owner.space.ensureSystemPages(CLAUDE_GUIDE);
+  // The top-level SPACE sections (so a section added by an upgrade, such as
+  // Areas, is there for MCP before the app opens SPACE) and LOWTIDE's own
+  // pages (templates, the AI operating guide); never into an empty companion,
+  // which a migration must fill first.
+  if (!(await isEmpty(store))) {
+    await owner.space.ensureRoots();
+    await owner.space.ensureSystemPages(CLAUDE_GUIDE);
+  }
   const mcp = new McpServer(
     { store, grants, sync, now, ...(checkpoints ? { checkpoints } : {}) },
     COMPANION_VERSION,

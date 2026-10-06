@@ -14,21 +14,22 @@ function setup() {
 }
 
 describe('SPACE (ADR-062)', () => {
-  it('keeps seven top-level sections, created once', async () => {
+  it('keeps eight top-level sections, created once', async () => {
     const { r } = setup();
     const first = await r.space.ensureRoots();
     const again = await r.space.ensureRoots();
     expect(first.map((n) => [n.key, n.title, n.order])).toEqual([
       ['projects', 'Projects', 0],
-      ['hackathons', 'Hackathons', 1],
-      ['college', 'College', 2],
-      ['ideas', 'Ideas', 3],
-      ['personal', 'Personal', 4],
-      ['archive', 'Archive', 5],
-      ['lowtide', 'LOWTIDE', 6],
+      ['areas', 'Areas', 1],
+      ['hackathons', 'Hackathons', 2],
+      ['college', 'College', 3],
+      ['ideas', 'Ideas', 4],
+      ['personal', 'Personal', 5],
+      ['archive', 'Archive', 6],
+      ['lowtide', 'LOWTIDE', 7],
     ]);
     expect(again.map((n) => n.id)).toEqual(first.map((n) => n.id));
-    expect((await r.space.getByKey('archive'))?.id).toBe(first[5]!.id);
+    expect((await r.space.getByKey('archive'))?.id).toBe(first[6]!.id);
   });
 
   it('nests pages in order and refuses to move a page inside itself', async () => {

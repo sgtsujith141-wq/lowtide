@@ -905,6 +905,11 @@ export const SPACE_EDIT_LIMIT = 200;
 /** The top-level SPACE sections LOWTIDE keeps (ADR-062), in display order. */
 export const SPACE_ROOTS = [
   { key: 'projects', title: 'Projects' },
+  /**
+   * v2.2 (ADR-071): ongoing areas and tracks that aren't projects (learning,
+   * career, a life plan) and the databases they keep.
+   */
+  { key: 'areas', title: 'Areas' },
   { key: 'hackathons', title: 'Hackathons' },
   { key: 'college', title: 'College' },
   { key: 'ideas', title: 'Ideas' },

@@ -144,7 +144,7 @@ describe('schema V10: descriptions and pins', () => {
 
 describe('schema V10: SPACE structure', () => {
   async function tree(r: Repositories) {
-    const [, , , ideas] = await r.space.ensureRoots();
+    const ideas = (await r.space.ensureRoots()).find((n) => n.key === 'ideas');
     const folder = await r.space.create({
       parentId: ideas!.id,
       kind: 'section',
@@ -209,7 +209,7 @@ describe('schema V10: SPACE structure', () => {
 describe('schema V10: SPACE blocks', () => {
   it('inserts, moves, replaces and removes blocks, refusing stale writes', async () => {
     const { r } = setup();
-    const [, , , ideas] = await r.space.ensureRoots();
+    const ideas = (await r.space.ensureRoots()).find((n) => n.key === 'ideas');
     const page = await r.space.create({
       parentId: ideas!.id,
       title: 'Doc',
@@ -242,7 +242,7 @@ describe('schema V10: SPACE blocks', () => {
 
 describe('schema V10: SPACE databases', () => {
   async function database(r: Repositories) {
-    const [, , , ideas] = await r.space.ensureRoots();
+    const ideas = (await r.space.ensureRoots()).find((n) => n.key === 'ideas');
     return r.space.create({
       parentId: ideas!.id,
       title: 'Tracker',
@@ -338,7 +338,7 @@ describe('schema V10: templates and LOWTIDE’s own pages', () => {
     await r.space.ensureSystemPages(guide);
     const all = await once(r.space.watchAll);
     const research = all.find((n) => n.title === 'Research Note')!;
-    const [, , , ideas] = await r.space.ensureRoots();
+    const ideas = (await r.space.ensureRoots()).find((n) => n.key === 'ideas');
     const page = await r.space.applyTemplate(research.id, ideas!.id, 'Compression libraries');
     expect(page).toMatchObject({ title: 'Compression libraries', revision: 0, kind: 'page' });
     expect(page.blocks!.map((b) => b.text)).toEqual(research.blocks!.map((b) => b.text));

@@ -321,7 +321,7 @@ export async function spaceView(env: Env): Promise<SpaceView> {
     if (root === 'personal') return granted(env, 'personalSpace');
     if (root === 'college') return grant.scope === 'global' && granted(env, 'college');
     if (grant.scope === 'workspace')
-      return ['projects', 'hackathons', 'ideas', 'archive'].includes(root ?? '');
+      return ['projects', 'areas', 'hackathons', 'ideas', 'archive'].includes(root ?? '');
     return true;
   };
   const home =
@@ -527,7 +527,7 @@ export async function ensurePath(
     let next = level.find((n) => !n.archived && titleEq(n.title, part));
     if (!next && !parent)
       throw new Refusal(
-        `“${part}” isn’t a SPACE section (use Projects, Hackathons, Ideas, College, Personal or Archive)`,
+        `“${part}” isn’t a SPACE section (use Projects, Areas, Hackathons, Ideas, College, Personal or Archive)`,
       );
     if (!next && parent) {
       const project = /^project:([^:]+)$/.exec(parent.key ?? '')?.[1];

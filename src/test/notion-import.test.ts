@@ -217,6 +217,7 @@ describe('Notion import: SPACE', () => {
     const roots = (await db.spaceNodes.toArray()).filter((n) => n.parentId === undefined);
     expect(roots.sort((a, b) => a.order - b.order).map((n) => n.key)).toEqual([
       'projects',
+      'areas',
       'hackathons',
       'college',
       'ideas',
