@@ -656,36 +656,27 @@ export async function startCompanion(options: CompanionOptions): Promise<Compani
           { ...cors, 'retry-after': '60' },
         );
       }
-      const sessionId = req.headers['mcp-session-id'];
-      const protocolVersion = req.headers['mcp-protocol-version'];
-      if (req.method === 'DELETE') {
-        const reply = mcp.delete(grant, typeof sessionId === 'string' ? sessionId : undefined);
-        return send(res, reply.status, reply.body, cors);
-      }
-      if (req.method !== 'POST') {
-        return send(res, 405, undefined, { ...cors, allow: 'POST, DELETE' });
+      for (const [k, v] of Object.entries(cors)) res.setHeader(k, v);
+      if (req.method !== 'POST' && req.method !== 'GET' && req.method !== 'DELETE') {
+        return send(res, 405, undefined, { ...cors, allow: 'POST, GET, DELETE' });
       }
       let body: unknown;
-      try {
-        body = JSON.parse(await readBody(req, MCP_BODY_LIMIT));
-      } catch (error) {
-        if (error instanceof HttpError) throw error;
-        return send(
-          res,
-          400,
-          { jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } },
-          cors,
-        );
+      if (req.method === 'POST') {
+        try {
+          body = JSON.parse(await readBody(req, MCP_BODY_LIMIT));
+        } catch (error) {
+          if (error instanceof HttpError) throw error;
+          return send(
+            res,
+            400,
+            { jsonrpc: '2.0', id: null, error: { code: -32700, message: 'Parse error' } },
+            cors,
+          );
+        }
       }
-      const reply = await mcp.post(
-        grant,
-        {
-          ...(typeof sessionId === 'string' ? { sessionId } : {}),
-          ...(typeof protocolVersion === 'string' ? { protocolVersion } : {}),
-        },
-        body,
-      );
-      return send(res, reply.status, reply.body, { ...cors, ...(reply.headers ?? {}) });
+      const reply = await mcp.handle(grant, req, res, body);
+      if (reply) return send(res, reply.status, reply.body, cors);
+      return;
     }
 
     if (path.startsWith('/api/')) {
@@ -741,6 +732,7 @@ export async function startCompanion(options: CompanionOptions): Promise<Compani
     sync,
     mcp,
     async close() {
+      await mcp.closeAll();
       await sync.stop();
       for (const res of streams) res.end();
       await new Promise<void>((resolve) => {

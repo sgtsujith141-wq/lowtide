@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { LATEST_PROTOCOL_VERSION } from '@modelcontextprotocol/sdk/types.js';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -66,10 +67,8 @@ function repos(t: TestCompanion) {
 describe('MCP protocol (Streamable HTTP, JSON responses)', () => {
   it('negotiates, lists the tools each grant may use and keeps sessions per grant', async () => {
     const t = await start();
-    const reader = await mcpClient(
-      t.companion.url,
-      await t.grant({ scope: 'project', access: 'read' }),
-    );
+    const readerToken = await t.grant({ scope: 'project', access: 'read' });
+    const reader = await mcpClient(t.companion.url, readerToken);
     expect(reader.initialize.result).toMatchObject({
       protocolVersion: '2025-06-18',
       capabilities: { tools: { listChanged: false } },
@@ -134,7 +133,7 @@ describe('MCP protocol (Streamable HTTP, JSON responses)', () => {
       await t.grant({ scope: 'workspace', access: 'read' }),
       '1999-01-01',
     );
-    expect(odd.initialize.result!.protocolVersion).toBe('2025-06-18');
+    expect(odd.initialize.result!.protocolVersion).toBe(LATEST_PROTOCOL_VERSION);
 
     // Sessions: required, per grant, closable.
     const noSession = await fetch(`${t.companion.url}/mcp`, {
@@ -156,6 +155,7 @@ describe('MCP protocol (Streamable HTTP, JSON responses)', () => {
       { 'mcp-protocol-version': '2000-01-01' },
     );
     expect(badVersion.status).toBe(400);
+    // A GET without a session is refused; with one it opens the SDK's event stream.
     expect(
       (
         await fetch(`${t.companion.url}/mcp`, {
@@ -164,14 +164,27 @@ describe('MCP protocol (Streamable HTTP, JSON responses)', () => {
           },
         })
       ).status,
-    ).toBe(405);
+    ).toBe(400);
+    const stream = new AbortController();
+    const listening = await fetch(`${t.companion.url}/mcp`, {
+      headers: {
+        authorization: `Bearer ${readerToken}`,
+        accept: 'text/event-stream',
+        'mcp-session-id': reader.sessionId!,
+        'mcp-protocol-version': reader.initialize.result!.protocolVersion as string,
+      },
+      signal: stream.signal,
+    });
+    expect(listening.status).toBe(200);
+    expect(listening.headers.get('content-type')).toMatch(/text\/event-stream/);
+    stream.abort();
     const token = await t.grant({ scope: 'workspace', access: 'read' });
     const closing = await mcpClient(t.companion.url, token);
     const del = await fetch(`${t.companion.url}/mcp`, {
       method: 'DELETE',
       headers: { authorization: `Bearer ${token}`, 'mcp-session-id': closing.sessionId! },
     });
-    expect(del.status).toBe(204);
+    expect(del.ok).toBe(true);
     expect((await closing.post({ jsonrpc: '2.0', id: 3, method: 'ping' })).status).toBe(404);
   });
 
