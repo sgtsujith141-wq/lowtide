@@ -71,6 +71,7 @@ interruption is below.
 | Rehearsal on a copy of the live data                       | 11 ms       | 333 ms        | 344 ms                |
 | Rehearsal with the v2.0 app open across the swap           | 11 ms       | 338 ms        | 350 ms                |
 | **Live cutover, 2026-10-03** (migrations 6 and 7 included) | 32 ms       | 385 ms        | **417 ms**            |
+| **Live cutover, 2026-10-07** (v2.2, migration 8 included)  | 27 ms       | 458 ms        | **485 ms**            |
 
 In the rehearsal with the app open, the v2.0 app kept running against the v2.1
 companion. A task created after the swap appeared in the open page 811 ms later, with no

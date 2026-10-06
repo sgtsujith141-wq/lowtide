@@ -35,9 +35,9 @@
 
 ## PARTIAL
 
-**v2.2 live upgrade.** Built, tested and checked against the live data
-(`upgrade-companion.mjs --check-only` passed), but not applied: the swap and the
-fast-forward of `main` wait for the owner (see [the v2.2 report](v2.2/V2.2-REPORT.md)).
+**v2.2 live upgrade.** Applied on 2026-10-07: the companion runs schema 11 (migration 8)
+after a 485 ms swap, `main` is fast-forwarded to `v2.2`, and the live data was checked afterwards (see
+[the v2.2 report](v2.2/V2.2-REPORT.md)).
 
 **AI client connections.** Everything on LOWTIDE's side is built and tested: the MCP
 endpoint, the stdio bridge, scoped grants, audit, and the whole flow in a headless
