@@ -57,6 +57,7 @@ import {
   type Env,
   type SpaceView,
   type Tool,
+  cellArg,
 } from './kit';
 
 /*
@@ -1507,7 +1508,7 @@ const spaceDatabaseTools: Tool[] = [
       title: text(300),
       description: z.optional(text(2000)),
       properties: z.array(propertyInput).check(z.minLength(1), z.maxLength(100)),
-      rows: z.optional(z.array(z.record(z.string(), z.unknown())).check(z.maxLength(1000))),
+      rows: z.optional(z.array(z.record(z.string(), cellArg())).check(z.maxLength(1000))),
       views: z.optional(z.array(z.strictObject(viewInput)).check(z.maxLength(20))),
     }),
     async run(env, args) {
@@ -1768,7 +1769,7 @@ const spaceDatabaseTools: Tool[] = [
     write: true,
     input: z.strictObject({
       table: pageArg(),
-      rows: z.array(z.record(z.string(), z.unknown())).check(z.minLength(1), z.maxLength(1000)),
+      rows: z.array(z.record(z.string(), cellArg())).check(z.minLength(1), z.maxLength(1000)),
     }),
     async run(env, args) {
       let node = resolvePage(await spaceView(env), args.table as string);
@@ -1808,7 +1809,7 @@ const spaceDatabaseTools: Tool[] = [
     input: z.strictObject({
       table: pageArg(),
       row: text(500),
-      cells: z.record(z.string(), z.unknown()),
+      cells: z.record(z.string(), cellArg()),
       baseRevision: revisionArg(),
     }),
     async run(env, args) {

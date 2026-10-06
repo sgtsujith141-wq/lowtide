@@ -498,6 +498,30 @@ export function cellValue(column: { type: string; name: string }, value: unknown
   }
 }
 
+/**
+ * A database cell as tools take it (v2.3: declared, so every MCP client sees
+ * a real schema): text, a number, true/false, a list (multi-select values,
+ * or relations as "task:<id or title>" or {type, id}), or null to clear.
+ */
+export const cellArg = () =>
+  z.union([
+    z.string(),
+    z.number(),
+    z.boolean(),
+    z.null(),
+    z.array(
+      z.union([
+        z.string(),
+        z.object({
+          type: z.string(),
+          id: z.string(),
+          rowId: z.optional(z.string()),
+          label: z.optional(z.string()),
+        }),
+      ]),
+    ),
+  ]);
+
 export const pageArg = () =>
   d(text(2000), 'A page id, or its path of titles such as "Projects / Engine / Architecture".');
 

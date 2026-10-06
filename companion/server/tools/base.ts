@@ -38,6 +38,7 @@ import {
   ensurePath,
   type Tool,
   op,
+  cellArg,
 } from './kit';
 
 /* -------------------------------- reads -------------------------------- */
@@ -945,7 +946,7 @@ export const spaceWriteTools: Tool[] = [
     write: true,
     input: z.strictObject({
       table: pageArg(),
-      cells: d(z.record(z.string(), z.unknown()), 'Column name → value.'),
+      cells: d(z.record(z.string(), cellArg()), 'Column name → value.'),
     }),
     async run(env, args) {
       const view = await spaceView(env);

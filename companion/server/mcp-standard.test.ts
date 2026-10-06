@@ -95,6 +95,23 @@ describe('tool annotations (ADR-074)', () => {
       expect(tool.annotations.openWorldHint, tool.name).toBe(false);
       expect(tool.description.length, tool.name).toBeGreaterThan(30);
     }
+    // Portable schemas: no position that accepts anything without saying what it is.
+    const empty: string[] = [];
+    const walk = (node: unknown, path: string, container = false) => {
+      if (!node || typeof node !== 'object') return;
+      if (
+        !container &&
+        !Array.isArray(node) &&
+        Object.keys(node).every((k) => k === 'description')
+      ) {
+        empty.push(path);
+        return;
+      }
+      // A properties map is a container of schemas, not a schema (it may be empty).
+      for (const [k, v] of Object.entries(node)) walk(v, `${path}.${k}`, k === 'properties');
+    };
+    for (const tool of tools) walk(tool.inputSchema, tool.name);
+    expect(empty).toEqual([]);
     expect(by.get('create_project')!.description).toMatch(/Needs projects\.create\.$/);
     expect(by.get('capture_inbox')!.description).toMatch(/Needs life\.write and private inbox\.$/);
   });
