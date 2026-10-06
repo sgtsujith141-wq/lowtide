@@ -26,6 +26,7 @@ import {
   type Grant,
   type NewGrant,
 } from './grants';
+import { loadFrontend } from './frontend';
 import { McpServer } from './mcp';
 import { isEmpty, migrateIntoCompanion, migrationInfo } from './migrate';
 import { dispatch, toWireError } from './rpc';
@@ -69,6 +70,8 @@ export interface CompanionOptions {
   launchAgentsDir?: string;
   /** What the LaunchAgent runs (defaults to this process). */
   program?: { node: string; script: string; cwd: string };
+  /** The built app to serve at / (v2.3); absent: the companion serves no app. */
+  frontendDir?: string;
 }
 
 export interface Companion {
@@ -292,12 +295,15 @@ export async function startCompanion(options: CompanionOptions): Promise<Compani
     { store, grants, sync, now, ...(checkpoints ? { checkpoints } : {}) },
     COMPANION_VERSION,
   );
+  const frontend = loadFrontend(options.frontendDir);
   const limiter = new RateLimiter();
   const streams = new Set<ServerResponse>();
   const startedAt = now().toISOString();
   let port = config.port;
 
   const allowedHosts = () => new Set([`127.0.0.1:${port}`, `localhost:${port}`]);
+  // The app the companion serves itself is always an allowed origin.
+  const ownOrigins = () => new Set([`http://127.0.0.1:${port}`, `http://localhost:${port}`]);
 
   function owned(req: IncomingMessage) {
     const token = bearer(req);
@@ -325,6 +331,7 @@ export async function startCompanion(options: CompanionOptions): Promise<Compani
       workspaceDir: sync.root,
       bridge: BRIDGE_PATH,
       mcpUrl: `http://127.0.0.1:${port}/mcp`,
+      appUrl: frontend ? `http://127.0.0.1:${port}/` : null,
       startedAt,
     };
   }
@@ -605,7 +612,11 @@ export async function startCompanion(options: CompanionOptions): Promise<Compani
       return send(res, 403, { error: 'Unexpected Host' });
     }
     const origin = req.headers.origin;
-    if (origin !== undefined && !config.allowedOrigins.includes(origin)) {
+    if (
+      origin !== undefined &&
+      !config.allowedOrigins.includes(origin) &&
+      !ownOrigins().has(origin)
+    ) {
       return send(res, 403, { error: 'Origin not allowed' });
     }
     const cors: Record<string, string> = origin
@@ -693,6 +704,7 @@ export async function startCompanion(options: CompanionOptions): Promise<Compani
       }
       return ownerRoute(req, res, path, url, cors);
     }
+    if (frontend?.serve(req, res, path)) return;
     return send(res, 404, { error: 'Not found' }, cors);
   }
 

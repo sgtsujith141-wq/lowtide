@@ -1,4 +1,6 @@
 import { spawn } from 'node:child_process';
+import { realpathSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { startCompanion } from './app';
 import { defaultDataDir, loadConfig, rotateOwnerToken } from './config';
@@ -26,6 +28,7 @@ const { values, positionals } = parseArgs({
     port: { type: 'string' },
     workspace: { type: 'string' },
     app: { type: 'string', default: 'http://localhost:5173' },
+    frontend: { type: 'string' },
     snapshot: { type: 'string' },
     plan: { type: 'string' },
     'dry-run': { type: 'boolean' },
@@ -33,7 +36,7 @@ const { values, positionals } = parseArgs({
   },
 });
 
-const HELP = `lowtide-companion [pair | rotate-token] [--data <dir>] [--port <n>] [--workspace <dir>] [--app <url>]
+const HELP = `lowtide-companion [pair | rotate-token] [--data <dir>] [--port <n>] [--workspace <dir>] [--app <url>] [--frontend <dir>]
 lowtide-companion import-notion --snapshot <dir> --plan <file> [--dry-run] [--data <dir>]
 
 Runs the local LOWTIDE companion: the SQLite store, the live workspace and the
@@ -92,8 +95,12 @@ async function main() {
     process.exitCode = 2;
     return;
   }
+  // The built app next to this file in an installed runtime (runtime/<build>/frontend).
+  const frontendDir =
+    values.frontend ?? join(dirname(realpathSync(process.argv[1] ?? '.')), '..', 'frontend');
   const companion: Awaited<ReturnType<typeof startCompanion>> = await startCompanion({
     dataDir,
+    frontendDir,
     ...(port !== undefined ? { port } : {}),
     ...(values.workspace ? { workspaceDir: values.workspace } : {}),
     log: (line) => console.log(`[${new Date().toISOString()}] ${line}`),

@@ -294,6 +294,8 @@ export interface CompanionStatus {
   bridge: string;
   /** The MCP endpoint, for clients that speak HTTP directly. */
   mcpUrl: string;
+  /** Where the companion serves the LOWTIDE app itself (v2.3); null when it serves none. */
+  appUrl?: string | null;
   startedAt: string;
 }
 
