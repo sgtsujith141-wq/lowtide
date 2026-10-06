@@ -73,6 +73,8 @@ export interface CompanionOptions {
   program?: { node: string; script: string; cwd: string };
   /** The built app to serve at / (v2.3); absent: the companion serves no app. */
   frontendDir?: string;
+  /** This is an installed runtime: a missing app makes it unhealthy (v2.3). */
+  requireFrontend?: boolean;
 }
 
 export interface Companion {
@@ -297,6 +299,17 @@ export async function startCompanion(options: CompanionOptions): Promise<Compani
     COMPANION_VERSION,
   );
   const frontend = loadFrontend(options.frontendDir);
+  // SQLite's own consistency check, at startup and at most once a minute after.
+  let integrity = { result: 'not checked', at: 0 };
+  const checkIntegrity = () => {
+    if (database !== ':memory:' && now().getTime() - integrity.at < 60_000) return integrity;
+    const row = store.sql.prepare('PRAGMA quick_check').get() as { quick_check: string };
+    integrity = { result: row.quick_check, at: now().getTime() };
+    return integrity;
+  };
+  if (checkIntegrity().result !== 'ok') {
+    log(`database integrity check FAILED: ${integrity.result} (${database})`);
+  }
   const pairCodes = new PairCodes(() => now().getTime());
   const limiter = new RateLimiter();
   const streams = new Set<ServerResponse>();
@@ -335,6 +348,36 @@ export async function startCompanion(options: CompanionOptions): Promise<Compani
       mcpUrl: `http://127.0.0.1:${port}/mcp`,
       appUrl: frontend ? `http://127.0.0.1:${port}/` : null,
       startedAt,
+    };
+  }
+
+  /**
+   * Machine-readable health (v2.3), without secrets or paths: whether each
+   * part of LOWTIDE works. `app` and `version` stay first for older checks.
+   */
+  function health() {
+    const db = checkIntegrity();
+    const conflicts = sync.lastReport?.conflicts.length ?? 0;
+    const checks = {
+      runtime: { ok: true, node: process.version, pid: process.pid },
+      database: {
+        ok: db.result === 'ok',
+        integrity: db.result,
+        schemaVersion: Number(getMeta(store.sql, 'lowtide_schema_version')),
+      },
+      frontend: { ok: Boolean(frontend) || !options.requireFrontend, served: Boolean(frontend) },
+      api: { ok: true },
+      sse: { ok: true, clients: streams.size },
+      mcp: { ok: true, path: '/mcp', sessions: mcp.sessionCount },
+      workspace: { ok: conflicts === 0, conflicts, lastSync: sync.lastReport?.at ?? null },
+    };
+    return {
+      app: 'lowtide-companion' as const,
+      version: COMPANION_VERSION,
+      status: Object.values(checks).every((c) => c.ok) ? 'ok' : 'degraded',
+      startedAt,
+      uptimeSeconds: Math.round((now().getTime() - Date.parse(startedAt)) / 1000),
+      checks,
     };
   }
 
@@ -550,7 +593,13 @@ export async function startCompanion(options: CompanionOptions): Promise<Compani
           path: database,
           schemaVersion: Number(getMeta(store.sql, 'lowtide_schema_version')),
         },
-        mcp: { available: true, url: `http://127.0.0.1:${port}/mcp`, bridge: BRIDGE_PATH },
+        mcp: {
+          available: true,
+          url: `http://127.0.0.1:${port}/mcp`,
+          bridge: BRIDGE_PATH,
+          sessions: mcp.sessionCount,
+        },
+        frontend: { served: Boolean(frontend), dir: frontend?.dir ?? null },
         workspace: {
           healthy: !(sync.lastReport?.conflicts.length ?? 0),
           dir: sync.root,
@@ -645,9 +694,7 @@ export async function startCompanion(options: CompanionOptions): Promise<Compani
     const url = new URL(req.url ?? '/', `http://127.0.0.1:${port}`);
     const path = url.pathname;
 
-    if (req.method === 'GET' && path === '/api/health') {
-      return send(res, 200, { app: 'lowtide-companion', version: COMPANION_VERSION }, cors);
-    }
+    if (req.method === 'GET' && path === '/api/health') return send(res, 200, health(), cors);
 
     if (path === '/mcp') {
       const grant = grantOf(req);

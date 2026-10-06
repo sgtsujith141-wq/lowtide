@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { realpathSync } from 'node:fs';
+import { existsSync, realpathSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { startCompanion } from './app';
@@ -95,12 +95,16 @@ async function main() {
     process.exitCode = 2;
     return;
   }
-  // The built app next to this file in an installed runtime (runtime/<build>/frontend).
-  const frontendDir =
-    values.frontend ?? join(dirname(realpathSync(process.argv[1] ?? '.')), '..', 'frontend');
+  // The built app next to this file in an installed runtime (runtime/<build>/frontend);
+  // an installed runtime (it has a runtime.json) must have it to be healthy.
+  const bundleDir = dirname(realpathSync(process.argv[1] ?? '.'));
+  const frontendDir = values.frontend ?? join(bundleDir, '..', 'frontend');
+  const requireFrontend =
+    values.frontend !== undefined || existsSync(join(bundleDir, '..', 'runtime.json'));
   const companion: Awaited<ReturnType<typeof startCompanion>> = await startCompanion({
     dataDir,
     frontendDir,
+    requireFrontend,
     ...(port !== undefined ? { port } : {}),
     ...(values.workspace ? { workspaceDir: values.workspace } : {}),
     log: (line) => console.log(`[${new Date().toISOString()}] ${line}`),
