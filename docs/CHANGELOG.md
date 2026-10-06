@@ -5,6 +5,27 @@ app's `package.json` version.
 
 ## [Unreleased]
 
+### Added (v2.2 — an operating plan in LOWTIDE: Areas, CTFs, selection)
+
+- SPACE has an **Areas** section (after Projects) for ongoing tracks that aren't
+  projects, such as learning, career or a life plan, and the databases they keep. The
+  companion makes the maintained sections at startup, and workspace-scoped AI
+  connections can use Areas (ADR-071).
+- Hackathons can be a **CTF**: a short rail (Registration → Preparation → Competition), a
+  CTF tag in the list, and no PPT, Build or "Track the build" (ADR-072).
+- Hackathons record the organisers' answer, **Selection**: Application submitted,
+  Shortlisted, Selected or Rejected, on the sheet, in the edit form and in the list.
+- MCP: `create_hackathon` and `update_hackathon` take `kind` and `selection`;
+  `get_hackathons` and `get_context` show them. The Claude Operating Guide explains
+  Areas, CTFs and that a database opens on its first saved view.
+- Schema V11 (Dexie 11, companion migration 8): two optional hackathon fields, additive.
+- Docs: how a whole life plan maps onto LOWTIDE ([v2.2/OPERATING-PLAN](v2.2/OPERATING-PLAN.md)),
+  ADR-070 to ADR-072.
+
+### Fixed (v2.2)
+
+- The SPACE usability doc listed fewer formula functions than SPACE supports.
+
 ### Added (v2.1 — operator parity, SPACE simplification, full creation, live upgrade)
 
 - Claude can operate LOWTIDE like the owner, within a grant: 127 MCP tools covering

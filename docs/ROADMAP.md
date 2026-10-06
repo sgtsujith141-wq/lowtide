@@ -37,8 +37,28 @@ Plan: [LOWTIDE-V2-ARCHITECTURE.md](LOWTIDE-V2-ARCHITECTURE.md); audit:
 | 008      | Shared AI context architecture + local companion/MCP foundation               | Done, completed by 008B (see V2-PHASE-008.md) |
 | 008B     | SQLite companion + permanent shared AI context                                | Done (see V2-PHASE-008B.md)                   |
 | 009      | QA, polish, performance, accessibility, docs                                  | Done (see V2-PHASE-009.md)                    |
+| v2.1     | Operator parity over MCP, SPACE databases and views, creation, live upgrades  | Done (see v2.1/)                              |
+| v2.2     | Operating plan in LOWTIDE: Areas, CTFs and selection (schema V11)             | Done (see v2.2/)                              |
 
 The current state is in [LOWTIDE-V2-STATUS.md](LOWTIDE-V2-STATUS.md).
+
+## LOWTIDE as a product: what comes next
+
+Each needs its own owner-issued phase; none starts automatically.
+
+1. **Major UI redesign.** Calm and low-cognitive-load: the usual view shows the current
+   focus, deadlines, next actions, active projects, learning progress and what needs
+   attention; everything else is one step away.
+2. **Task / todo redesign.** Fast capture, a clear next action, visible deadlines and
+   project context, separated into Critical, Today, This Week, Can Wait, Parked, Waiting
+   and Someday; effort, energy, urgency, recurrence and review dates.
+3. **Brain-dump capture and triage.** A dump split into items with a suggested class,
+   home, priority, deadline and next action, each accepted into a real record.
+4. **Capacity-aware planning.** Workload, capacity, sleep mode, protected time, critical
+   deadlines, low-energy days and parked work; overload never produces more red.
+5. **SPACE and Notion parity, additively.** Row-level relations in the picker, linked
+   views per page, row templates, board grouping by any property, toggles, uploads.
+6. **Onboarding, production hardening, packaging and deployment, a beta.**
 
 ## Optional future work
 

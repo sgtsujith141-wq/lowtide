@@ -194,6 +194,11 @@ The unique compound index guarantees **at most one entry per habit per day** (te
 | buildStatus                                   | `not_started \| in_progress \| demo_ready \| submitted`  | default `not_started`                                           |
 | team?, problemStatement?, nextAction?, notes? | string                                                   | trimmed; blank = omitted                                        |
 | status                                        | `considering \| active \| finished \| dropped`           | default `considering`; user-controlled only                     |
+| researchStatus?                               | `not_started \| in_progress \| done`                     | V6; absent reads as not started                                 |
+| projectId?                                    | Id                                                       | V4; a Project tracking the build, set only on request           |
+| archivedAt?, pinnedAt?                        | Timestamp                                                | V10; archived (restorable) and pinned                           |
+| kind?                                         | `hackathon \| ctf`                                       | V11 (ADR-072); absent reads as a hackathon                      |
+| selection?                                    | `applied \| shortlisted \| selected \| rejected`         | V11 (ADR-072); the organisers' answer; absent = nothing yet     |
 | createdAt, updatedAt                          | Timestamp                                                |                                                                 |
 
 Hackathons are never deleted; finished and dropped keep every field. `nextAction` is
@@ -214,7 +219,8 @@ hackathon touches habits or the activity grid.
 
 - IndexedDB database name: `lowtide` (`DATABASE_NAME`). Never rename it — that would
   orphan existing data.
-- `SCHEMA_VERSION = 5` (v2 PHASE 006). Version history:
+- `SCHEMA_VERSION = 11` (v2.2). Version history (V5 onwards is described in the
+  sections below):
 
 | Version | Phase  | Stores changed                                                          | Record changes                                                 | Upgrade function       |
 | ------- | ------ | ----------------------------------------------------------------------- | -------------------------------------------------------------- | ---------------------- |
@@ -222,6 +228,9 @@ hackathon touches habits or the activity grid.
 | 2       | 002    | `tasks`: + `plannedFor` index (`STORES_V2`)                             | `Task.plannedFor?: LocalDate` (optional)                       | none needed            |
 | 3       | 004    | none (`STORES_V3`)                                                      | hackathon dates become `LocalDate`                             | `migrateHackathonToV3` |
 | 4       | v2 002 | nine new stores; `tasks`/`hackathons` + `projectId` index (`STORES_V4`) | optional `Task.projectId`/`milestoneId`, `Hackathon.projectId` | none (additive)        |
+| 5–9     | v2     | `collegeItems`, `notes`, `spaceNodes`, `sourceRecords`                  | see Schema V5–V9 below                                         | none (additive)        |
+| 10      | v2.1   | `tasks` + `parentId` index (`STORES_V10`)                               | subtasks, archives, pins, descriptions, SPACE databases        | none (additive)        |
+| 11      | v2.2   | none (`STORES_V11`)                                                     | optional `Hackathon.kind`, `Hackathon.selection`               | none (additive)        |
 
 **V1 → V2 migration, exactly.** When a V1 database is opened, Dexie runs the version-2
 schema step. It adds the `plannedFor` index to the `tasks` object store, and IndexedDB
@@ -369,7 +378,8 @@ options?, description?`, type one of text, number, boolean, date, select, status
   - `SourceRef`: `system (notion), sourceId, url?, originalTitle, path?, importedAt,
 sourceCreatedAt?, sourceUpdatedAt?`.
   - Six top-level sections are maintained: Projects, Hackathons, College, Ideas,
-    Personal, Archive. Nodes are archived, never deleted. No ledger events.
+    Personal, Archive (v2.1 adds LOWTIDE and v2.2 adds Areas, ADR-071: eight in all).
+    Nodes are archived, never deleted. No ledger events.
 - **`SourceRecord`** (provenance): `id, system, sourceId, entityType, entityId, role
 (canonical | legacy | reference), url?, originalTitle, path?, contentHash,
 importedAt, appliedAt, sourceCreatedAt?, sourceUpdatedAt?`. One per (system, source
@@ -418,6 +428,25 @@ milestones with a canonical `sourceRecords` entry naming their task row.
 in it (milestones, tasks, items, decisions), newest first: the import and reconciliation
 trail shown in History. It is never activity.
 
+## Schema V11 (v2.2, ADR-072)
+
+No store or index changes. `Hackathon` gains two optional fields:
+
+- `kind?`: `hackathon | ctf`. Absent reads as a hackathon. A CTF's stage rail is
+  registration, preparation (the recorded `researchStatus`) and the competition (done when
+  `status` is `finished`).
+- `selection?`: `applied | shortlisted | selected | rejected`, the organisers' answer to
+  an application, recorded by the owner. Absent: nothing submitted or heard yet. `null` or
+  a blank form choice removes it.
+
+The V10 → V11 upgrade rewrites nothing; existing hackathons keep both unset. Companion
+migration 8 adds the nullable `kind` and `selection` columns, each with its own CHECK.
+Backups at schema 11 carry them; schema 10 backups import unchanged. Tested in
+`v11-schema.test.ts` (a genuine V10 database) and the companion's `store.test.ts`.
+
+**Areas (ADR-071)** is not a schema change: it is one more maintained SPACE section node
+(key `areas`), made like the others.
+
 ## The companion's SQLite schema (PHASE 008B, ADR-057, ADR-058)
 
 In companion mode the same records live in `~/.lowtide/lowtide.sqlite`, one table per
@@ -440,13 +469,13 @@ const` arrays. Required fields are `NOT NULL`; an absent optional field is `NULL
 
 Tables that only the companion has (`companion/server/sqlite/migrations.ts`):
 
-| Table                  | Holds                                                                     |
-| ---------------------- | ------------------------------------------------------------------------- |
-| `companion_migrations` | which companion schema migrations have run                                |
-| `companion_meta`       | `lowtide_schema_version` (7), and when and from which backup it was moved |
-| `ai_grants`            | each AI client's grant; the token only as a SHA-256 fingerprint           |
-| `ai_audit`             | every MCP tool call: who, scope, operation, entity, before/after, result  |
-| `ai_sightings`         | when each grant's client was last heard from (connection status)          |
+| Table                  | Holds                                                                    |
+| ---------------------- | ------------------------------------------------------------------------ |
+| `companion_migrations` | which companion schema migrations have run                               |
+| `companion_meta`       | `lowtide_schema_version` (11), and when and from which backup it moved   |
+| `ai_grants`            | each AI client's grant; the token only as a SHA-256 fingerprint          |
+| `ai_audit`             | every MCP tool call: who, scope, operation, entity, before/after, result |
+| `ai_sightings`         | when each grant's client was last heard from (connection status)         |
 
 **Parity.** `companion/server/sqlite/store.test.ts` runs one scenario touching all 19
 stores (including a Notion import) on Dexie and on SQLite and requires identical exports and identical answers to

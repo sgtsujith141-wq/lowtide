@@ -15,9 +15,11 @@ the AI clients you allow (Claude Code, Claude Desktop, others) work with it over
 each only within the scope you give it, with every change attributed and audited. There
 is no account, no cloud, and nothing carrying your data to the internet.
 
-> **Status: LOWTIDE v2 with the SQLite companion (PHASE 008B, 2026-09-30).** See
+> **Status: LOWTIDE v2.2 (2026-10-07): the SQLite companion, operator parity over MCP,
+> SPACE with databases and an Areas section, and CTFs alongside hackathons.** See
 > [docs/LOWTIDE-V2-STATUS.md](docs/LOWTIDE-V2-STATUS.md) for what's complete, partial
-> and pending.
+> and pending, and [docs/v2.2/OPERATING-PLAN.md](docs/v2.2/OPERATING-PLAN.md) for how a
+> whole life plan (tracks, learning logs, hackathons, priorities) maps onto LOWTIDE.
 >
 > - **Home** (`/`): Start Work, Sleep Mode, Ask LOWTIDE (a local search, not an AI);
 >   a year of **Daily Pulse** as a GitHub-style calendar; project cards; Needs you;
@@ -30,8 +32,11 @@ is no account, no cloud, and nothing carrying your data to the internet.
 > - **Work Mode and Sleep Mode:** a global timer bar. Sleep Mode dims the app but
 >   keeps it usable, and records a marked window, never a sleep measurement.
 > - **Life** (`/life`): personal routines, sleep and off time, the gym, and college.
-> - **Rhythm**, **Hackathons** (with a stage rail), **Calendar**, **Today** (`/today`),
->   **Inbox**, **Tasks**, and **Data & backup**.
+> - **SPACE**: pages, folders and databases (table, board, list and calendar views) in
+>   Projects, Areas, Hackathons, College, Ideas, Personal and Archive.
+> - **Rhythm**, **Hackathons** (hackathons and CTFs, each with its stage rail and the
+>   organisers' answer), **Calendar**, **Today** (`/today`), **Inbox**, **Tasks**, and
+>   **Data & backup**.
 > - **AI & workspace** (`/ai`): scoped context packs; with the companion, AI client
 >   access (grants, real connection status, an audit of every call) and the live
 >   workspace; without it, a workspace ZIP export.

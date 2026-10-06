@@ -39,8 +39,9 @@ things, where to type, and where things went.
 - Views: **table, board, list, calendar**, each with saved filters, sorts, grouping,
   hidden and ordered properties.
 - Relations link to SPACE pages or LOWTIDE records; rollups count, count done, percent
-  done, sum or take the latest; formulas use `prop("Name")`, arithmetic and comparisons,
-  and `if`, `concat`, `round`, `length`, `empty`, `not` and `today`.
+  done, sum or take the latest; formulas use `prop("Name")` (or `{Name}`), arithmetic,
+  comparisons, `and`, `or` and `not`, and `if`, `concat`, `round`, `length`, `empty`,
+  `today` and `dateBetween`.
 - Boards move cards by drag and drop or a "Move to" list. Large databases draw 50 cards
   per board column (4 per calendar day) with **Show more**, so a 10,000-row database stays
   quick.

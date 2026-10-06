@@ -62,7 +62,20 @@ findBy…()).toHaveFocus()` can run a moment too early. Use `expectFocus(…)` f
 - `setupTestDatabase` unmounts rendered trees before deleting the database, so no live
   subscription outlives it.
 
-## Current coverage (v2.1): 72 files, 743 tests
+## Current coverage (v2.2): 77 files, 760 tests
+
+New in v2.2: `src/test/v11-schema.test.ts` opens a genuine V10 database at V11, imports
+schema-10 backups, and covers hackathon kind and selection (set, clear, blank form
+choices, backups) and the CTF rail; `src/test/space-areas.test.ts` adds Areas beside an
+existing tree without touching it; `src/test/hackathons-v22.test.tsx` the CTF rail,
+Selection and the edit form in the app; `companion/server/hackathon-kind-mcp.test.ts`
+kind and selection over MCP and in `get_context`; `companion/server/space-areas-mcp.test.ts`
+Areas for a workspace connection (Personal still refused) and Areas made at startup on a
+database from before v2.2. `store.test.ts` covers migration 8 (columns, CHECKs, the
+pre-upgrade copy, run once). The browser check (`npm run e2e:companion`) passes all 16
+steps with schema 11 backups.
+
+## Coverage after v2.1: 72 files, 743 tests
 
 New: `companion/server/operator-mcp.test.ts` runs thirty owner workflows over the MCP
 protocol against SQLite as a Full operator, plus undo (refused after a later edit), dry

@@ -1466,3 +1466,88 @@ modes worked, but neither felt like a mode.
 
 **Consequences.** No data migration; every existing consumer of sessions (pulse, grids,
 project time, timeline) is untouched.
+
+## ADR-070 — An operating plan enters LOWTIDE as records, through MCP (v2.2)
+
+**Context.** The owner wanted a large, messy life plan (learning tracks, hackathons and
+CTFs, products, content, money, deadlines) turned into something structured and
+trackable, without a redesign yet and without flattening it into one task list. Personal
+data must never be committed to this repository (seed files, fixtures, migrations or docs).
+
+**Decision.**
+
+- The plan is entered as ordinary records in the owner's live LOWTIDE by an authorised AI
+  client over MCP: projects, milestones, tasks and subtasks, hackathons, decisions, SPACE
+  pages and databases. No seed code, no fixture, no import script in the repository.
+- Where things go: work with milestones and deadlines is a **project**; an ongoing track
+  that isn't a project is a folder in **SPACE / Areas** (ADR-071); a repeated log
+  (problems practised, labs, builds, subjects) is a **SPACE database** with saved views;
+  a hackathon or CTF is a **hackathon record** (ADR-072); a choice is a **decision**.
+  Pages link to records instead of restating them.
+- **Priority tiers map onto existing fields** instead of a new one: NOW, NEXT, ACTIVE and
+  MAINTENANCE are project focus primary, secondary, supporting and background; CRITICAL
+  is a high-priority task with a deadline; PARKED is a parked project or board item;
+  SOMEDAY a parked idea; DROPPED a dropped hackathon or task, or an archived project with
+  a decision saying why; ARCHIVED is archived.
+- Imported content is extended, never edited: new properties, options, rows and views
+  may be added to imported databases, but imported cells and pages stay as they were.
+- Before the bulk entry the client takes a named checkpoint; every write is attributed,
+  audited and undoable from the AI area.
+
+**Consequences.** The repository gained only generic capabilities (Areas, CTF kind and
+selection); the plan itself lives only in the owner's database and backups. The task
+redesign may introduce explicit task horizons and will revisit the tier mapping.
+
+## ADR-071 — Areas: a maintained SPACE section for ongoing tracks (v2.2)
+
+**Context.** SPACE's sections (Projects, Hackathons, College, Ideas, Personal, Archive,
+LOWTIDE) had no place for long-running areas such as a learning track or a career, and AI
+clients can't make top-level folders (by design: maintained sections are LOWTIDE's).
+
+**Decision.**
+
+- `SPACE_ROOTS` gains `areas` (“Areas”) after Projects. It is made like the others: when
+  SPACE opens in the app, and now also by the companion at startup (with LOWTIDE's own
+  pages, never into an empty companion), so a section added by an upgrade is usable over
+  MCP straight away.
+- Existing sections keep their ids, titles and stored order; the tree orders sections by
+  key, so Areas shows after Projects either way.
+- Workspace-scoped AI connections see and write Areas like Ideas. Personal and College
+  stay out of their scope.
+- No schema change: Areas is one section node.
+
+**Consequences.** Ongoing tracks, their pages and their databases have an obvious home.
+Tests that took sections by position look them up by key.
+
+## ADR-072 — Hackathon kind (hackathon or CTF) and selection (v2.2, schema V11)
+
+**Context.** Online CTFs were tracked as hackathons and showed a build rail (problem,
+PPT, prototype, testing, submission) that never applies. And an application's answer
+(submitted and waiting, shortlisted, selected, rejected) had no field; `registrationStatus`
+covers registering, not a round's result.
+
+**Decision.**
+
+- `Hackathon.kind?`: `hackathon | ctf`. Absent reads as a hackathon. A CTF's rail is
+  Registration → Preparation (the recorded research status) → Competition (done when the
+  owner marks the event finished). Nothing is inferred from dates or other stages.
+- `Hackathon.selection?`: `applied | shortlisted | selected | rejected`, recorded by the
+  owner, never inferred. Absent: nothing submitted or heard yet. A blank form choice or
+  `null` clears it.
+- Additive: Dexie version 11 with no upgrade; companion migration 8 adds two nullable
+  columns, each with its own CHECK (never a new value in an existing CHECK column), so the
+  previous companion runs on the upgraded database and rollback stays a restart.
+- MCP: `create_hackathon` and `update_hackathon` accept `kind` and `selection` (`none`
+  clears); `get_hackathons` and `get_context` show them. The app shows a CTF tag and the
+  selection in the list, a Selection select on the sheet and Kind and Selection in the
+  edit form; a CTF hides PPT, Build and “Track the build as a project”.
+- How common pipeline words map: interested = considering; registered = registration
+  registered; application submitted = selection applied; PPT required = PPT not started
+  or in progress; project required = build not started or in progress; preparing =
+  active; shortlisted, selected, rejected = selection; completed = finished; dropped =
+  dropped; archived = archived.
+
+**Consequences.** Backups are schema 11; schema 10 backups import unchanged. With the
+companion, an older companion upserts only the columns it knows and an older app drops
+unknown fields when reading, so both keep the two fields intact. In browser storage, as
+with every version bump, an older app can't open a version 11 database.
