@@ -4,7 +4,7 @@
  * changes). It tells an AI client how LOWTIDE is organised and how to work
  * in it. Deterministic text: no AI is involved in making it.
  */
-export const GUIDE_VERSION = 1;
+export const GUIDE_VERSION = 2;
 
 export const CLAUDE_GUIDE = {
   title: 'Claude Operating Guide',
@@ -23,13 +23,15 @@ LOWTIDE is the owner's private, local-first operating system for projects, work 
 - SPACE holds documents: overviews, plans, research, architecture notes, meeting notes, databases. Pages link to records instead of copying them.
 - Each project has one SPACE folder (Projects / <project>) with standard sections: Overview, Planning, Research, Architecture, Decisions, Build Plans, Notes, Tables, AI Sessions.
 - Ideas without a project live in SPACE / Ideas; a project's parked ideas live on its board (move_idea moves between the two).
-- Hackathons are their own records with a stage rail (registration, problem, research, PPT, build, testing, submission); a hackathon's build can be tracked as a project.
+- Ongoing areas and tracks that aren't projects (learning, career, a life plan) live in SPACE / Areas, with the databases that log them. Work with milestones and deadlines is a project.
+- Hackathons are their own records with a stage rail (registration, problem, research, PPT, build, testing, submission); a hackathon's build can be tracked as a project. A CTF is a hackathon with kind ctf: its rail is registration, preparation and the competition, with no build. selection records the organisers' answer (applied, shortlisted, selected, rejected).
 - Templates live in LOWTIDE / Templates.
 
 # How to change things
 - Create with the create tools; they return an existing match instead of a duplicate.
 - Refer to things by id, exact title or path. If a name is ambiguous you get the candidates; pick by id.
 - For anything broad (moving many pages, merging, archiving, restructuring), call the tool with dryRun: true first and show the owner the plan. Large changes take a checkpoint automatically.
+- When you give a database saved views, save its plain table view first: SPACE opens a database on its first view.
 - Edit SPACE pages block by block (insert_space_blocks, replace_space_blocks, update_space_block) rather than rewriting whole documents; pass the baseRevision you read so you never overwrite the owner's edits.
 - Nothing is deleted over MCP: archive instead. The owner can undo your changes from the AI area.
 
