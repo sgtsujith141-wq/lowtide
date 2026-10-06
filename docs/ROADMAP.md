@@ -38,7 +38,7 @@ Plan: [LOWTIDE-V2-ARCHITECTURE.md](LOWTIDE-V2-ARCHITECTURE.md); audit:
 | 008B     | SQLite companion + permanent shared AI context                                | Done (see V2-PHASE-008B.md)                   |
 | 009      | QA, polish, performance, accessibility, docs                                  | Done (see V2-PHASE-009.md)                    |
 | v2.1     | Operator parity over MCP, SPACE databases and views, creation, live upgrades  | Done (see v2.1/)                              |
-| v2.2     | Operating plan in LOWTIDE: Areas, CTFs and selection (schema V11)             | Done (see v2.2/)                              |
+| v2.2     | Operating plan in LOWTIDE: Areas, CTFs and selection (schema V11)             | Built; live upgrade awaits owner (see v2.2/)  |
 
 The current state is in [LOWTIDE-V2-STATUS.md](LOWTIDE-V2-STATUS.md).
 
