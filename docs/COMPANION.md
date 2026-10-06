@@ -15,6 +15,12 @@ It listens only on `127.0.0.1` (this computer), needs a token for everything, an
 talks to the internet. Moving is always your decision, and your browser's copy is never
 deleted. Decisions behind it: ADR-056 to ADR-061 in [DECISIONS.md](DECISIONS.md).
 
+> **v2.3:** for daily use, install LOWTIDE as a Mac app (`npm run install:lowtide`,
+> [v2.3/INSTALLED-APP.md](v2.3/INSTALLED-APP.md)): launchd runs the installed companion,
+> which also serves the app, and LOWTIDE.app opens it. The steps below are for
+> development and for moving data from browser storage into the companion. AI client
+> setup is in [integrations/](integrations/MCP.md).
+
 ## 1. Start the companion
 
 It needs Node 22.22 or later (the same as LOWTIDE) and nothing else. In the LOWTIDE

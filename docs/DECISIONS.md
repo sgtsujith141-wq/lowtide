@@ -1551,3 +1551,81 @@ covers registering, not a round's result.
 companion, an older companion upserts only the columns it knows and an older app drops
 unknown fields when reading, so both keep the two fields intact. In browser storage, as
 with every version bump, an older app can't open a version 11 database.
+
+## ADR-073 — LOWTIDE runs like a Mac app: an installed runtime, launchd and LOWTIDE.app (v2.3)
+
+**Context.** Daily use depended on the development repository on an external volume:
+Vite served the app, the companion ran from the repository's build and loaded packages
+from its `node_modules`, and Claude Code launched the bridge from it. Using LOWTIDE
+meant a Terminal.
+
+**Decision.**
+
+- **One self-contained runtime.** The companion bundle inlines every package (only Node
+  built-ins remain), serves the built app itself (static files, deep links, a strict
+  Content-Security-Policy), its API, live events and MCP, on 127.0.0.1:4318. Vite is
+  development only.
+- **Installed in Application Support**, never run from the repository:
+  `~/Library/Application Support/LOWTIDE/runtime/<build>`, with `current` (what runs)
+  and `previous` (the rollback) links, `launchd/` and `logs/`. Data stays in
+  `~/.lowtide`, untouched.
+- **launchd runs it**: an agent with RunAtLoad, restart on unexpected exit, GUI sessions
+  only, a minimal environment, its own log, and the program path through `current`.
+  The canonical plist lives in the runtime folder; **start at login** is its copy in
+  `~/Library/LaunchAgents` (off removes the copy, the running LOWTIDE keeps running, and
+  the app can still start it supervised).
+- **LOWTIDE.app** is a small bundle (Info.plist and a shell launcher, signed ad hoc, no
+  Electron). Clicking it reuses a running LOWTIDE, or kickstarts/bootstraps the agent,
+  waits for health and opens LOWTIDE paired (ADR-075). Failures show a macOS alert.
+- **One instance**: a lock file in the data folder (taken over when its process died)
+  and port ownership checks: a healthy LOWTIDE for the same data is reused, a hung one
+  is stopped, anything else is reported and never killed.
+- **`npm run install:lowtide`** builds, stages, rehearses on a backup copy (migration,
+  counts, app, MCP over HTTP and stdio, the previous build on the migrated copy), then
+  switches, hands LOWTIDE to launchd with the interruption timed, verifies, and goes
+  back to the previous runtime if anything fails.
+
+**Consequences.** Daily use is: log in, click LOWTIDE. Updates keep one previous build;
+because schema changes stay additive, rolling back is running the previous build on the
+same data. Node must be installed on the Mac (the runtime doesn't bundle Node).
+
+## ADR-074 — MCP on the official SDK, one registry over stdio and HTTP (v2.3)
+
+**Context.** LOWTIDE's MCP layer was a small hand-written JSON-RPC handler: proven, but
+not the standard implementation, without the newest protocol version, and with
+annotations that didn't tell clients which tools change or remove data.
+
+**Decision.**
+
+- `/mcp` runs on the official MCP TypeScript SDK's Streamable HTTP transport (JSON
+  responses): one SDK `Server` per session, owned by the grant that opened it, whose
+  `tools/list` and `tools/call` handlers call LOWTIDE's one tool registry. LOWTIDE keeps
+  its own bearer authentication, Host/Origin checks, rate limits, permission engine,
+  audit and change log; each request uses the grant as authenticated on that request.
+- stdio stays a thin bridge to the same endpoint (one writer), bundled into the
+  installed runtime; it can ask launchd to start LOWTIDE. A test asserts both transports
+  list the same tools and refuse the same way.
+- Every tool carries truthful annotations (classified explicitly, enforced by a test),
+  states what it needs in its description, and has a fully typed schema.
+- `get_lowtide_capabilities` is concise and reports versions, client, grant and preset.
+
+**Consequences.** Standard clients and MCP Inspector work without special cases. No
+OAuth: clients must send a static bearer token or launch the bridge.
+
+## ADR-075 — One-time pairing codes for the app LOWTIDE serves (v2.3)
+
+**Context.** The app served at `http://127.0.0.1:4318` has its own browser storage, so it
+starts unpaired. The pairing link carried the owner token in the URL, which would end up
+in browser history if used on every launch.
+
+**Decision.** LOWTIDE.app (which can read the owner token on this Mac) asks the
+companion for a one-time code (`POST /api/pair-codes`, owner token) and opens
+`http://127.0.0.1:4318/#pair=<code>`. The page removes it from the address bar first,
+exchanges it once at `POST /api/pair` (accepted only from the companion's own origin)
+for the owner token, and remembers the companion. A code lasts 60 seconds, works once
+and is stored only as a hash. A page the companion served never falls back to an empty
+browser-only LOWTIDE: unpaired, it asks to be opened from the LOWTIDE app.
+
+**Consequences.** No long-lived secret ever appears in a URL, history entry or log. The
+owner token still lives in the browser's storage for that origin, as before (see
+SECURITY.md).

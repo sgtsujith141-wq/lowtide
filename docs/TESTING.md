@@ -62,7 +62,28 @@ findBy…()).toHaveFocus()` can run a moment too early. Use `expectFocus(…)` f
 - `setupTestDatabase` unmounts rendered trees before deleting the database, so no live
   subscription outlives it.
 
-## Current coverage (v2.2): 77 files, 760 tests
+## Current coverage (v2.3): 84 files, 794 tests
+
+New in v2.3: `companion/server/mcp-standard.test.ts` (annotations classified and
+truthful, strict and fully typed schemas, needs in descriptions, concise capabilities
+with versions and identity, server instructions, one version); `frontend.test.ts` (the
+app served with deep links, cache headers, CSP, no path traversal, own origin);
+`pairing.test.ts` and `src/test/pairing.test.tsx` (one-time codes, origin, expiry; the
+page claims a code once and never falls back silently); `health.test.ts` (checks
+without secrets, degraded without the app); `instance.test.ts` (the data-folder lock,
+port ownership); `runtime.test.ts` (the launchd plist and start at login, LOWTIDE.app
+built, linted, signed and its launcher run, the launcher's start paths and refusals,
+the ChatGPT status); `bridge.test.ts` adds stdio ↔ HTTP parity and the launchd start.
+`mcp.test.ts` follows the SDK (protocol 2025-11-25, the GET event stream).
+
+Outside Vitest: `npm run build:lowtide` starts the built runtime outside the repository;
+`npm run install:lowtide` rehearses on a backup copy (migration, counts, app, MCP over
+HTTP and stdio, the previous build on the migrated copy) before switching. The v2.3
+rehearsal also drove MCP Inspector, a real browser (pairing, CSP, deep links), a
+`kill -9`, a simulated login, a locked database and port conflicts (see
+[v2.3 report](v2.3/V2.3-REPORT.md)).
+
+## Coverage after v2.2: 77 files, 760 tests
 
 New in v2.2: `src/test/v11-schema.test.ts` opens a genuine V10 database at V11, imports
 schema-10 backups, and covers hackathon kind and selection (set, clear, blank form

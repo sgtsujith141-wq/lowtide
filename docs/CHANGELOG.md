@@ -5,6 +5,36 @@ app's `package.json` version.
 
 ## [Unreleased]
 
+### Added (v2.3 — an installed Mac app and a standard MCP server)
+
+- **LOWTIDE.app** and an installed runtime in `~/Library/Application Support/LOWTIDE`
+  (current and previous builds), run by a launchd agent: starts at login, restarts if it
+  stops, never needs a Terminal, npm, Vite or the development repository (ADR-073).
+- The companion serves the built app itself (deep links, cached assets, a strict
+  Content-Security-Policy); one process serves the app, API, live events and MCP.
+- `npm run build:lowtide` (a self-contained, checked runtime) and `npm run
+install:lowtide` (rehearse on a backup copy, switch, hand to launchd, verify, roll
+  back on failure).
+- One-time pairing codes: LOWTIDE.app opens LOWTIDE already connected (ADR-075).
+- MCP on the official TypeScript SDK (Streamable HTTP, protocol 2025-11-25 and older),
+  one tool registry for stdio and HTTP with a parity test, truthful annotations, needs in
+  descriptions, fully typed schemas, concise `get_lowtide_capabilities` with versions
+  and client identity (ADR-074). The stdio bridge is bundled into the runtime and can
+  start LOWTIDE through launchd.
+- Machine-readable `/api/health` (runtime, database integrity, app, API, live events,
+  MCP, workspace), an integrity check at startup, one LOWTIDE per data folder (a lock)
+  and safe port ownership.
+- Settings: the installed runtime, the app it serves, the MCP URL, the ChatGPT
+  connection status, Start LOWTIDE at login, Restart LOWTIDE, Open LOWTIDE.
+- Docs: integrations (MCP, Claude, ChatGPT), the installed app, ADR-073 to ADR-075.
+- LOWTIDE's version is 2.3.0 everywhere (package.json, companion, MCP server).
+
+### Changed (v2.3)
+
+- The companion bundle no longer loads packages from `node_modules` at run time.
+- `/mcp` answers GET (the SDK's event stream) for an open session; unknown protocol
+  versions negotiate 2025-11-25.
+
 ### Added (v2.2 — an operating plan in LOWTIDE: Areas, CTFs, selection)
 
 - SPACE has an **Areas** section (after Projects) for ongoing tracks that aren't

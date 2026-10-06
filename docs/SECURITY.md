@@ -211,6 +211,34 @@ database once you move LOWTIDE into it. What protects what:
 **Not built yet:** GitHub access (a read-only, repository-scoped token held by the
 companion or the OS keychain, ADR-041) and encrypted backups.
 
+## The installed app and the standard MCP server (v2.3)
+
+- **Still only on this Mac.** The companion binds `127.0.0.1` only, checks `Host` (DNS
+  rebinding) and an Origin allow-list (its own origin added), and never binds `0.0.0.0`,
+  opens firewall ports or starts a tunnel. Remote access means a tunnel the owner sets
+  up (docs/integrations/CHATGPT-MCP.md).
+- **The served app** carries a Content-Security-Policy (`default-src 'self'`, scripts
+  from the app and the one inline theme script by hash, `connect-src 'self'`,
+  `frame-ancestors 'none'`), `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer` and
+  `nosniff`; nothing outside the app folder is served (traversal tested).
+- **Pairing codes** (ADR-075): one minute, one use, stored as a hash, accepted only from
+  the companion's own page; the owner token never appears in a URL or a log. It still
+  lives in that origin's browser storage, as before.
+- **MCP over HTTP** needs a grant token (Bearer); invalid and revoked tokens get `401`;
+  identity comes from the grant, never from the client. The SDK adds protocol handling
+  only; LOWTIDE's own authentication, rate limits, permissions and audit stay in front.
+- **Health** is unauthenticated and carries no tokens, paths or record contents (a test
+  checks); the data folder is named by a short hash.
+- **launchd agent**: runs as the user, GUI sessions only, `PATH=/usr/bin:/bin:/usr/sbin:/sbin`,
+  no secrets in its plist or environment, logs in the owner's Library. The runtime,
+  launchd and logs folders are owner-only (0700); the plist is 0644, as launchd requires.
+- **One writer**: a lock in the data folder; LOWTIDE stops only processes it can identify
+  as a LOWTIDE companion, never anything else on its port.
+- **LOWTIDE.app** is a shell launcher signed ad hoc; it reads the owner token from
+  `~/.lowtide/companion.json` (0600) only to ask for a pairing code.
+- **Install reports** (`…/LOWTIDE/logs/install-*.json`) record paths, versions, timings
+  and checks, never tokens.
+
 ## Future risks to design for
 
 - **Backup encryption.** If added, be clear that a forgotten password makes the backup

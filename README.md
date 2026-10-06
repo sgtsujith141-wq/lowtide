@@ -15,8 +15,9 @@ the AI clients you allow (Claude Code, Claude Desktop, others) work with it over
 each only within the scope you give it, with every change attributed and audited. There
 is no account, no cloud, and nothing carrying your data to the internet.
 
-> **Status: LOWTIDE v2.2 (2026-10-07): the SQLite companion, operator parity over MCP,
-> SPACE with databases and an Areas section, and CTFs alongside hackathons.** See
+> **Status: LOWTIDE v2.3 (2026-10-07): an installed Mac app (LOWTIDE.app, started by
+> launchd, no Terminal), a standard MCP server on the official SDK (Streamable HTTP and
+> stdio), the SQLite companion, SPACE with databases and Areas, CTFs.** See
 > [docs/LOWTIDE-V2-STATUS.md](docs/LOWTIDE-V2-STATUS.md) for what's complete, partial
 > and pending, and [docs/v2.2/OPERATING-PLAN.md](docs/v2.2/OPERATING-PLAN.md) for how a
 > whole life plan (tracks, learning logs, hackathons, priorities) maps onto LOWTIDE.
@@ -46,7 +47,19 @@ is no account, no cloud, and nothing carrying your data to the internet.
 > Protected time for the people you love is never scored, never in a grid, and never in
 > AI context.
 
-## Quick start
+## Using LOWTIDE (installed)
+
+```bash
+npm run install:lowtide   # once, from this repository (also how you update)
+```
+
+Then open **LOWTIDE** from Applications. It starts at login, restarts if it stops, and
+serves everything at `http://127.0.0.1:4318` (the app, its API, live events and MCP at
+`/mcp`); nothing depends on this repository afterwards. See
+[docs/v2.3/INSTALLED-APP.md](docs/v2.3/INSTALLED-APP.md), and
+[docs/integrations/](docs/integrations/MCP.md) for Claude, ChatGPT and other MCP clients.
+
+## Development quick start
 
 Requires Node.js ≥ 22.22 (React Router 8 requirement) and npm.
 
@@ -55,19 +68,21 @@ npm install
 npm run dev          # http://localhost:5173
 ```
 
-| Command                 | What it does                                                              |
-| ----------------------- | ------------------------------------------------------------------------- |
-| `npm run dev`           | Vite dev server with hot reload                                           |
-| `npm run build`         | Type-check (`tsc -b`) then production build into `dist/`                  |
-| `npm run preview`       | Serve the production build locally                                        |
-| `npm run typecheck`     | TypeScript only                                                           |
-| `npm run lint`          | ESLint (includes the storage-boundary rule: UI goes through repositories) |
-| `npm run format`        | Prettier, write                                                           |
-| `npm run format:check`  | Prettier, check only                                                      |
-| `npm test`              | Vitest in watch mode (`npm test -- --run` for a single pass)              |
-| `npm run check`         | typecheck + lint + format check + tests + build — run before committing   |
-| `npm run companion`     | Build and run the local companion (`-- pair` prints the pairing link)     |
-| `npm run e2e:companion` | The whole companion flow in a headless browser (needs `playwright-core`)  |
+| Command                   | What it does                                                                   |
+| ------------------------- | ------------------------------------------------------------------------------ |
+| `npm run dev`             | Vite dev server with hot reload                                                |
+| `npm run build`           | Type-check (`tsc -b`) then production build into `dist/`                       |
+| `npm run preview`         | Serve the production build locally                                             |
+| `npm run typecheck`       | TypeScript only                                                                |
+| `npm run lint`            | ESLint (includes the storage-boundary rule: UI goes through repositories)      |
+| `npm run format`          | Prettier, write                                                                |
+| `npm run format:check`    | Prettier, check only                                                           |
+| `npm test`                | Vitest in watch mode (`npm test -- --run` for a single pass)                   |
+| `npm run check`           | typecheck + lint + format check + tests + build — run before committing        |
+| `npm run companion`       | Build and run the local companion (`-- pair` prints the pairing link)          |
+| `npm run e2e:companion`   | The whole companion flow in a headless browser (needs `playwright-core`)       |
+| `npm run build:lowtide`   | Build and check an installable runtime (`build/lowtide/<build>`)               |
+| `npm run install:lowtide` | Install or update LOWTIDE.app, its runtime and launchd agent (rehearsed first) |
 
 ## Stack
 
@@ -111,6 +126,9 @@ feature needs them, not before.
 - [Decisions](docs/DECISIONS.md) — ADRs
 - [Companion](docs/COMPANION.md) — starting it, moving your data, connecting AI clients,
   backup and rollback
+- [Installed app](docs/v2.3/INSTALLED-APP.md) — install, update, daily use, rollback
+- [MCP](docs/integrations/MCP.md) · [Claude](docs/integrations/CLAUDE-MCP.md) ·
+  [ChatGPT](docs/integrations/CHATGPT-MCP.md) — connecting AI clients
 - [Setup](docs/SETUP.md) · [Testing](docs/TESTING.md) · [Security](docs/SECURITY.md)
 - [Roadmap](docs/ROADMAP.md) · [Changelog](docs/CHANGELOG.md) · [Phase reports](docs/phases/)
 
