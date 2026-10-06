@@ -83,14 +83,14 @@ migration rules forbid such changes.
 
 ## Measured
 
-|                                                         | Rehearsal (copy of real data) | Live install        |
-| ------------------------------------------------------- | ----------------------------- | ------------------- |
-| First install: old companion stopped → new answering    | 1,684 ms                      | see the v2.3 report |
-| Update (launchd swap)                                   | 802 ms                        | —                   |
-| Crash (`kill -9`) → healthy again                       | 1,529 ms                      | —                   |
-| Login load → healthy (start, integrity check, app, MCP) | 1,195 ms                      | —                   |
-| Click LOWTIDE while stopped → browser opens             | 1,861 ms                      | —                   |
-| New runtime start on a copy (dry run)                   | 479–1,003 ms                  | —                   |
+|                                                         | Rehearsal (copy of real data) | Live install (2026-10-07) |
+| ------------------------------------------------------- | ----------------------------- | ------------------------- |
+| First install: old companion stopped → new answering    | 1,684 ms                      | **3,555 ms**              |
+| Update (launchd swap)                                   | 802 ms                        | —                         |
+| Crash (`kill -9`) → healthy again                       | 1,529 ms                      | 3,298 ms                  |
+| Login load → healthy (start, integrity check, app, MCP) | 1,195 ms                      | —                         |
+| Click LOWTIDE while stopped → browser opens             | 1,861 ms                      | —                         |
+| New runtime start on a copy (dry run)                   | 479–1,003 ms                  | 1,464–1,635 ms            |
 
 ## Not covered
 
