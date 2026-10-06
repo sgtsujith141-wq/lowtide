@@ -34,6 +34,8 @@ import type {
   WorkSession,
   BuildStatus,
   Hackathon,
+  HackathonKind,
+  HackathonSelection,
   HackathonStatus,
   PptStatus,
   RegistrationStatus,
@@ -275,6 +277,10 @@ export interface NewHackathon {
   buildStatus?: BuildStatus;
   /** Omitted means research hasn't started (ADR-056). */
   researchStatus?: ResearchStatus;
+  /** Omitted means a hackathon (schema V11). */
+  kind?: HackathonKind;
+  /** Omitted means nothing submitted or heard yet (schema V11). */
+  selection?: HackathonSelection;
   team?: string;
   problemStatement?: string;
   nextAction?: string;
@@ -293,6 +299,10 @@ export type HackathonChanges = {
   pptStatus?: PptStatus;
   buildStatus?: BuildStatus;
   researchStatus?: ResearchStatus;
+  /** `null` removes it (read as a hackathon). */
+  kind?: HackathonKind | null;
+  /** `null` removes it (nothing heard yet). */
+  selection?: HackathonSelection | null;
 } & {
   [
     K in

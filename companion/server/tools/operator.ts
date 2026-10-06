@@ -3,6 +3,8 @@ import { PROJECT_TEMPLATES } from '../../../src/db/project-templates';
 import { deadlineFromLocalDate, localDateOfDeadline } from '../../../src/lib/time';
 import {
   BUILD_STATUSES,
+  HACKATHON_KINDS,
+  HACKATHON_SELECTIONS,
   HACKATHON_STATUSES,
   PPT_STATUSES,
   PROJECT_FOCUS,
@@ -2187,6 +2189,7 @@ const itemTools: Tool[] = [
 const hackathonJson = (h: Hackathon) => ({
   id: h.id,
   name: h.name,
+  kind: h.kind ?? 'hackathon',
   status: h.status,
   ...(h.eventStart ? { start: h.eventStart } : {}),
   ...(h.eventEnd ? { end: h.eventEnd } : {}),
@@ -2195,6 +2198,7 @@ const hackathonJson = (h: Hackathon) => ({
   research: h.researchStatus ?? 'not_started',
   ppt: h.pptStatus,
   build: h.buildStatus,
+  ...(h.selection ? { selection: h.selection } : {}),
   ...(h.problemStatement ? { problemStatement: h.problemStatement } : {}),
   ...(h.team ? { team: h.team } : {}),
   ...(h.nextAction ? { nextAction: h.nextAction } : {}),
@@ -2213,6 +2217,11 @@ const hackathonFields = {
   research: z.optional(z.enum(RESEARCH_STATUSES)),
   ppt: z.optional(z.enum(PPT_STATUSES)),
   build: z.optional(z.enum(BUILD_STATUSES)),
+  kind: d(z.optional(z.enum(HACKATHON_KINDS)), 'hackathon or ctf (a CTF is competed, not built).'),
+  selection: d(
+    z.optional(z.enum([...HACKATHON_SELECTIONS, 'none'])),
+    'The organisers’ answer: applied (submitted, waiting), shortlisted, selected or rejected; none clears it.',
+  ),
   problemStatement: optionalText(10_000),
   team: optionalText(1000),
   nextAction: optionalText(1000),
@@ -2236,9 +2245,12 @@ function hackathonChanges(args: Record<string, unknown>): HackathonChanges {
     research: 'researchStatus',
     ppt: 'pptStatus',
     build: 'buildStatus',
+    kind: 'kind',
   } as const;
   for (const [arg, field] of Object.entries(enums))
     if (args[arg] !== undefined) out[field] = args[arg];
+  if (args.selection !== undefined)
+    out.selection = args.selection === 'none' ? null : args.selection;
   for (const field of ['problemStatement', 'team', 'nextAction', 'notes'] as const) {
     if (args[field] !== undefined) out[field] = (args[field] as string) || null;
   }
@@ -2346,7 +2358,7 @@ const hackathonTools: Tool[] = [
     action: 'create a Hackathon',
     dryRun: true,
     description:
-      'Adds a hackathon (default: considering, not registered, nothing started). If one with this name exists, returns it. Example: start 2026-11-04 and nextAction "Research the problem statement".',
+      'Adds a hackathon or CTF (default: a hackathon, considering, not registered, nothing started). If one with this name exists, returns it. Example: start 2026-11-04 and nextAction "Research the problem statement".',
     write: true,
     input: z.strictObject({ name: text(200), ...hackathonFields, dryRun: dryRunArg() }),
     async run(env, args) {
@@ -2385,7 +2397,7 @@ const hackathonTools: Tool[] = [
     capability: 'hackathons.write',
     action: 'update a Hackathon',
     description:
-      'Changes a hackathon’s name, dates, statuses, problem statement, team, next action or notes (empty clears).',
+      'Changes a hackathon’s name, dates, kind (hackathon or CTF), statuses, selection, problem statement, team, next action or notes (empty clears).',
     write: true,
     input: z.strictObject({
       hackathon: d(text(300), 'Id or name.'),

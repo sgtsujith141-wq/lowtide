@@ -337,7 +337,7 @@ export function buildContextPack(
     lines: hackathons.length
       ? hackathons.map((h) => {
           const active = hackathonStages(h).find((st) => st.state === 'active');
-          return `- ${h.name}${h.eventStart ? ` (${h.eventStart}${h.eventEnd ? ` to ${h.eventEnd}` : ''})` : ''}${active ? `, now: ${STAGE_LABEL[active.key]}` : ''}${h.nextAction ? `; next: ${h.nextAction}` : ''}`;
+          return `- ${h.name}${h.kind === 'ctf' ? ' [CTF]' : ''}${h.eventStart ? ` (${h.eventStart}${h.eventEnd ? ` to ${h.eventEnd}` : ''})` : ''}${active ? `, now: ${STAGE_LABEL[active.key]}` : ''}${h.selection ? `, selection: ${h.selection}` : ''}${h.nextAction ? `; next: ${h.nextAction}` : ''}`;
         })
       : ['None active.'],
   });

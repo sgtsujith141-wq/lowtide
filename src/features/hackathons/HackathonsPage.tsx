@@ -12,7 +12,7 @@ import type { Hackathon, LocalDate } from '../../types/domain';
 import { useCreate } from '../create/create-context';
 import { HackathonForm } from './HackathonForm';
 import { HackathonSheet } from './HackathonSheet';
-import { STATUS_LABEL } from './labels';
+import { SELECTION_LABEL, STATUS_LABEL } from './labels';
 import { isOpen, orderHackathons, primaryMoment } from './schedule';
 import { StageRail } from './StageRail';
 
@@ -273,7 +273,14 @@ function HackathonRow({
   return (
     <li className="border-b border-line py-4">
       <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-        <h3 className="min-w-0 text-[15px] font-medium break-words">{h.name}</h3>
+        <span className="flex min-w-0 items-baseline gap-2">
+          <h3 className="min-w-0 text-[15px] font-medium break-words">{h.name}</h3>
+          {h.kind === 'ctf' && (
+            <span className="shrink-0 rounded-sm bg-surface px-1.5 text-[11px] font-medium text-fg-muted">
+              CTF
+            </span>
+          )}
+        </span>
         {moment && (
           <span
             className={`text-sm ${moment.tone === 'today' || moment.tone === 'now' ? 'font-medium text-accent-ink' : moment.tone === 'soon' ? 'text-fg' : 'text-fg-muted'}`}
@@ -293,7 +300,10 @@ function HackathonRow({
           )}
         </p>
         <span className="flex items-center gap-4">
-          <span className="text-xs text-fg-muted">{STATUS_LABEL[h.status]}</span>
+          <span className="text-xs text-fg-muted">
+            {h.selection && `${SELECTION_LABEL[h.selection]} · `}
+            {STATUS_LABEL[h.status]}
+          </span>
           <Button size="sm" variant="ghost" onClick={onOpen} aria-label={`Open ${h.name}`}>
             Open <ArrowRight aria-hidden className="size-3.5" />
           </Button>

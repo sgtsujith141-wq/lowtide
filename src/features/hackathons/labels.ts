@@ -1,6 +1,8 @@
 import type {
   ResearchStatus,
   BuildStatus,
+  HackathonKind,
+  HackathonSelection,
   HackathonStatus,
   PptStatus,
   RegistrationStatus,
@@ -38,4 +40,18 @@ export const RESEARCH_LABEL: Record<ResearchStatus, string> = {
   not_started: 'Not started',
   in_progress: 'In progress',
   done: 'Done',
+};
+
+export const KIND_LABEL: Record<HackathonKind, string> = {
+  hackathon: 'Hackathon',
+  ctf: 'CTF',
+};
+
+/** The organisers' answer (schema V11). Unset reads as "Nothing yet". */
+export const SELECTION_LABEL: Record<HackathonSelection | '', string> = {
+  '': 'Nothing yet',
+  applied: 'Application submitted',
+  shortlisted: 'Shortlisted',
+  selected: 'Selected',
+  rejected: 'Rejected',
 };

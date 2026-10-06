@@ -275,7 +275,9 @@ export function buildWorkspaceFiles(
         GENERATED_LINE,
         `# ${h.name}`,
         '',
+        ...(h.kind === 'ctf' ? ['- Kind: CTF'] : []),
         `- Status: ${h.status}`,
+        ...(h.selection ? [`- Selection: ${h.selection}`] : []),
         ...(h.registrationDeadline ? [`- Registration deadline: ${h.registrationDeadline}`] : []),
         ...(h.eventStart
           ? [`- Event: ${h.eventStart}${h.eventEnd ? ` to ${h.eventEnd}` : ''}`]

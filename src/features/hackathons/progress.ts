@@ -7,10 +7,22 @@ import type { Hackathon } from '../../types/domain';
  *
  * Research reads its own recorded status (schema V6, ADR-056); unset means
  * not started. Nothing is inferred from other stages.
+ *
+ * A CTF (schema V11, ADR-072) is competed, not built, so it has its own short
+ * rail: registration, preparation (the recorded research status) and the
+ * competition, done once the owner marks the event finished.
  */
 export type StageState = 'done' | 'active' | 'todo';
 export type StageKey =
-  'registration' | 'problem' | 'research' | 'ppt' | 'build' | 'testing' | 'submission';
+  | 'registration'
+  | 'problem'
+  | 'research'
+  | 'ppt'
+  | 'build'
+  | 'testing'
+  | 'submission'
+  | 'preparation'
+  | 'competition';
 
 export const STAGE_LABEL: Record<StageKey, string> = {
   registration: 'Registration',
@@ -20,6 +32,8 @@ export const STAGE_LABEL: Record<StageKey, string> = {
   build: 'Prototype / build',
   testing: 'Testing',
   submission: 'Submission',
+  preparation: 'Preparation',
+  competition: 'Competition',
 };
 
 export interface Stage {
@@ -27,33 +41,41 @@ export interface Stage {
   state: StageState;
 }
 
-export function hackathonStages(
-  h: Pick<
-    Hackathon,
-    'registrationStatus' | 'pptStatus' | 'buildStatus' | 'problemStatement' | 'researchStatus'
-  >,
-): Stage[] {
+type StageFields = Pick<
+  Hackathon,
+  'registrationStatus' | 'pptStatus' | 'buildStatus' | 'problemStatement' | 'researchStatus'
+> &
+  Partial<Pick<Hackathon, 'kind' | 'status'>>;
+
+function registrationState(h: StageFields): StageState {
+  return h.registrationStatus === 'registered'
+    ? 'done'
+    : h.registrationStatus === 'waitlisted'
+      ? 'active'
+      : 'todo';
+}
+
+function researchState(h: StageFields): StageState {
+  return h.researchStatus === 'done'
+    ? 'done'
+    : h.researchStatus === 'in_progress'
+      ? 'active'
+      : 'todo';
+}
+
+export function hackathonStages(h: StageFields): Stage[] {
+  if (h.kind === 'ctf') {
+    return [
+      { key: 'registration', state: registrationState(h) },
+      { key: 'preparation', state: researchState(h) },
+      { key: 'competition', state: h.status === 'finished' ? 'done' : 'todo' },
+    ];
+  }
   const hasProblem = Boolean(h.problemStatement?.trim());
   const stages: Stage[] = [
-    {
-      key: 'registration',
-      state:
-        h.registrationStatus === 'registered'
-          ? 'done'
-          : h.registrationStatus === 'waitlisted'
-            ? 'active'
-            : 'todo',
-    },
+    { key: 'registration', state: registrationState(h) },
     { key: 'problem', state: hasProblem ? 'done' : 'todo' },
-    {
-      key: 'research',
-      state:
-        h.researchStatus === 'done'
-          ? 'done'
-          : h.researchStatus === 'in_progress'
-            ? 'active'
-            : 'todo',
-    },
+    { key: 'research', state: researchState(h) },
   ];
   // A PPT that isn't needed isn't a stage at all, rather than a free "done".
   if (h.pptStatus !== 'not_needed') {

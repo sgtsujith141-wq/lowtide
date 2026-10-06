@@ -164,6 +164,14 @@ export const MIGRATIONS: Migration[] = [
       sql.exec('CREATE INDEX IF NOT EXISTS ai_changes_at ON ai_changes (at)');
     },
   },
+  {
+    id: 8,
+    name: 'domain schema V11 (v2.2): hackathon kind and selection',
+    statements: () => [],
+    // Additive and idempotent, like migration 6: two nullable columns, each
+    // with its own CHECK, so an older companion keeps working beside them.
+    apply: (sql) => addMissingColumns(sql, 'hackathons', ['kind', 'selection']),
+  },
 ];
 
 /** ALTER TABLE … ADD COLUMN for each field the table doesn't have yet (from its current spec). */

@@ -125,6 +125,22 @@ export type ResearchStatus = (typeof RESEARCH_STATUSES)[number];
 export const HACKATHON_STATUSES = ['considering', 'active', 'finished', 'dropped'] as const;
 export type HackathonStatus = (typeof HACKATHON_STATUSES)[number];
 
+/**
+ * What kind of event it is (schema V11, ADR-072). A CTF is competed, not
+ * built: it has no PPT, prototype or submission. Absent means a hackathon.
+ */
+export const HACKATHON_KINDS = ['hackathon', 'ctf'] as const;
+export type HackathonKind = (typeof HACKATHON_KINDS)[number];
+
+/**
+ * Where an application stands with the organisers (schema V11, ADR-072):
+ * submitted and waiting, shortlisted for a later round, selected, or
+ * rejected. Recorded by the owner, never inferred. Absent means nothing has
+ * been submitted or heard yet.
+ */
+export const HACKATHON_SELECTIONS = ['applied', 'shortlisted', 'selected', 'rejected'] as const;
+export type HackathonSelection = (typeof HACKATHON_SELECTIONS)[number];
+
 export interface Hackathon {
   id: Id;
   name: string;
@@ -143,6 +159,10 @@ export interface Hackathon {
   problemStatement?: string;
   nextAction?: string;
   status: HackathonStatus;
+  /** Hackathon or CTF (schema V11). Absent means a hackathon. */
+  kind?: HackathonKind;
+  /** The organisers' answer to an application (schema V11). Absent: nothing yet. */
+  selection?: HackathonSelection;
   notes?: string;
   /** A technical Project tracking the build (schema V4, ADR-039). Owner-set only. */
   projectId?: Id;

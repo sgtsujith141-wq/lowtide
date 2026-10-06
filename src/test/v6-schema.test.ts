@@ -48,8 +48,8 @@ describe('schema V5 → V6 (ADR-056)', () => {
 
     const db = openDatabase(name);
     await db.open();
-    expect(SCHEMA_VERSION).toBe(10);
-    expect(db.verno).toBe(10);
+    expect(SCHEMA_VERSION).toBe(11);
+    expect(db.verno).toBe(11);
     const stored = await db.hackathons.get(hack.id);
     expect(stored).toEqual(hack);
     expect(stored).not.toHaveProperty('researchStatus');

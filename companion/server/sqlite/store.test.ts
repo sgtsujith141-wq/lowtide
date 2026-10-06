@@ -46,7 +46,7 @@ describe('SQLite schema (companion migrations)', () => {
     const meta = store.sql
       .prepare("SELECT value FROM companion_meta WHERE key = 'lowtide_schema_version'")
       .get() as { value: string };
-    expect(meta.value).toBe('10');
+    expect(meta.value).toBe('11');
   });
 
   it('enforces enumerations, types and deferred references in the database itself', async () => {
@@ -214,6 +214,61 @@ describe('domain schema V10 (v2.1, companion migration 6)', () => {
       const copies = readdirSync(join(dir, 'checkpoints')).filter((f) => f.endsWith('.sqlite'));
       expect(copies).toEqual([expect.stringMatching(/before-upgrade-6\.sqlite$/)]);
       // Applying migrations again changes nothing.
+      const again = new SqliteStore(file);
+      const ids = (
+        again.sql.prepare('SELECT id FROM companion_migrations ORDER BY id').all() as {
+          id: number;
+        }[]
+      ).map((m) => m.id);
+      expect(ids).toEqual(MIGRATIONS.map((m) => m.id));
+      again.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('adds hackathon kind and selection to a V10 database (migration 8), once, keeping every hackathon', async () => {
+    const { mkdtempSync, readdirSync, rmSync } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { join } = await import('node:path');
+    const { DatabaseSync } = await import('node:sqlite');
+    const dir = mkdtempSync(join(tmpdir(), 'lowtide-v11-'));
+    try {
+      const file = join(dir, 'old.sqlite');
+      const first = new SqliteStore(file);
+      const h = await createRepositories(first).hackathons.create({
+        name: 'Night CTF',
+        eventStart: '2026-10-10',
+        registrationStatus: 'registered',
+        nextAction: 'Register',
+      });
+      first.close();
+      // A V10 database: neither column, migration 8 not run.
+      const raw = new DatabaseSync(file);
+      for (const c of ['kind', 'selection']) raw.exec(`ALTER TABLE hackathons DROP COLUMN ${c}`);
+      raw.exec('DELETE FROM companion_migrations WHERE id = 8');
+      raw.close();
+
+      const reopened = new SqliteStore(file);
+      const columns = (
+        reopened.sql.prepare('PRAGMA table_info(hackathons)').all() as { name: string }[]
+      ).map((c) => c.name);
+      expect(columns).toEqual(expect.arrayContaining(['kind', 'selection']));
+      const r = createRepositories(reopened);
+      expect(await reopened.hackathons.get(h.id)).toEqual(h);
+      const ctf = await r.hackathons.update(h.id, { kind: 'ctf', selection: 'shortlisted' });
+      expect(ctf).toMatchObject({ kind: 'ctf', selection: 'shortlisted', nextAction: 'Register' });
+      // The new columns carry their own CHECK constraints.
+      expect(() =>
+        reopened.sql.exec(`UPDATE hackathons SET kind = 'ideathon' WHERE id = '${h.id}'`),
+      ).toThrow(/CHECK/);
+      expect(() =>
+        reopened.sql.exec(`UPDATE hackathons SET selection = 'maybe' WHERE id = '${h.id}'`),
+      ).toThrow(/CHECK/);
+      reopened.close();
+      const copies = readdirSync(join(dir, 'checkpoints')).filter((f) => f.endsWith('.sqlite'));
+      expect(copies).toEqual([expect.stringMatching(/before-upgrade-8\.sqlite$/)]);
+
       const again = new SqliteStore(file);
       const ids = (
         again.sql.prepare('SELECT id FROM companion_migrations ORDER BY id').all() as {

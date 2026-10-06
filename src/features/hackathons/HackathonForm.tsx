@@ -5,13 +5,23 @@ import { fieldClass, labelClass } from '../../components/ui/styles';
 import type { HackathonChanges } from '../../db/repositories';
 import {
   BUILD_STATUSES,
+  HACKATHON_KINDS,
+  HACKATHON_SELECTIONS,
   HACKATHON_STATUSES,
   PPT_STATUSES,
   REGISTRATION_STATUSES,
   RESEARCH_STATUSES,
   type Hackathon,
 } from '../../types/domain';
-import { BUILD_LABEL, PPT_LABEL, REGISTRATION_LABEL, RESEARCH_LABEL, STATUS_LABEL } from './labels';
+import {
+  BUILD_LABEL,
+  KIND_LABEL,
+  PPT_LABEL,
+  REGISTRATION_LABEL,
+  RESEARCH_LABEL,
+  SELECTION_LABEL,
+  STATUS_LABEL,
+} from './labels';
 
 type Draft = Required<{ [K in Exclude<keyof HackathonChanges, 'projectId'>]: string }>;
 
@@ -23,6 +33,8 @@ function toDraft(h: Partial<Hackathon>): Draft {
     pptStatus: h.pptStatus ?? 'not_started',
     researchStatus: h.researchStatus ?? 'not_started',
     buildStatus: h.buildStatus ?? 'not_started',
+    kind: h.kind ?? 'hackathon',
+    selection: h.selection ?? '',
     registrationDeadline: h.registrationDeadline ?? '',
     eventStart: h.eventStart ?? '',
     eventEnd: h.eventEnd ?? '',
@@ -180,9 +192,11 @@ export function HackathonForm({
               className={`${fieldClass} resize-y text-sm`}
             />
           </div>
-          <div className="grid gap-3 sm:grid-cols-[1fr_10rem]">
+          <div className="grid gap-3 sm:grid-cols-[1fr_8rem_9rem_12rem]">
             {input('team', 'Team')}
+            {select('kind', 'Kind', HACKATHON_KINDS, KIND_LABEL)}
             {select('status', 'Status', HACKATHON_STATUSES, STATUS_LABEL)}
+            {select('selection', 'Selection', ['', ...HACKATHON_SELECTIONS], SELECTION_LABEL)}
           </div>
           <div>
             <label htmlFor={`${id}-notes`} className={labelClass}>

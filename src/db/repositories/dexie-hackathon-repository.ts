@@ -59,6 +59,9 @@ export function createDexieHackathonRepository(deps: RepositoryDeps): HackathonR
         pptStatus: input.pptStatus ?? 'not_started',
         buildStatus: input.buildStatus ?? 'not_started',
         researchStatus: input.researchStatus,
+        // A blank choice from a form means "not set", like blank text.
+        kind: input.kind || undefined,
+        selection: input.selection || undefined,
         createdAt: at,
         updatedAt: at,
       };
@@ -82,6 +85,10 @@ export function createDexieHackathonRepository(deps: RepositoryDeps): HackathonR
           'researchStatus',
         ] as const) {
           if (changes[key] !== undefined) next[key] = changes[key];
+        }
+        for (const key of ['kind', 'selection'] as const) {
+          // null or a blank form choice removes it.
+          if (changes[key] !== undefined) next[key] = changes[key] || undefined;
         }
         for (const field of OPTIONAL_FIELDS) {
           if (changes[field] !== undefined) next[field] = optionalText(changes[field]);

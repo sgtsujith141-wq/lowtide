@@ -55,6 +55,8 @@ import {
   BUILD_STATUSES,
   HABIT_CATEGORIES,
   HABIT_UNITS,
+  HACKATHON_KINDS,
+  HACKATHON_SELECTIONS,
   HACKATHON_STATUSES,
   PPT_STATUSES,
   PROTECTED_TIME_KINDS,
@@ -141,6 +143,8 @@ export const hackathonSchema = z.object({
   problemStatement: z.exactOptional(z.string()),
   nextAction: z.exactOptional(z.string()),
   status: z.enum(HACKATHON_STATUSES),
+  kind: z.exactOptional(z.enum(HACKATHON_KINDS)),
+  selection: z.exactOptional(z.enum(HACKATHON_SELECTIONS)),
   notes: z.exactOptional(z.string()),
   projectId: z.exactOptional(id),
   archivedAt: z.exactOptional(timestamp),
@@ -505,7 +509,7 @@ export const DATABASE_NAME = 'lowtide';
  * Current schema version. Bump it (never edit a shipped version) when the
  * store layout or record shape changes; see docs/DATA-MODEL.md#migrations.
  */
-export const SCHEMA_VERSION = 10;
+export const SCHEMA_VERSION = 11;
 
 /**
  * Dexie store definitions for version 1. First entry is the primary key;
@@ -611,3 +615,11 @@ export const STORES_V9 = {} as const;
 export const STORES_V10 = {
   tasks: 'id, status, dueAt, createdAt, plannedFor, projectId, parentId',
 } as const;
+
+/**
+ * Version 11 (LOWTIDE v2.2, ADR-072): optional `Hackathon.kind` (hackathon or
+ * CTF) and `Hackathon.selection` (applied, shortlisted, selected, rejected).
+ * No store or index changes and no upgrade(): existing hackathons keep both
+ * unset, read as a hackathon with nothing heard yet.
+ */
+export const STORES_V11 = {} as const;

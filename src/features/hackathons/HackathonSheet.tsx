@@ -5,6 +5,7 @@ import { Button, IconButton } from '../../components/ui/Button';
 import { fieldClass } from '../../components/ui/styles';
 import {
   BUILD_STATUSES,
+  HACKATHON_SELECTIONS,
   HACKATHON_STATUSES,
   PPT_STATUSES,
   REGISTRATION_STATUSES,
@@ -12,7 +13,14 @@ import {
   type Hackathon,
   type LocalDate,
 } from '../../types/domain';
-import { BUILD_LABEL, PPT_LABEL, REGISTRATION_LABEL, RESEARCH_LABEL, STATUS_LABEL } from './labels';
+import {
+  BUILD_LABEL,
+  PPT_LABEL,
+  REGISTRATION_LABEL,
+  RESEARCH_LABEL,
+  SELECTION_LABEL,
+  STATUS_LABEL,
+} from './labels';
 import { formatRange, primaryMoment, type MomentTone } from './schedule';
 import { StageRail } from './StageRail';
 
@@ -24,29 +32,79 @@ const TONE_CLASS: Record<MomentTone, string> = {
   later: 'text-fg-muted',
 };
 
-type StatusField = 'status' | 'registrationStatus' | 'researchStatus' | 'pptStatus' | 'buildStatus';
+type StatusField =
+  'status' | 'registrationStatus' | 'researchStatus' | 'pptStatus' | 'buildStatus' | 'selection';
 
-const QUICK_STATUS: {
+interface QuickStatus {
   field: StatusField;
   label: string;
   values: readonly string[];
   labels: Record<string, string>;
-}[] = [
-  {
-    field: 'registrationStatus',
-    label: 'Registration',
-    values: REGISTRATION_STATUSES,
-    labels: REGISTRATION_LABEL,
-  },
+  /** What an unset field reads as. */
+  unset: string;
+}
+
+const REGISTRATION: QuickStatus = {
+  field: 'registrationStatus',
+  label: 'Registration',
+  values: REGISTRATION_STATUSES,
+  labels: REGISTRATION_LABEL,
+  unset: 'not_registered',
+};
+const SELECTION: QuickStatus = {
+  field: 'selection',
+  label: 'Selection',
+  values: ['', ...HACKATHON_SELECTIONS],
+  labels: SELECTION_LABEL,
+  unset: '',
+};
+const STATUS: QuickStatus = {
+  field: 'status',
+  label: 'Status',
+  values: HACKATHON_STATUSES,
+  labels: STATUS_LABEL,
+  unset: 'considering',
+};
+
+const QUICK_STATUS: QuickStatus[] = [
+  REGISTRATION,
   {
     field: 'researchStatus',
     label: 'Research',
     values: RESEARCH_STATUSES,
     labels: RESEARCH_LABEL,
+    unset: 'not_started',
   },
-  { field: 'pptStatus', label: 'PPT', values: PPT_STATUSES, labels: PPT_LABEL },
-  { field: 'buildStatus', label: 'Build', values: BUILD_STATUSES, labels: BUILD_LABEL },
-  { field: 'status', label: 'Status', values: HACKATHON_STATUSES, labels: STATUS_LABEL },
+  {
+    field: 'pptStatus',
+    label: 'PPT',
+    values: PPT_STATUSES,
+    labels: PPT_LABEL,
+    unset: 'not_started',
+  },
+  {
+    field: 'buildStatus',
+    label: 'Build',
+    values: BUILD_STATUSES,
+    labels: BUILD_LABEL,
+    unset: 'not_started',
+  },
+  SELECTION,
+  STATUS,
+];
+
+/** A CTF has no PPT or build (ADR-072); research is its preparation. */
+const CTF_QUICK_STATUS: QuickStatus[] = [
+  REGISTRATION,
+  {
+    field: 'researchStatus',
+    label: 'Preparation',
+    values: RESEARCH_STATUSES,
+    labels: RESEARCH_LABEL,
+    unset: 'not_started',
+  },
+  SELECTION,
+  STATUS,
 ];
 
 /**
@@ -85,6 +143,7 @@ export function HackathonSheet({
   const [editingNext, setEditingNext] = useState(false);
   const [next, setNext] = useState(h.nextAction ?? '');
   const hasDetails = Boolean(h.problemStatement || h.team || h.notes);
+  const isCtf = h.kind === 'ctf';
 
   async function saveNext(event: FormEvent) {
     event.preventDefault();
@@ -105,6 +164,11 @@ export function HackathonSheet({
           {h.name}
         </h3>
         {embedded && <span className="flex-1" />}
+        {isCtf && (
+          <span className="mt-0.5 shrink-0 rounded-sm bg-surface px-1.5 text-[11px] font-medium text-fg-muted">
+            CTF
+          </span>
+        )}
         <IconButton
           label={`Edit ${h.name}`}
           icon={<Pencil aria-hidden className="size-4" />}
@@ -180,54 +244,59 @@ export function HackathonSheet({
       </div>
 
       <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs text-fg-muted">
-        {QUICK_STATUS.map(({ field, label, values, labels }) => (
-          <label key={field} className="inline-flex items-center gap-1">
-            <span>{label}</span>
-            <select
-              value={h[field] ?? 'not_started'}
-              aria-label={`${label} for ${h.name}`}
-              onChange={(e: ChangeEvent<HTMLSelectElement>) => onStatus(field, e.target.value)}
-              className="rounded-sm bg-transparent py-0.5 pr-0.5 text-xs font-medium text-fg hover:bg-surface"
-            >
-              {values.map((v) => (
-                <option key={v} value={v}>
-                  {labels[v]}
-                </option>
-              ))}
-            </select>
-          </label>
-        ))}
+        {(isCtf ? CTF_QUICK_STATUS : QUICK_STATUS).map(
+          ({ field, label, values, labels, unset }) => (
+            <label key={field} className="inline-flex items-center gap-1">
+              <span>{label}</span>
+              <select
+                value={h[field] ?? unset}
+                aria-label={`${label} for ${h.name}`}
+                onChange={(e: ChangeEvent<HTMLSelectElement>) => onStatus(field, e.target.value)}
+                className="rounded-sm bg-transparent py-0.5 pr-0.5 text-xs font-medium text-fg hover:bg-surface"
+              >
+                {values.map((v) => (
+                  <option key={v} value={v}>
+                    {labels[v]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          ),
+        )}
       </div>
 
-      <p className="mt-1.5 flex flex-wrap items-center gap-x-2 text-xs text-fg-muted">
-        {project ? (
-          <>
-            <FolderKanban aria-hidden className="size-3.5" />
-            <span>
-              Build tracked as{' '}
-              <Link to={`/projects/${project.slug}`} className="text-accent-ink hover:underline">
-                {project.name}
-              </Link>
-            </span>
+      {/* A CTF has no build to track; a link made earlier stays visible. */}
+      {(project || !isCtf) && (
+        <p className="mt-1.5 flex flex-wrap items-center gap-x-2 text-xs text-fg-muted">
+          {project ? (
+            <>
+              <FolderKanban aria-hidden className="size-3.5" />
+              <span>
+                Build tracked as{' '}
+                <Link to={`/projects/${project.slug}`} className="text-accent-ink hover:underline">
+                  {project.name}
+                </Link>
+              </span>
+              <button
+                type="button"
+                onClick={onUnlinkProject}
+                className="underline decoration-line-strong underline-offset-2 hover:text-fg"
+              >
+                Unlink
+              </button>
+            </>
+          ) : (
             <button
               type="button"
-              onClick={onUnlinkProject}
-              className="underline decoration-line-strong underline-offset-2 hover:text-fg"
+              onClick={onTrackProject}
+              className="inline-flex items-center gap-1 underline decoration-line-strong underline-offset-2 hover:text-fg"
             >
-              Unlink
+              <FolderKanban aria-hidden className="size-3.5" />
+              Track the build as a project
             </button>
-          </>
-        ) : (
-          <button
-            type="button"
-            onClick={onTrackProject}
-            className="inline-flex items-center gap-1 underline decoration-line-strong underline-offset-2 hover:text-fg"
-          >
-            <FolderKanban aria-hidden className="size-3.5" />
-            Track the build as a project
-          </button>
-        )}
-      </p>
+          )}
+        </p>
+      )}
 
       {hasDetails && (
         <details className="mt-1.5 text-sm" open={embedded || undefined}>

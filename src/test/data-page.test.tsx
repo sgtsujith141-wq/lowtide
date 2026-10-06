@@ -91,7 +91,7 @@ describe('Data & backup page', () => {
     expect(await screen.findByText(/^Downloaded lowtide-backup-/)).toBeInTheDocument();
     expect(names[0]).toMatch(/^lowtide-backup-\d{4}-\d{2}-\d{2}-\d{4}\.json$/);
     const doc = JSON.parse(await blobs[0]!.text());
-    expect(doc).toMatchObject({ format: 'lowtide-backup', formatVersion: 1, schemaVersion: 10 });
+    expect(doc).toMatchObject({ format: 'lowtide-backup', formatVersion: 1, schemaVersion: 11 });
     expect(doc.data.tasks).toHaveLength(2);
     expect(Object.keys(doc.data)).toHaveLength(19);
   });
@@ -149,7 +149,7 @@ describe('Data & backup page', () => {
 
     const heading = await screen.findByRole('heading', { level: 3, name: /^Backup from / });
     await expectFocus(() => heading);
-    expect(screen.getByText(/my-backup\.json · Database version 10/)).toBeInTheDocument();
+    expect(screen.getByText(/my-backup\.json · Database version 11/)).toBeInTheDocument();
     const table = screen.getByRole('table', {
       name: 'Records in the backup and in this browser now',
     });

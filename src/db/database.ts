@@ -34,6 +34,7 @@ import {
   STORES_V8,
   STORES_V9,
   STORES_V10,
+  STORES_V11,
 } from './schema';
 
 /**
@@ -95,6 +96,8 @@ export class LowtideDatabase extends Dexie {
     this.version(9).stores(STORES_V9);
     // V10 (v2.1): subtasks index; new optional fields. Additive, no upgrade().
     this.version(10).stores(STORES_V10);
+    // V11 (v2.2, ADR-072): optional hackathon kind and selection. No upgrade().
+    this.version(11).stores(STORES_V11);
   }
 }
 
