@@ -1,10 +1,12 @@
-import { spawn } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { existsSync, realpathSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { startCompanion } from './app';
 import { defaultDataDir, loadConfig, rotateOwnerToken } from './config';
 import { AlreadyRunningError, portOwner, stopCompanion } from './instance';
+import { LaunchError, openLowtide } from './launcher';
+import { runtimePaths, setStartAtLogin, writeAgent, writeAppBundle } from './runtime';
 import { runNotionImport, summarise } from './notion-import';
 
 /*
@@ -30,6 +32,15 @@ const { values, positionals } = parseArgs({
     workspace: { type: 'string' },
     app: { type: 'string', default: 'http://localhost:5173' },
     frontend: { type: 'string' },
+    home: { type: 'string' },
+    label: { type: 'string' },
+    node: { type: 'string' },
+    apps: { type: 'string' },
+    'launch-agents': { type: 'string' },
+    icon: { type: 'string' },
+    version: { type: 'string' },
+    build: { type: 'string' },
+    'start-at-login': { type: 'string' },
     snapshot: { type: 'string' },
     plan: { type: 'string' },
     'dry-run': { type: 'boolean' },
@@ -38,6 +49,9 @@ const { values, positionals } = parseArgs({
 });
 
 const HELP = `lowtide-companion [pair | rotate-token] [--data <dir>] [--port <n>] [--workspace <dir>] [--app <url>] [--frontend <dir>]
+lowtide-companion open [--data <dir>] [--port <n>]      open LOWTIDE (starting it first if needed)
+lowtide-companion install-agent --node <path> [--home <dir>] [--label <l>] [--launch-agents <dir>] [--start-at-login yes|no]
+lowtide-companion install-app --node <path> --version <v> --build <b> [--home <dir>] [--apps <dir>] [--icon <icns>]
 lowtide-companion import-notion --snapshot <dir> --plan <file> [--dry-run] [--data <dir>]
 
 Runs the local LOWTIDE companion: the SQLite store, the live workspace and the
@@ -66,6 +80,106 @@ async function main() {
       `Open this link in the browser where you use LOWTIDE:\n\n  ${pairingLink(values.app!, url, config.ownerToken)}\n`,
     );
     console.log('It carries your owner token: don’t share it or paste it anywhere else.');
+    return;
+  }
+  const paths = () =>
+    runtimePaths({
+      ...(values.home ? { home: values.home } : {}),
+      ...(values.label ? { label: values.label } : {}),
+      ...(values['launch-agents'] ? { launchAgentsDir: values['launch-agents'] } : {}),
+      ...(values.apps ? { appsDir: values.apps } : {}),
+    });
+  if (command === 'open') {
+    // LOWTIDE.app (v2.3): open LOWTIDE, starting it first if needed.
+    const config = loadConfig(dataDir);
+    const port = values.port !== undefined ? Number(values.port) : config.port;
+    const run = (file: string, args: string[]) =>
+      new Promise<boolean>((resolve) => execFile(file, args, (error) => resolve(!error)));
+    try {
+      const { how } = await openLowtide(
+        { port, ownerToken: config.ownerToken, paths: paths() },
+        {
+          async health(p) {
+            try {
+              const response = await fetch(`http://127.0.0.1:${p}/api/health`, {
+                signal: AbortSignal.timeout(1500),
+              });
+              const body = (await response.json().catch(() => ({}))) as { app?: string };
+              return body.app === 'lowtide-companion' ? body : 'other';
+            } catch {
+              return undefined;
+            }
+          },
+          launchctl: (args) => run('/bin/launchctl', args),
+          spawnCompanion() {
+            spawn(process.execPath, [process.argv[1]!, '--data', dataDir, '--port', String(port)], {
+              detached: true,
+              stdio: 'ignore',
+            }).unref();
+          },
+          async mintCode(p, token) {
+            const response = await fetch(`http://127.0.0.1:${p}/api/pair-codes`, {
+              method: 'POST',
+              headers: { authorization: `Bearer ${token}` },
+            });
+            if (!response.ok) throw new LaunchError('LOWTIDE refused to open a pairing code.');
+            return ((await response.json()) as { code: string }).code;
+          },
+          async open(url) {
+            if (process.env.LOWTIDE_OPEN_WITH === 'print') {
+              console.log(url);
+              return;
+            }
+            if (!(await run('/usr/bin/open', [url]))) {
+              throw new LaunchError('macOS couldn’t open the browser.');
+            }
+          },
+          exists: existsSync,
+          sleep: (ms) => new Promise((r) => setTimeout(r, ms)),
+          uid: process.getuid?.() ?? 501,
+        },
+      );
+      console.log(`LOWTIDE opened (${how}).`);
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error));
+      process.exitCode = 1;
+    }
+    return;
+  }
+  if (command === 'install-agent') {
+    // The installer (v2.3): the launchd agent for the installed runtime.
+    if (!values.node) throw new Error('install-agent needs --node');
+    const p = paths();
+    writeAgent({
+      paths: p,
+      node: values.node,
+      dataDir,
+      port: values.port !== undefined ? Number(values.port) : loadConfig(dataDir).port,
+      startAtLogin: values['start-at-login'] !== 'no',
+    });
+    console.log(
+      JSON.stringify({ plist: p.plist, startAtLogin: values['start-at-login'] !== 'no' }),
+    );
+    return;
+  }
+  if (command === 'start-at-login') {
+    setStartAtLogin(paths(), positionals[1] === 'on');
+    return;
+  }
+  if (command === 'install-app') {
+    if (!values.node || !values.version || !values.build) {
+      throw new Error('install-app needs --node, --version and --build');
+    }
+    const bundle = writeAppBundle({
+      paths: paths(),
+      node: values.node,
+      dataDir,
+      port: values.port !== undefined ? Number(values.port) : loadConfig(dataDir).port,
+      version: values.version,
+      build: values.build,
+      ...(values.icon ? { icon: values.icon } : {}),
+    });
+    console.log(JSON.stringify({ app: bundle }));
     return;
   }
   if (command === 'import-notion') {

@@ -54,16 +54,28 @@ export interface AutostartStatus {
   restartOnFailure: boolean;
   managed: boolean;
   agentPath: string;
+  /** Running from the installed runtime (v2.3). */
+  installed?: { home: string; build: string; version: string };
 }
 
 /** What /api/health/details reports. */
 export interface CompanionHealth {
   companion: { running: boolean; version: string; startedAt: string; pid: number };
   database: { healthy: boolean; detail: string; path: string; schemaVersion: number };
-  mcp: { available: boolean; url: string; bridge: string };
+  mcp: { available: boolean; url: string; bridge: string; sessions?: number };
   workspace: { healthy: boolean; dir: string; lastSync: string | null; conflicts: string[] };
   autostart: AutostartStatus;
   restart: boolean;
+  /** v2.3: the app the companion serves, the installed runtime, the ChatGPT connection. */
+  frontend?: { served: boolean; dir: string | null; url: string | null };
+  runtime?: {
+    installed: boolean;
+    version: string;
+    build?: string;
+    home?: string;
+    launchdLog?: string;
+  };
+  chatgpt?: { status: 'not-configured'; clientsInstalled: string[]; docs: string };
 }
 
 export class CompanionUnavailableError extends Error {
@@ -291,6 +303,13 @@ export class CompanionClient {
 
   logs(lines = 200) {
     return this.request<{ file: string; lines: string[] }>(`/api/system/logs?lines=${lines}`);
+  }
+
+  /** A one-time code that opens the app the companion serves, already paired (v2.3). */
+  pairCode() {
+    return this.request<{ code: string; expiresInSeconds: number }>('/api/pair-codes', {
+      method: 'POST',
+    });
   }
 
   setAutostart(enabled: boolean, restartOnFailure: boolean) {

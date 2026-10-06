@@ -1,4 +1,4 @@
-import { CheckCircle2, CircleAlert, History, RotateCcw } from 'lucide-react';
+import { CheckCircle2, CircleAlert, ExternalLink, History, RotateCcw } from 'lucide-react';
 import { useCallback, useEffect, useId, useState, type FormEvent } from 'react';
 import { Button } from '../../components/ui/Button';
 import { Announcer, ErrorNotice } from '../../components/ui/Notice';
@@ -10,7 +10,8 @@ import { formatFull, formatWhen } from '../../lib/when';
 /*
  * The companion as a service (v2.1): is everything healthy, does it start at
  * login, its log, a restart, and checkpoints (named copies of the whole
- * database to roll back to). Shown only in companion mode.
+ * database to roll back to). Shown only in companion mode. v2.3: the
+ * installed runtime, the app it serves and the ChatGPT connection.
  */
 
 const sectionClass = 'mt-8 border-t border-line pt-6';
@@ -82,6 +83,28 @@ export function CompanionAdmin({ client }: { client: CompanionClient }) {
                 <Status ok={!failed} good="Running" bad="Not running" />
               </dd>
             </div>
+            {health.runtime && (
+              <div className="flex gap-3">
+                <dt className="w-28 shrink-0 text-fg-muted">LOWTIDE runtime</dt>
+                <dd>
+                  {health.runtime.installed
+                    ? `Installed ${health.runtime.version}${health.runtime.build ? ` (${health.runtime.build})` : ''}`
+                    : `Development checkout (${health.runtime.version})`}
+                </dd>
+              </div>
+            )}
+            {health.frontend && (
+              <div className="flex gap-3">
+                <dt className="w-28 shrink-0 text-fg-muted">App</dt>
+                <dd>
+                  {health.frontend.served ? (
+                    <Status ok good={`Served at ${health.frontend.url ?? ''}`} bad="" />
+                  ) : (
+                    <span className="text-fg-muted">Not served by this companion</span>
+                  )}
+                </dd>
+              </div>
+            )}
             <div className="flex gap-3">
               <dt className="w-28 shrink-0 text-fg-muted">Database</dt>
               <dd>
@@ -95,9 +118,24 @@ export function CompanionAdmin({ client }: { client: CompanionClient }) {
             <div className="flex gap-3">
               <dt className="w-28 shrink-0 text-fg-muted">AI connection</dt>
               <dd>
-                <Status ok={health.mcp.available} good="Available" bad="Unavailable" />
+                <Status
+                  ok={health.mcp.available}
+                  good={`Available at ${health.mcp.url}`}
+                  bad="Unavailable"
+                />
               </dd>
             </div>
+            {health.chatgpt && (
+              <div className="flex gap-3">
+                <dt className="w-28 shrink-0 text-fg-muted">ChatGPT</dt>
+                <dd className="text-fg-muted">
+                  Not configured: ChatGPT needs a secure tunnel you set up (see
+                  docs/integrations/CHATGPT-MCP.md).
+                  {health.chatgpt.clientsInstalled.length > 0 &&
+                    ` Found: ${health.chatgpt.clientsInstalled.join(', ')}.`}
+                </dd>
+              </div>
+            )}
             <div className="flex gap-3">
               <dt className="w-28 shrink-0 text-fg-muted">Workspace</dt>
               <dd>
@@ -137,6 +175,10 @@ function Service({
   onChanged: (text: string) => void;
 }) {
   const { autostart } = health;
+  const installed = Boolean(autostart.installed);
+  const appUrl = health.frontend?.url ?? null;
+  // Open the app LOWTIDE serves, already paired, when looking at it from elsewhere.
+  const elsewhere = appUrl !== null && new URL(appUrl).origin !== location.origin;
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmRestart, setConfirmRestart] = useState(false);
@@ -174,9 +216,40 @@ function Service({
     }
   }
 
+  async function openApp() {
+    setError(null);
+    try {
+      const { code } = await client.pairCode();
+      window.open(`${appUrl}#pair=${code}`, '_blank', 'noopener');
+    } catch (e) {
+      setError(messageOf(e, 'Couldn’t open LOWTIDE.'));
+    }
+  }
+
   return (
     <div className="mt-4 space-y-3 text-sm">
-      {autostart.supported ? (
+      {autostart.supported && installed ? (
+        <fieldset>
+          <legend className={labelClass}>Running in the background</legend>
+          <label className="flex items-start gap-2">
+            <input
+              type="checkbox"
+              className="mt-1"
+              disabled={busy}
+              checked={autostart.enabled}
+              onChange={(e) => void setAutostart(e.target.checked, true)}
+            />
+            <span>
+              Start LOWTIDE at login
+              <span className="block text-xs text-fg-muted">
+                LOWTIDE starts in the background when you log in and restarts if it stops
+                unexpectedly. Turning this off keeps it running until you log out; the LOWTIDE app
+                starts it again whenever you open it.
+              </span>
+            </span>
+          </label>
+        </fieldset>
+      ) : autostart.supported ? (
         <fieldset>
           <legend className={labelClass}>Running in the background</legend>
           <label className="flex items-start gap-2">
@@ -222,14 +295,22 @@ function Service({
             </Button>
           </>
         ) : (
-          <Button
-            size="sm"
-            disabled={!health.restart || restarting}
-            onClick={() => setConfirmRestart(true)}
-          >
-            <RotateCcw aria-hidden className="size-3.5" />
-            {restarting ? 'Restarting…' : 'Restart companion'}
-          </Button>
+          <>
+            {elsewhere && (
+              <Button size="sm" onClick={() => void openApp()}>
+                <ExternalLink aria-hidden className="size-3.5" />
+                Open LOWTIDE
+              </Button>
+            )}
+            <Button
+              size="sm"
+              disabled={!health.restart || restarting}
+              onClick={() => setConfirmRestart(true)}
+            >
+              <RotateCcw aria-hidden className="size-3.5" />
+              {restarting ? 'Restarting…' : installed ? 'Restart LOWTIDE' : 'Restart companion'}
+            </Button>
+          </>
         )}
       </div>
       <details
@@ -242,13 +323,20 @@ function Service({
           }
         }}
       >
-        <summary className="cursor-pointer text-fg-muted select-none">Companion log</summary>
+        <summary className="cursor-pointer text-fg-muted select-none">
+          {installed ? 'LOWTIDE log' : 'Companion log'}
+        </summary>
         <pre
           aria-label="Companion log"
           className="mt-2 max-h-72 overflow-auto rounded-md bg-surface p-2 font-mono text-[11px] leading-5 whitespace-pre-wrap break-all"
         >
           {logs === null ? 'Loading…' : logs.length ? logs.join('\n') : 'Nothing logged yet.'}
         </pre>
+        {health.runtime?.launchdLog && (
+          <p className="mt-1 text-xs text-fg-muted">
+            Start-up output and crash traces: {health.runtime.launchdLog}
+          </p>
+        )}
       </details>
       {error && <ErrorNotice>{error}</ErrorNotice>}
     </div>

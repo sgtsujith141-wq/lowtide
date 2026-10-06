@@ -28,6 +28,8 @@ import {
 } from './grants';
 import { loadFrontend } from './frontend';
 import { instanceId, takeLock } from './instance';
+import { installedRuntimeOf, runtimePaths } from './runtime';
+import { tunnelStatus } from './tunnel';
 import { PairCodes } from './pairing';
 import { McpServer } from './mcp';
 import { isEmpty, migrateIntoCompanion, migrationInfo } from './migrate';
@@ -52,8 +54,16 @@ import { WorkspaceSync } from './workspace-sync';
 /** The companion reports LOWTIDE's version (v2.3). */
 export const COMPANION_VERSION = LOWTIDE_VERSION;
 
-/** The stdio bridge AI clients launch (companion/lowtide-mcp.ts), from source or dist. */
-export const BRIDGE_PATH = join(dirname(fileURLToPath(import.meta.url)), '..', 'lowtide-mcp.ts');
+/** The installed runtime this companion runs from (v2.3), or undefined in development. */
+const INSTALLED = installedRuntimeOf(fileURLToPath(import.meta.url));
+
+/**
+ * The stdio bridge AI clients launch: in an installed runtime its stable
+ * path through `current`; in development the source file.
+ */
+export const BRIDGE_PATH = INSTALLED
+  ? runtimePaths({ home: INSTALLED.home }).bridge
+  : join(dirname(fileURLToPath(import.meta.url)), '..', 'lowtide-mcp.ts');
 
 export interface CompanionOptions {
   dataDir: string;
@@ -271,7 +281,18 @@ export async function startCompanion(options: CompanionOptions): Promise<Compani
       }),
       port: config.port,
     },
-    options.launchAgentsDir ? { launchAgentsDir: options.launchAgentsDir } : {},
+    {
+      ...(options.launchAgentsDir ? { launchAgentsDir: options.launchAgentsDir } : {}),
+      ...(INSTALLED
+        ? {
+            installed: {
+              paths: runtimePaths({ home: INSTALLED.home }),
+              build: INSTALLED.build,
+              version: INSTALLED.manifest.version,
+            },
+          }
+        : {}),
+    },
   );
   const log = (line: string) => {
     options.log?.(line);
@@ -620,7 +641,21 @@ export async function startCompanion(options: CompanionOptions): Promise<Compani
           bridge: BRIDGE_PATH,
           sessions: mcp.sessionCount,
         },
-        frontend: { served: Boolean(frontend), dir: frontend?.dir ?? null },
+        frontend: {
+          served: Boolean(frontend),
+          dir: frontend?.dir ?? null,
+          url: frontend ? `http://127.0.0.1:${port}/` : null,
+        },
+        runtime: INSTALLED
+          ? {
+              installed: true,
+              version: INSTALLED.manifest.version,
+              build: INSTALLED.build,
+              home: INSTALLED.home,
+              launchdLog: join(INSTALLED.home, 'logs', 'companion.out.log'),
+            }
+          : { installed: false, version: COMPANION_VERSION },
+        chatgpt: await tunnelStatus(),
         workspace: {
           healthy: !(sync.lastReport?.conflicts.length ?? 0),
           dir: sync.root,

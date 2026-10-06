@@ -10,6 +10,7 @@ import {
 } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { setStartAtLogin, startsAtLogin, type RuntimePaths } from './runtime';
 
 /*
  * The companion as a background service (v2.1): its log file, and an
@@ -29,6 +30,8 @@ export interface AutostartStatus {
   /** This process was started by launchd (from the agent). */
   managed: boolean;
   agentPath: string;
+  /** Running from the installed runtime (v2.3): start at login uses its agent. */
+  installed?: { home: string; build: string; version: string };
 }
 
 export class SystemService {
@@ -38,8 +41,14 @@ export class SystemService {
   constructor(
     private readonly dataDir: string,
     private readonly program: { node: string; script: string; port: number; cwd: string },
-    options: { launchAgentsDir?: string; platform?: string } = {},
+    options: {
+      launchAgentsDir?: string;
+      platform?: string;
+      /** The installed runtime this companion runs from (v2.3), if any. */
+      installed?: { paths: RuntimePaths; build: string; version: string };
+    } = {},
   ) {
+    this.installed = options.installed;
     this.logFile = join(dataDir, 'companion.log');
     this.agentPath = join(
       options.launchAgentsDir ?? join(homedir(), 'Library', 'LaunchAgents'),
@@ -49,6 +58,7 @@ export class SystemService {
   }
 
   private readonly platform: string;
+  private readonly installed: { paths: RuntimePaths; build: string; version: string } | undefined;
 
   /** Appends a line, keeping the file under a megabyte (one older file kept). */
   log(line: string) {
@@ -74,6 +84,18 @@ export class SystemService {
 
   autostart(): AutostartStatus {
     const supported = this.platform === 'darwin';
+    if (this.installed) {
+      // The installed runtime's agent always restarts LOWTIDE when it stops unexpectedly.
+      const { paths, build, version } = this.installed;
+      return {
+        supported,
+        enabled: supported && startsAtLogin(paths),
+        restartOnFailure: true,
+        managed: process.env.LOWTIDE_LAUNCHD === '1',
+        agentPath: paths.agentLink,
+        installed: { home: paths.home, build, version },
+      };
+    }
     let enabled = false;
     let restartOnFailure = false;
     if (supported && existsSync(this.agentPath)) {
@@ -92,6 +114,10 @@ export class SystemService {
   /** Writes (or removes) the LaunchAgent. */
   setAutostart(enabled: boolean, restartOnFailure: boolean): AutostartStatus {
     if (this.platform !== 'darwin') throw new Error('Starting at login is only set up on macOS');
+    if (this.installed) {
+      setStartAtLogin(this.installed.paths, enabled);
+      return this.autostart();
+    }
     if (!enabled) {
       rmSync(this.agentPath, { force: true });
       return this.autostart();

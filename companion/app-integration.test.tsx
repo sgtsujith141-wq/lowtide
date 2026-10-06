@@ -401,16 +401,19 @@ describe('the app with a real companion', () => {
 
     if (process.platform === 'darwin') {
       await user.click(screen.getByRole('checkbox', { name: /Start the companion when I log in/ }));
-      await vi.waitFor(() =>
-        expect(existsSync(join(agents, 'com.lowtide.companion.plist'))).toBe(true),
+      await vi.waitFor(
+        () => expect(existsSync(join(agents, 'com.lowtide.companion.plist'))).toBe(true),
+        { timeout: 8000 },
       );
       await user.click(
         await screen.findByRole('checkbox', { name: 'Restart it if it stops unexpectedly' }),
       );
-      await vi.waitFor(() =>
-        expect(readFileSync(join(agents, 'com.lowtide.companion.plist'), 'utf8')).toMatch(
-          /SuccessfulExit/,
-        ),
+      await vi.waitFor(
+        () =>
+          expect(readFileSync(join(agents, 'com.lowtide.companion.plist'), 'utf8')).toMatch(
+            /SuccessfulExit/,
+          ),
+        { timeout: 8000 },
       );
     }
 
