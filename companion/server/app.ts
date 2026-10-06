@@ -27,6 +27,7 @@ import {
   type NewGrant,
 } from './grants';
 import { loadFrontend } from './frontend';
+import { instanceId, takeLock } from './instance';
 import { PairCodes } from './pairing';
 import { McpServer } from './mcp';
 import { isEmpty, migrateIntoCompanion, migrationInfo } from './migrate';
@@ -277,8 +278,23 @@ export async function startCompanion(options: CompanionOptions): Promise<Compani
     system.log(`[${now().toISOString()}] ${line}`);
   };
   const database = options.database ?? join(options.dataDir, 'lowtide.sqlite');
+  // One companion per database file (v2.3): never a second writer.
+  const lock =
+    database === ':memory:'
+      ? undefined
+      : takeLock(options.dataDir, {
+          pid: process.pid,
+          port: config.port,
+          startedAt: now().toISOString(),
+        });
 
-  const store = new SqliteStore(database);
+  let store: SqliteStore;
+  try {
+    store = new SqliteStore(database);
+  } catch (error) {
+    lock?.release();
+    throw error;
+  }
   if (database !== ':memory:' && existsSync(database)) chmodSync(database, 0o600);
   const grants = new Grants(store.sql, now);
   const owner = createRepositories(store, { watch: store.watch, clock: now });
@@ -359,7 +375,12 @@ export async function startCompanion(options: CompanionOptions): Promise<Compani
     const db = checkIntegrity();
     const conflicts = sync.lastReport?.conflicts.length ?? 0;
     const checks = {
-      runtime: { ok: true, node: process.version, pid: process.pid },
+      runtime: {
+        ok: true,
+        node: process.version,
+        pid: process.pid,
+        instance: instanceId(options.dataDir),
+      },
       database: {
         ok: db.result === 'ok',
         integrity: db.result,
@@ -793,13 +814,20 @@ export async function startCompanion(options: CompanionOptions): Promise<Compani
   server.headersTimeout = 20_000;
   server.requestTimeout = 120_000;
 
-  await new Promise<void>((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(config.port, '127.0.0.1', () => {
-      server.off('error', reject);
-      resolve();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(config.port, '127.0.0.1', () => {
+        server.off('error', reject);
+        resolve();
+      });
     });
-  });
+  } catch (error) {
+    await sync.stop();
+    store.close();
+    lock?.release();
+    throw error;
+  }
   port = (server.address() as AddressInfo).port;
   const url = `http://127.0.0.1:${port}`;
   log(`LOWTIDE companion ${COMPANION_VERSION} listening on ${url}`);
@@ -822,6 +850,7 @@ export async function startCompanion(options: CompanionOptions): Promise<Compani
         server.closeAllConnections();
       });
       store.close();
+      lock?.release();
     },
   };
 }

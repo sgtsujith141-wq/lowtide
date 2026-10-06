@@ -4,6 +4,7 @@ import { dirname, join } from 'node:path';
 import { parseArgs } from 'node:util';
 import { startCompanion } from './app';
 import { defaultDataDir, loadConfig, rotateOwnerToken } from './config';
+import { AlreadyRunningError, portOwner, stopCompanion } from './instance';
 import { runNotionImport, summarise } from './notion-import';
 
 /*
@@ -95,6 +96,37 @@ async function main() {
     process.exitCode = 2;
     return;
   }
+  // Who holds the port (v2.3): reuse a healthy LOWTIDE for this data, stop one
+  // that no longer answers, and never touch another program.
+  const listenPort = port ?? loadConfig(dataDir).port;
+  const owner = await portOwner(listenPort, dataDir);
+  if (owner.kind === 'lowtide' && owner.healthy && owner.sameData) {
+    console.log(`LOWTIDE is already running on port ${listenPort}; nothing to start.`);
+    return;
+  }
+  if (owner.kind === 'lowtide' && owner.healthy) {
+    console.error(
+      `Port ${listenPort} is used by another LOWTIDE with different data. Stop it, or use --port.`,
+    );
+    process.exitCode = 1;
+    return;
+  }
+  if (owner.kind === 'lowtide' && owner.pid !== undefined) {
+    console.log(`A LOWTIDE on port ${listenPort} (pid ${owner.pid}) isn't answering; stopping it.`);
+    if (!(await stopCompanion(owner.pid))) {
+      console.error(`Couldn't stop the unresponsive LOWTIDE (pid ${owner.pid}).`);
+      process.exitCode = 1;
+      return;
+    }
+  }
+  if (owner.kind === 'other') {
+    console.error(
+      `Port ${listenPort} is in use by another program${owner.pid ? ` (pid ${owner.pid}${owner.command ? `: ${owner.command.slice(0, 120)}` : ''})` : ''}. LOWTIDE doesn't stop other programs; free the port or use --port.`,
+    );
+    process.exitCode = 1;
+    return;
+  }
+
   // The built app next to this file in an installed runtime (runtime/<build>/frontend);
   // an installed runtime (it has a runtime.json) must have it to be healthy.
   const bundleDir = dirname(realpathSync(process.argv[1] ?? '.'));
@@ -149,6 +181,10 @@ async function main() {
 }
 
 main().catch((error: unknown) => {
+  if (error instanceof AlreadyRunningError) {
+    console.log(`${error.message}; nothing to start.`);
+    return;
+  }
   const message = error instanceof Error ? error.message : String(error);
   console.error(
     /EADDRINUSE/.test(message)
