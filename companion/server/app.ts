@@ -27,6 +27,7 @@ import {
   type NewGrant,
 } from './grants';
 import { loadFrontend } from './frontend';
+import { PairCodes } from './pairing';
 import { McpServer } from './mcp';
 import { isEmpty, migrateIntoCompanion, migrationInfo } from './migrate';
 import { dispatch, toWireError } from './rpc';
@@ -296,6 +297,7 @@ export async function startCompanion(options: CompanionOptions): Promise<Compani
     COMPANION_VERSION,
   );
   const frontend = loadFrontend(options.frontendDir);
+  const pairCodes = new PairCodes(() => now().getTime());
   const limiter = new RateLimiter();
   const streams = new Set<ServerResponse>();
   const startedAt = now().toISOString();
@@ -448,6 +450,8 @@ export async function startCompanion(options: CompanionOptions): Promise<Compani
     const ok = (body: unknown) => send(res, 200, body, cors);
 
     if (method === 'GET' && path === '/api/status') return ok(await status());
+    // A one-time code for the app launcher to open LOWTIDE paired (ADR-075).
+    if (method === 'POST' && path === '/api/pair-codes') return ok(pairCodes.create());
     if (method === 'GET' && path === '/api/events') return openStream(req, res, cors);
     if (method === 'POST' && path === '/api/rpc') {
       const body = await json();
@@ -690,6 +694,23 @@ export async function startCompanion(options: CompanionOptions): Promise<Compani
       const reply = await mcp.handle(grant, req, res, body);
       if (reply) return send(res, reply.status, reply.body, cors);
       return;
+    }
+
+    // The page the companion served exchanges a one-time code for the owner
+    // token: only from the companion's own origin, and each code only once.
+    if (req.method === 'POST' && path === '/api/pair') {
+      if (!origin || !ownOrigins().has(origin)) {
+        return send(res, 403, { error: 'Pairing works only from the app LOWTIDE serves' }, cors);
+      }
+      const body = parseJson(await readBody(req, 4096)) as { code?: unknown } | null;
+      if (!pairCodes.claim(body?.code)) {
+        if (!limiter.take(`fail:${req.socket.remoteAddress}`, FAILED_AUTH_PER_MINUTE, at)) {
+          return send(res, 429, { error: 'Too many attempts' }, cors);
+        }
+        return send(res, 401, { error: 'That pairing code has expired; open LOWTIDE again' }, cors);
+      }
+      log('the app was paired with a one-time code');
+      return send(res, 200, { url: `http://127.0.0.1:${port}`, token: config.ownerToken }, cors);
     }
 
     if (path.startsWith('/api/')) {
