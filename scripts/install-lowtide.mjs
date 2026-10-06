@@ -468,7 +468,7 @@ async function main() {
   const agentLink = join(opts.launchAgents, `${opts.label}.plist`);
   const oldAgent = existsSync(agentLink) ? readFileSync(agentLink) : undefined;
   if (oldAgent) {
-    mkdirSync(join(opts.home, 'launchd'), { recursive: true });
+    mkdirSync(join(opts.home, 'launchd'), { recursive: true, mode: 0o700 });
     writeFileSync(join(opts.home, 'launchd', `${opts.label}.plist.before-${stamp}`), oldAgent);
   }
   // Until the restart, a failure puts everything back as it was: nothing that runs changed yet.
