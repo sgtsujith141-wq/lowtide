@@ -41,6 +41,7 @@ import {
   mkdtempSync,
   readFileSync,
   openSync,
+  readlinkSync,
   readdirSync,
   realpathSync,
   renameSync,
@@ -459,8 +460,10 @@ async function main() {
     symlinkSync(to, tmp);
     renameSync(tmp, link);
   };
+  const previousLink = join(opts.home, 'previous');
+  const oldPrevious = existsSync(previousLink) ? readlinkSync(previousLink) : undefined;
   if (previousTarget && previousTarget !== realpathSync(staged))
-    swapLink(join(opts.home, 'previous'), previousTarget);
+    swapLink(previousLink, previousTarget);
   swapLink(currentLink, join('runtime', manifest.build));
   const agentLink = join(opts.launchAgents, `${opts.label}.plist`);
   const oldAgent = existsSync(agentLink) ? readFileSync(agentLink) : undefined;
@@ -468,6 +471,16 @@ async function main() {
     mkdirSync(join(opts.home, 'launchd'), { recursive: true });
     writeFileSync(join(opts.home, 'launchd', `${opts.label}.plist.before-${stamp}`), oldAgent);
   }
+  // Until the restart, a failure puts everything back as it was: nothing that runs changed yet.
+  const unswitch = (why) => {
+    if (previousTarget) swapLink(currentLink, previousTarget);
+    else rmSync(currentLink, { force: true });
+    if (oldPrevious) swapLink(previousLink, oldPrevious);
+    else rmSync(previousLink, { force: true });
+    if (oldAgent) writeFileSync(agentLink, oldAgent);
+    else rmSync(agentLink, { force: true });
+    fail(`${why}; the links and the agent were put back, and the running LOWTIDE wasn’t touched`);
+  };
   const cli = (...args) =>
     execFileSync(opts.node, [join(currentLink, 'companion', 'lowtide-companion.js'), ...args], {
       encoding: 'utf8',
@@ -485,28 +498,33 @@ async function main() {
     '--node',
     opts.node,
   ];
-  cli(
-    'install-agent',
-    ...common,
-    '--launch-agents',
-    opts.launchAgents,
-    '--start-at-login',
-    opts.startAtLogin ? 'yes' : 'no',
-  );
-  const icon = join(currentLink, 'app', 'LOWTIDE.icns');
-  const app = JSON.parse(
+  let app;
+  try {
     cli(
-      'install-app',
+      'install-agent',
       ...common,
-      '--apps',
-      opts.apps,
-      '--version',
-      manifest.version,
-      '--build',
-      manifest.build,
-      ...(existsSync(icon) ? ['--icon', icon] : []),
-    ).trim(),
-  ).app;
+      '--launch-agents',
+      opts.launchAgents,
+      '--start-at-login',
+      opts.startAtLogin ? 'yes' : 'no',
+    );
+    const icon = join(currentLink, 'app', 'LOWTIDE.icns');
+    app = JSON.parse(
+      cli(
+        'install-app',
+        ...common,
+        '--apps',
+        opts.apps,
+        '--version',
+        manifest.version,
+        '--build',
+        manifest.build,
+        ...(existsSync(icon) ? ['--icon', icon] : []),
+      ).trim(),
+    ).app;
+  } catch (error) {
+    unswitch(`couldn’t write the agent or LOWTIDE.app (${String(error.message).split('\n')[0]})`);
+  }
   spawnSync('/usr/bin/codesign', ['--force', '--sign', '-', app], { stdio: 'ignore' });
   say(
     `4. current → ${manifest.build}${previousTarget ? `, previous → ${basename(previousTarget)}` : ''}; launchd agent written (start at login ${opts.startAtLogin ? 'on' : 'off'}); ${app}`,
