@@ -59,7 +59,9 @@ export function runtimePaths(
     launchdDir: join(home, 'launchd'),
     plist: join(home, 'launchd', `${label}.plist`),
     agentLink: join(
-      options.launchAgentsDir ?? join(homedir(), 'Library', 'LaunchAgents'),
+      options.launchAgentsDir ??
+        process.env.LOWTIDE_LAUNCH_AGENTS_DIR ??
+        join(homedir(), 'Library', 'LaunchAgents'),
       `${label}.plist`,
     ),
     companion: join(current, 'companion', 'lowtide-companion.js'),
@@ -140,6 +142,7 @@ ${args.map((a) => `    <string>${xml(a)}</string>`).join('\n')}
     <key>LOWTIDE_KEEPALIVE</key><string>1</string>
     <key>LOWTIDE_HOME</key><string>${xml(paths.home)}</string>
     <key>LOWTIDE_LAUNCHD_LABEL</key><string>${xml(paths.label)}</string>
+    <key>LOWTIDE_LAUNCH_AGENTS_DIR</key><string>${xml(dirname(paths.agentLink))}</string>
     <key>PATH</key><string>/usr/bin:/bin:/usr/sbin:/sbin</string>
   </dict>
   <key>StandardOutPath</key><string>${xml(log)}</string>
@@ -202,6 +205,7 @@ LAUNCHER=${sh(paths.companion)}
 LOG=${sh(join(paths.logs, 'launcher.log'))}
 export LOWTIDE_HOME=${sh(paths.home)}
 export LOWTIDE_LAUNCHD_LABEL=${sh(paths.label)}
+export LOWTIDE_LAUNCH_AGENTS_DIR=${sh(dirname(paths.agentLink))}
 alert() {
   [ -n "$LOWTIDE_NO_ALERT" ] && return 0
   /usr/bin/osascript -e 'on run argv' -e 'display alert (item 1 of argv) message (item 2 of argv) as critical' -e 'end run' "$1" "$2" >/dev/null 2>&1
