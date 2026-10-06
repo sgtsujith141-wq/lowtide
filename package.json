@@ -11,7 +11,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "companion:build": "vite build --config companion/vite.config.ts",
+    "companion:build": "vite build --config companion/vite.config.ts && vite build --config companion/vite.bridge.config.ts",
     "companion": "npm run companion:build && node companion/dist/lowtide-companion.js",
     "e2e:companion": "node scripts/e2e-companion.mjs",
     "typecheck": "tsc -b",
